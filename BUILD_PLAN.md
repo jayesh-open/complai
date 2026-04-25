@@ -3,7 +3,7 @@
 Last updated: 2026-04-25
 
 ## Current part
-Part 2 complete. Next = Part 3.
+Part 3 complete. Next = Part 4.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -32,6 +32,21 @@ Part 2 complete. Next = Part 3.
   - [x] README.md
   - [x] Health-probe-service — boots, /health returns 200, /metrics returns Prometheus format
   - [x] All tests green (Go build, Go tests, TS typecheck, lint)
+- [x] Part 3: Platform services (master-data, document, notification, audit, workflow, rules)
+  - [x] master-data-service: CRUD for HSN codes, state codes, vendors, customers, items (port 8084, master_data_db)
+  - [x] document-service: Upload with DEK envelope encryption (AES-256-GCM + KMS CMK), download/decrypt, OCR trigger, document lineage (port 8085, document_db)
+  - [x] notification-service: Email send via SMTP (Mailpit in dev), digest consolidation (N→1 email), bounce processing with email_valid flag, user preferences (port 8086, notification_db)
+  - [x] audit-service: Immutable event log, Merkle hash chain per hour bucket, integrity check with tamper detection (port 8087, audit_db)
+  - [x] workflow-service: Workflow definitions/instances, human tasks, Temporal integration (NoopEngine fallback), signal-based task completion (port 8089, workflow_db)
+  - [x] rules-engine-service: Tax determination (intra/inter-state CGST/SGST/IGST split), HSN validation with rate lookup, TDS applicability (6 sections), execution logging (port 8090, rules_engine_db)
+  - [x] Postgres RLS enforced on all 6 new databases (complai_app role, SET LOCAL app.tenant_id)
+  - [x] Outbox pattern verified: pending row → SQS delivery → published status
+  - [x] Merkle chain integrity: 100 events → hash computed → tamper detected
+  - [x] Notification digest: 5 notifications → 1 digest email via Mailpit
+  - [x] SES bounce simulation: bounce → email_valid=false, bounce_count=1
+  - [x] Unit test coverage: master-data 98.0%, document 90.1%, notification 89.9%, audit 98.9%, workflow 90.8%, rules-engine 98.3%
+  - [x] Dockerfiles for all 6 services
+  - [x] Goose migrations for all 6 databases
 
 ## Blockers / credentials needed
 - AWS account with IAM roles + ap-south-1/ap-south-2 enabled (Part 1)

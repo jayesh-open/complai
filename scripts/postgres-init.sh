@@ -24,6 +24,7 @@ DATABASES=(
   billing_db
   secretarial_db
   workflow_db
+  notification_db
   reporting_db
   rules_engine_db
   keycloak_db

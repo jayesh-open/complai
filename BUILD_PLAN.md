@@ -3,7 +3,7 @@
 Last updated: 2026-04-25
 
 ## Current part
-Part 3 complete. Next = Part 4.
+Part 4.5 complete (Bank Open scope correction). Next = Part 5.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -48,6 +48,41 @@ Part 3 complete. Next = Part 4.
   - [x] Dockerfiles for all 6 services
   - [x] Goose migrations for all 6 databases
 
+- [x] Part 4: API Gateway + BFF + Web Shell + design system components
+  - [x] web-bff-service (Node/Express): aggregates backend services, CSRF, idempotency, tenant context propagation (port 3100)
+  - [x] apps/web (Next.js 15 App Router): authenticated layout with Complai shell, sidebar with 6 groups, theme provider (15 themes), command palette
+  - [x] packages/ui-components: Aura primitives + compliance-specific components (StatusBadge, GovStatusPill, FilingConfirmationModal, VendorComplianceScoreCard, MakerCheckerApprovalCard, etc.)
+  - [x] Design tokens: CSS variables per Aura themes.ts, Tailwind config, density modes
+  - [x] Storybook 8 with a11y addon
+  - [x] E2E tests (Playwright): sidebar groups, theme switching, density, command palette, dashboard
+- [x] Part 4.5: Scope correction — align with Bank Open ecosystem (Apex/Aura/Bridge/HRMS)
+  - [x] PRD updated: removed modules 7-10 (AP Automation, Invoice Discounting, Complai One, Vendor Management), renumbered to 7 modules, added Bank Open ecosystem + Integration Layer sections
+  - [x] Architecture updated: removed ap-service + billing-service, renamed vendor-service → vendor-compliance-service, added 4 sibling gateways, added canonical schemas (Payment, Contract, Payroll)
+  - [x] Design system updated: sidebar 7→6 groups (removed Procurement/Payables, added Data Sources), module colors updated to 7 modules
+  - [x] Build prompt updated: relabeled Parts 6, 7, 11, 13 for Bank Open alignment, updated E2E test suite
+  - [x] Sidebar component updated: 6 groups with Data Sources, compliance items renamed
+  - [x] Command palette + header updated: removed procurement/payables commands, added compliance + data-sources
+  - [x] Data Sources route pages created: connected-apps, sync-status, ar-invoices, ap-invoices, vendors, contracts, payroll
+  - [x] E2E tests updated: 6 groups assertion, compliance group collapse test
+  - [x] CLAUDE.md + BUILD_PLAN.md updated
+
+## Bank Open ecosystem
+Complai is one of four sibling apps in the Bank Open family:
+- **Apex P2P** — owns vendor master, AP invoices, POs, GRNs, payments (in UAT)
+- **Aura O2C** — owns customer master, AR invoices, collections (early stage)
+- **Bridge** — owns contracts, obligations, renewals (early stage)
+- **HRMS** — external, payroll data + Form 16
+
+Complai consumes from siblings via 4 gateway services (apex-gateway, aura-gateway, bridge-gateway, hrms-gateway). Phase 1 uses mock data sources; Phase 2 connects to real sibling APIs.
+
+## Out of scope (moved to siblings)
+- **AP Automation** — Apex P2P owns invoice ingestion, OCR, 3-way match, approval workflows, payment file generation
+- **Invoice Discounting** — Apex P2P will integrate with TReDS
+- **Complai One (SMB billing)** — deferred; Aura O2C covers SMB invoicing
+- **Vendor Management (CRUD)** — Apex P2P owns vendor master; Complai only does compliance scoring on synced data
+- **Vendor Portal** — Apex P2P provides vendor self-service portal
+- **Portal BFF + SMB BFF** — removed (no vendor-portal or complai-one apps)
+
 ## Blockers / credentials needed
 - AWS account with IAM roles + ap-south-1/ap-south-2 enabled (Part 1)
 - Cloudflare account (Pro or Business plan) (Part 1 / Part 14)
@@ -58,9 +93,11 @@ Part 3 complete. Next = Part 4.
 - Last9 account (Part 3 / Part 14)
 - Amazon SES production access (1-3 business day request) (Part 3)
 - Azure OpenAI subscription + private endpoint (Part 12)
+- Apex P2P UAT API access + webhook config (Part 6 mock, Part 13 real)
+- Aura O2C API access (Part 11 mock, Part 13 real)
+- Bridge API access (Part 11 mock, Part 13 real)
+- HRMS API access (Part 11 mock, Part 13 real)
 - MCA21 test access (Part 13)
-- SAP/Oracle test systems (Part 13)
-- HDFC/ICICI sandbox bank APIs (Part 13)
 
 ## DevOps handoff
 
@@ -92,8 +129,7 @@ Items that require real AWS/cloud access. The DevOps team should execute these w
 - [ ] Request Amazon SES production access (1-3 business day approval)
 - [ ] Configure SES sending domains: `complai.in`, `notifications.complai.in`
 - [ ] Set up DKIM + SPF + DMARC for all sending domains
-- [ ] Configure SES inbound email for per-tenant AP inboxes (`*@inbox.complai.in`)
-- [ ] Set up SES → Lambda → S3 → SQS pipeline for email ingestion
+- [ ] Configure SES inbound email for notification replies (`*@replies.complai.in`)
 
 ### Observability (Part 3 / Part 14)
 - [ ] Create Last9 account and obtain OTLP endpoint
@@ -103,7 +139,7 @@ Items that require real AWS/cloud access. The DevOps team should execute these w
 
 ### Workflow orchestration (Part 3)
 - [ ] Create Temporal Cloud account (AWS Mumbai region)
-- [ ] Provision namespaces: complai-filings, complai-reconciliation, complai-bulk, complai-ap, complai-onboarding
+- [ ] Provision namespaces: complai-filings, complai-reconciliation, complai-bulk, complai-sync, complai-onboarding
 - [ ] Configure Temporal Cloud mTLS certificates
 
 ### CI/CD (Part 1)
@@ -132,8 +168,12 @@ Items that require real AWS/cloud access. The DevOps team should execute these w
 - [ ] Adaequare: sign contract, receive sandbox credentials, whitelist NAT EIPs, test e-Invoice + EWB (Part 5)
 - [ ] Sandbox.co.in: create account, subscribe to TDS + IT + KYC + Tax Payment, receive sandbox API key (Part 6)
 - [ ] MCA21 V3: obtain test access for ROC form filing (Part 13)
-- [ ] HDFC ENet / ICICI iConnect: obtain sandbox API access (Part 13)
-- [ ] SAP / Oracle NetSuite: obtain test system access (Part 13)
+
+### Sibling app onboarding (Bank Open ecosystem)
+- [ ] Apex P2P: obtain UAT API credentials, configure webhook endpoints for vendor + AP invoice sync (Part 13)
+- [ ] Aura O2C: obtain API credentials, configure webhook endpoints for AR invoice sync + IRN/EWB status pushback (Part 13)
+- [ ] Bridge: obtain API credentials, configure webhook for contract sync (Part 13)
+- [ ] HRMS: obtain API credentials, configure webhook for payroll + Form 16 sync (Part 13)
 
 ## Notes
 - Docs in /docs/input are authoritative; don't re-derive

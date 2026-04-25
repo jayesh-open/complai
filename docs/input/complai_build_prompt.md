@@ -133,8 +133,6 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 
 ## Repo layout
 - apps/web — Next.js main product
-- apps/vendor-portal — external vendor app
-- apps/clearone — SMB billing PWA
 - services/go/{name}-service — Go services (domain + gateways)
 - services/python/{name}-service — Python AI services
 - services/node/{name}-bff-service — TypeScript BFFs
@@ -154,14 +152,14 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 - [ ] Part 3: Platform services (master-data, document, notification, audit, workflow, rules)
 - [ ] Part 4: API Gateway + BFF + Web Shell + design system components
 - [ ] Part 5: Adaequare GST gateway + GSTR-1 flow
-- [ ] Part 6: Sandbox KYC gateway + Vendor Compliance
-- [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS
+- [ ] Part 6: Sandbox KYC gateway + Vendor Compliance + Apex Sync
+- [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
 - [ ] Part 8: e-Invoicing + E-Way Bill
 - [ ] Part 9: Sandbox TDS gateway + TDS module
 - [ ] Part 10: Sandbox ITR + GSTR-9/9C
-- [ ] Part 11: AP Automation + ClearOne SMB
+- [ ] Part 11: Sibling gateway services (Aura, Bridge, HRMS)
 - [ ] Part 12: AI layer + MaxITC
-- [ ] Part 13: Real ERP + bank integrations + Compliance Cloud
+- [ ] Part 13: Real Bank Open sibling sync + GL-Stream + Compliance Cloud
 - [ ] Part 14: Reporting + observability + production hardening
 
 ## Credentials / blockers needed
@@ -337,7 +335,7 @@ None yet.
 
 ## PART 4 — API Gateway, BFF, Web Shell + Design System (~9h)
 
-**Goal:** UI shell is live. User logs in, sees sidebar with 7 groups, navigates placeholder pages, toggles theme, sees Complai design system in Storybook.
+**Goal:** UI shell is live. User logs in, sees sidebar with 6 groups, navigates placeholder pages, toggles theme, sees Complai design system in Storybook.
 
 **Inputs:** `complai_design_system.md` (whole); `AURA_DESIGN_SYSTEM.md`; architecture §3.5, §11.
 
@@ -347,7 +345,7 @@ None yet.
 
 2. **`web-bff-service` (Node/NestJS)** — aggregates backend services; REST (GraphQL deferred); session mgmt, CSRF tokens, idempotency; per-tenant context propagation.
 
-3. **`apps/web` (Next.js 15 App Router)** — authenticated layout with Complai shell; sidebar with 7 groups (Dashboard / My Tasks / Inbox → Procurement → Payables → Compliance → Insights → Documents → Configure), collapsible, badge nudges, environment indicator, tenant/PAN/GSTIN selectors; theme provider (all 15 themes, Light Classic default); command palette (⌘K); routes rendering placeholders.
+3. **`apps/web` (Next.js 15 App Router)** — authenticated layout with Complai shell; sidebar with 6 groups (Dashboard / My Tasks / Inbox → Compliance → Insights → Data Sources → Documents → Configure), collapsible, badge nudges, environment indicator, tenant/PAN/GSTIN selectors; theme provider (all 15 themes, Light Classic default); command palette (⌘K); routes rendering placeholders including `/data-sources/*` for Bank Open sibling sync views.
 
 4. **`packages/ui-components` — Complai primitives** — Aura primitives (Button, Input, Select, Checkbox, Radio, Switch, Textarea, DatePicker, NumberInput, Card, Modal, Drawer, Toast, Tooltip, Popover, Skeleton, EmptyState, Tab, Breadcrumb); compliance-specific per design system §5 (StatusBadge, GovStatusPill, PeriodSelector, AuditTrailTimeline, KpiMetricCard, DataTable, FilingConfirmationModal, VendorComplianceScoreCard (skeleton), BulkOperationTray, MakerCheckerApprovalCard (skeleton), ReconciliationSplitPane (skeleton)); Storybook 8 with a11y addon.
 
@@ -357,14 +355,14 @@ None yet.
 
 **Tests:**
 
-- **E2E (Playwright)** — new user logs in → dashboard with correct sidebar groups → switches to Ocean theme → persists across refresh → logs out.
+- **E2E (Playwright)** — new user logs in → dashboard with 6 sidebar groups → switches to Ocean theme → persists across refresh → logs out.
 - **Accessibility** — every Storybook story passes axe-core (0 violations).
 - **Visual regression (Chromatic)** — baselines for all primitives in 3 themes.
 - **Density** — DataTable renders at correct row heights in all three modes.
 - **Command palette** — ⌘K opens, fuzzy search filters, Enter navigates.
 - **GovStatusPill** — renders correctly for GSTN/IRP/EWB/TRACES/MCA in success/warning/danger.
 
-**DoD:** login → dashboard E2E works; sidebar groups per design §3.1; Light Classic default, all themes switchable; Storybook published. Committed: `feat(ui): shell, design system, bff, cloudflare + alb + istio`.
+**DoD:** login → dashboard E2E works; sidebar 6 groups per design §2.1; Light Classic default, all themes switchable; Storybook published. Committed: `feat(ui): shell, design system, bff, cloudflare + alb + istio`.
 
 ---
 
@@ -402,45 +400,45 @@ None yet.
 
 ---
 
-## PART 6 — Sandbox KYC gateway + Vendor Compliance (~8h)
+## PART 6 — Sandbox KYC gateway + Vendor Compliance + Apex Sync (~8h)
 
-**Goal:** Vendor onboarding end-to-end. PAN + GSTIN + bank validation via Sandbox.co.in. Vendor compliance scorecard live.
+**Goal:** Vendor compliance scoring on vendor master synced from Apex P2P. KYC validation via Sandbox.co.in. No vendor CRUD in Complai — Apex owns the vendor master.
 
-**Inputs:** `complai_api_integration.md` §4.4; PRD §13, §7; design system §5.8.
+**Inputs:** `complai_api_integration.md` §4.4; PRD §4 (Module 4); design system §5.8.
 
 **Tasks:**
 
 1. **`kyc-gateway-service` (Go)** — Sandbox KYC API; auth: api_key + api_secret → bearer cached in Redis; internal contract `POST /v1/gateway/sandbox/kyc/{action}`; actions: pan-verify, aadhaar-otp, aadhaar-verify, gstin-verify, tan-verify, bank-account-verify, mca-company, mca-director, udyam-verify, digilocker-session; response caching (GSTIN 7d, PAN 30d, TAN 30d, HSN 90d, bank 90d).
 
-2. **`vendor-service` (Go)** — Vendor CRUD with multi-contact, multi-address, multi-bank. Onboarding workflow (Temporal): Basic → KYC via Sandbox → compliance check via Adaequare `getReturnTrack` → score → approval. Compliance score 0-100: filing regularity (30) + IRN compliance (20) + mismatch rate (20) + payment behavior (15) + document hygiene (15). Category A/B/C/D. Vendor portal (read-only).
+2. **`apex-gateway-service` (Go)** — Consumes vendor master, AP invoices, payments, POs, GRNs from Apex P2P. Phase 1: mock data source with realistic sample data. Internal contract `POST /v1/gateway/apex/{resource}/{action}`. Webhook receiver for real-time sync (Phase 2). Publishes `VendorSynced.topic` and `InvoiceSynced.topic` via SNS.
 
-3. **UI: Vendor management** — Vendors list (Workflow List pattern): KPI cards, filters; vendor detail with tabs (Overview with score card, Invoices, Compliance heatmap, Communications, Documents, Audit Trail); Add vendor wizard; bulk import.
+3. **`vendor-compliance-service` (Go)** — Read-only vendor store synced from Apex (no vendor CRUD). Compliance scoring 0-100: filing regularity (30) + IRN compliance (20) + mismatch rate (20) + payment behavior (15) + document hygiene (15). Category A/B/C/D. KYC enrichment via Sandbox. Compliance check via Adaequare `getReturnTrack`. MaxITC orchestration stub (completed in Part 12). Temporal workflow: `vendor-compliance-sync`.
 
-4. **Vendor portal (`apps/vendor-portal`)** — magic-link auth; vendor sees only their data; can correct mailing address, bank (triggers re-KYC).
+4. **UI: Vendor Compliance** — Vendor compliance list (Workflow List pattern): KPI cards (total vendors, high-risk count, avg score), filters by category/score/state; vendor compliance detail with tabs (Compliance Score, Filing History heatmap, ITC Impact, Documents, Audit Trail); Data Sources > Imported Vendors view.
 
 **Tests:**
 
 - **Sandbox integration** — PAN verify cached first call → second call within TTL hits cache.
-- **Onboarding E2E** — valid GSTIN vendor → KYC passes → score computed → active.
-- **Bulk import** — 5,000 rows → mapper → preview → save → all created with KYC.
+- **Apex sync** — mock Apex publishes 100 vendors → vendor-compliance-service receives → stores read-only copies.
 - **Score accuracy** — 100% on-time + no mismatches → ≥90; late filings → <70.
-- **Vendor portal RLS** — vendor A cannot see vendor B data.
+- **No CRUD** — POST/PUT/DELETE vendor endpoints return 405; only Apex sync creates vendors.
+- **Data Sources UI** — Imported Vendors page shows synced vendors with sync timestamp.
 
-**DoD:** single + bulk onboarding works; score displays; portal functional. Committed: `feat(vendor): compliance, kyc gateway, vendor portal`.
+**DoD:** vendor compliance scoring works on Apex-synced vendors; KYC enrichment functional. Committed: `feat(vendor): compliance scoring, kyc gateway, apex sync`.
 
-> **Credential checkpoint:** Sandbox.co.in sandbox api_key/secret. Mock pattern if missing.
+> **Credential checkpoint:** Sandbox.co.in sandbox api_key/secret. Mock pattern if missing. Apex gateway uses mock data source in Phase 1.
 
 ---
 
 ## PART 7 — Reconciliation Engine + GSTR-3B + GSTR-2B/IMS (~11h)
 
-**Goal:** Full ITC cycle. Pull 2A/2B/IMS via Adaequare → reconcile vs purchase register → IMS actions → auto-populate GSTR-3B → file.
+**Goal:** Full ITC cycle. Pull 2A/2B/IMS via Adaequare → reconcile vs purchase register (sourced from Apex AP invoices) → IMS actions → auto-populate GSTR-3B → file.
 
 **Inputs:** PRD §4.2.5, §4.2.3; API spec §3.5 (IMS); design system §4.3.
 
 **Tasks:**
 
-1. **`recon-service` (Go)** — Pull GSTR-2A section-by-section on schedule; GSTR-2B monthly; IMS + changes. 5-stage match pipeline: Exact → Fuzzy (Levenshtein on invoice_no, ±2d date, ±₹1 amount) → AI (Phase 12 stub) → Partial → Unmatched. Bucket persistence per period per GSTIN. IMS action sync via outbox → gstn-gateway → poll 2B regeneration → re-match.
+1. **`recon-service` (Go)** — Consumes AP invoice register from Apex via `apex-gateway-service` as "purchase register" (Complai does not own AP invoices). Pull GSTR-2A section-by-section on schedule; GSTR-2B monthly; IMS + changes. 5-stage match pipeline: Exact → Fuzzy (Levenshtein on invoice_no, ±2d date, ±₹1 amount) → AI (Phase 12 stub) → Partial → Unmatched. Bucket persistence per period per GSTIN. IMS action sync via outbox → gstn-gateway → poll 2B regeneration → re-match.
 
 2. **`gstr3b-service` (Go)** — Auto-populate from GSTR-1 (Tables 1-6), GSTR-2B/IMS (Tables 4A-D), ledgers. User override with justification. Liability offset (cash + credit ledger). Temporal: Prepare → Validate → Offset → Sign → File → Ack.
 
@@ -551,31 +549,33 @@ None yet.
 
 ---
 
-## PART 11 — AP Automation + ClearOne SMB (~11h)
+## PART 11 — Sibling Gateway Services (Aura, Bridge, HRMS) (~8h)
 
-**Goal:** AP workflow (receipt → OCR → approval → payment). SMB billing app.
+**Goal:** Wire remaining Bank Open sibling gateways. Complai consumes AR invoices from Aura, contracts from Bridge, payroll from HRMS. Phase 1: mock data sources with realistic sample data.
 
-**Inputs:** PRD §10, §12.
+**Inputs:** PRD §11 (Integration Layer); architecture §10A.
 
 **Tasks:**
 
-1. **`ap-service` (Go)** — Invoice ingestion: email inbox (per-tenant SES address → Lambda → S3 → processor), drag-drop, API, ERP push; OCR via `ocr-service`; approval workflows (maker-checker, configurable); payment file gen (ISO 20022 pain.001, HDFC/ICICI/SBI formats); 3-way match (PO + GRN + Invoice); exception policies.
+1. **`aura-gateway-service` (Go)** — Consumes customer master and AR invoices from Aura O2C. Publishes back filed-IRN-status and EWB status to Aura. Phase 1: mock data source. Internal contract `POST /v1/gateway/aura/{resource}/{action}`. Publishes `InvoiceSynced.topic` (AR). Data Sources > Imported AR Invoices view.
 
-2. **UI: AP module** — Invoice inbox (Workflow List); invoice detail with OCR confidence per field + corrections; approval card in My Tasks; payment run flow.
+2. **`bridge-gateway-service` (Go)** — Consumes contracts from Bridge for TDS section determination and secretarial obligations. Phase 1: mock data source. Internal contract `POST /v1/gateway/bridge/{resource}/{action}`. Canonical Contract Schema mapping.
 
-3. **`billing-service` (Go) — ClearOne** — SMB invoice creation (5-field form); mobile-first PWA; e-Invoice + EWB integrated; payment links (Razorpay/Cashfree); recurring invoices; simple GSTR-1 for under-threshold SMBs.
+3. **`hrms-gateway-service` (Go)** — Consumes payroll data and Form 16 from external HRMS. Phase 1: mock data source. Internal contract `POST /v1/gateway/hrms/{resource}/{action}`. Canonical Payroll Schema mapping. Used by TDS (24Q salary) and ITR (employer-side bulk filing).
 
-4. **UI: ClearOne (`apps/clearone`)** — minimal sidebar; bigger tap targets, guided flows; Light Classic default, Dark option.
+4. **UI: Data Sources module** — Connected Apps page (status cards for Apex, Aura, Bridge, HRMS); Sync Status dashboard (last sync time, record counts, errors); Imported AR Invoices, Imported Contracts, Imported Payroll Data list pages.
+
+5. **Canonical schema adapters** — Implement Canonical Payment Schema, Contract Schema, Payroll Schema transforms from each sibling's format.
 
 **Tests:**
 
-- OCR: 50 Indian invoices → >90% field accuracy.
-- 3-way match: all match → auto-approved; ₹50 off → routed.
-- Payment file: 20 invoices → valid pain.001 XML.
-- ClearOne: SMB creates invoice → payment link → customer pays → IRN auto-generated → EWB if shipment.
-- Approval chain: 3-of-5 → 2 approve, still pending → 3rd approves → released.
+- **Aura sync** — mock Aura publishes 500 AR invoices → synced → available for GSTR-1.
+- **Bridge sync** — mock Bridge publishes 50 contracts → synced → TDS section determination works.
+- **HRMS sync** — mock HRMS publishes 200 payroll records → synced → available for 24Q.
+- **Data Sources UI** — Connected Apps shows 4 sibling apps with status; Sync Status shows timestamps and counts.
+- **Canonical transforms** — each gateway maps raw sibling data to canonical schema correctly.
 
-**DoD:** AP flow complete; ClearOne functional. Committed: `feat(ap-smb): ap + clearone`.
+**DoD:** all 4 sibling gateways operational with mock data; Data Sources UI functional. Committed: `feat(gateways): aura, bridge, hrms sibling sync`.
 
 ---
 
@@ -604,32 +604,38 @@ None yet.
 
 ---
 
-## PART 13 — Real ERP/Bank integrations + GL-Stream + Compliance Cloud (~10h)
+## PART 13 — Real Bank Open Sibling Sync + GL-Stream + Compliance Cloud (~10h)
 
-**Goal:** Replace stubbed ERP/bank connectors with real integrations; Compliance Cloud (secretarial).
+**Goal:** Replace mock sibling gateways with real Apex/Aura/Bridge/HRMS integrations; Compliance Cloud (secretarial); GL stream back to siblings.
 
-**Inputs:** PRD §14; architecture §3.3.
+**Inputs:** PRD §11 (Integration Layer); architecture §10A.
 
 **Tasks:**
 
-1. **ERP connectors (`erp-gateway-service`)** — SAP (RFC/BAPI + OData for S/4HANA); Oracle NetSuite (SuiteTalk REST); Tally (XML/ODBC bridge); MS Dynamics 365 (Dataverse API); custom REST framework.
+1. **Real Apex sync (`apex-gateway-service`)** — replace mock data source with real Apex P2P API/webhook integration; vendor master bidirectional compliance status; AP invoice real-time sync; PO + GRN sync for recon context.
 
-2. **Bank connectors (`bank-gateway-service`)** — HDFC ENet + OnWIRE; ICICI iConnect + CIB; Axis CIB; SBI eSurvey/ePay; Razorpay + Cashfree collections; TReDS (RXIL, M1, Invoicemart) for discounting.
+2. **Real Aura sync (`aura-gateway-service`)** — replace mock with real Aura O2C API; AR invoice sync; publish back filed-IRN-status + EWB status to Aura for their invoice lifecycle.
 
-3. **`gl-stream-service` (Go)** — real-time GL posting from compliance actions; double-entry integrity; push to ERPs as journals.
+3. **Real Bridge sync (`bridge-gateway-service`)** — replace mock with real Bridge API; contract sync for TDS section determination + secretarial obligation tracking.
 
-4. **`secretarial-service` (Go) — Compliance Cloud** — entity registry (companies, LLPs, directors, DINs); filing calendar (AOC-4, MGT-7, DIR-3 KYC, ADT-1, CHG-1); MCA21 V3 integration (direct); document mgmt; compliance health score per entity.
+4. **Real HRMS sync (`hrms-gateway-service`)** — replace mock with real HRMS API; payroll + Form 16 sync for 24Q + ITR.
+
+5. **`gl-stream-service` (Go)** — real-time GL posting from compliance actions (tax paid, ITC claimed, TDS deposited); double-entry integrity; push journals back to Apex/Aura via sibling gateways.
+
+6. **`secretarial-service` (Go) — Compliance Cloud** — entity registry (companies, LLPs, directors, DINs); filing calendar (AOC-4, MGT-7, DIR-3 KYC, ADT-1, CHG-1); MCA21 V3 integration (direct); document mgmt; compliance health score per entity; consumes company structure from Bridge.
 
 **Tests:**
 
-- SAP round-trip: create invoice → push → journal visible; master bidirectional.
-- HDFC payment: file → sandbox → status polled → reconciliation event.
+- Apex real sync: vendor master changes in Apex → reflected in Complai within 60s.
+- Aura round-trip: AR invoice synced → IRN generated → status pushed back to Aura.
+- Bridge: contract synced → correct TDS section derived → secretarial obligations created.
+- HRMS: payroll synced → 24Q pre-populated correctly.
 - ROC: AOC-4 → XML → MCA21 test → SRN received.
 - GL integrity: daily imbalance = 0 across synthetic week.
 
-**DoD:** 2+ ERP connectors live; 2+ banks live; ROC works. Committed: `feat(integrations): erp, bank, mca21, gl-stream`.
+**DoD:** all 4 sibling gateways on real APIs; secretarial works; GL sync operational. Committed: `feat(integrations): real sibling sync, mca21, gl-stream`.
 
-> **Credential checkpoint:** SAP test, HDFC sandbox, MCA21 test. Stub if missing.
+> **Credential checkpoint:** Apex/Aura/Bridge API access (UAT), HRMS API, MCA21 test. Stub if missing.
 
 ---
 
@@ -673,11 +679,11 @@ Complete platform acceptance test. Runs against fresh staging. ~4 hours end-to-e
 ### 1. Tenant Lifecycle
 Platform admin creates "Acme Manufacturing" (3 PANs, 15 GSTINs, 5 TANs). Acme admin adds 10 users across role templates. Permission matrix validated. Adaequare + Sandbox creds connected. 3-of-5 approval workflow for filings > ₹50L.
 
-### 2. Vendor Onboarding at Scale
-5,000 vendors imported. KYC runs. Scores computed. 30 high-risk flagged. Vendor portal accessible to 20 test vendors, seeing only their own data.
+### 2. Vendor Compliance at Scale
+5,000 vendors synced from Apex (mock data source). KYC enrichment runs. Compliance scores computed. 30 high-risk flagged. No vendor CRUD — all vendor data read-only from Apex.
 
 ### 3. Full GST Cycle (April 2026)
-3,000 AP invoices via email + OCR + SAP. 3-way match: 2,800 auto, 200 routed. 800 IRNs + 400 EWBs. GSTR-1 prep → filed → ARN. 2B pulled → recon 95% matched → IMS actions on 120 → 2B regenerated → GSTR-3B auto-fill → offset → filed → ARN. Audit trail complete. CFO dashboard accurate.
+3,000 AP invoices synced from Apex via apex-gateway-service. 800 IRNs + 400 EWBs. GSTR-1 prep → filed → ARN. 2B pulled → recon against Apex purchase register → 95% matched → IMS actions on 120 → 2B regenerated → GSTR-3B auto-fill → offset → filed → ARN. Audit trail complete. CFO dashboard accurate.
 
 ### 4. Full TDS Cycle (Q4 FY 2025-26)
 500 salaried (24Q), 2,000 non-salary (26Q), 100 non-resident (27Q). TDS calc + 206AB (30 specified-persons caught). Challans deposited + CIN captured. TXT → CSI (OTP) → FVU → E-File → E-Verify → RRR. Q4: Form 16 bulk for 500 employees.
@@ -685,8 +691,8 @@ Platform admin creates "Acme Manufacturing" (3 PANs, 15 GSTINs, 5 TANs). Acme ad
 ### 5. ITR Filing (AY 2026-27)
 500 employees invited. 300 complete in a week. Mix of ITR-1 + ITR-2. 50 complex cases → CA marketplace → filed → fees collected. All ITR-Vs e-verified.
 
-### 6. AP + Discounting + ClearOne
-1,000 invoices → OCR → 3-way → approval → payment. Files for HDFC + ICICI. 50 invoices to TReDS (RXIL) → best bid → funded. 10 SMB tenants on ClearOne → 100 Razorpay payments → auto-reconciled.
+### 6. Bank Open Sibling Sync
+All 4 sibling gateways operational. Apex: 5,000 vendors + 3,000 AP invoices synced. Aura: 2,000 AR invoices synced, IRN status published back. Bridge: 200 contracts synced, TDS sections derived. HRMS: 500 payroll records synced, Form 16 data available for 24Q. Data Sources UI shows all connected apps with sync status. GL journals posted back to siblings.
 
 ### 7. Annual Filings + Compliance Cloud
 GSTR-9 + 9C for one GSTIN → filed. AOC-4 + MGT-7 + DIR-3 KYC for 1 company + 5 directors via MCA21.

@@ -1,9 +1,30 @@
 # Complai — Product Requirements Document
 
-**Version:** 1.0
+**Version:** 2.0
 **Status:** Approved for build
 **Owner:** Founding Team
 **Date:** April 2026
+
+---
+
+## 0. Bank Open Ecosystem Architecture
+
+Complai is one of four sibling applications in the **Bank Open** product family:
+
+| App | Domain | Status |
+|---|---|---|
+| **Apex** | Procure-to-Pay (vendor master, POs, GRNs, AP invoices, AP payments) | In UAT |
+| **Aura** | Order-to-Cash + AR (customer master, AR invoices, payment collection, e-Invoice, E-Way Bill, GSTR-2A/2B view, MaxITC view) | Early stage |
+| **Bridge** | Contract management | Early stage |
+| **Complai** | Compliance (GST filings, TDS, ITR, Secretarial, audit) | This app |
+
+Plus an **external HRMS** for payroll and Form 16.
+
+### Boundary rules
+
+- **Complai does not own** vendor master (Apex), AR invoices (Aura), or contracts (Bridge). It **consumes** data from siblings via gateway services and adds compliance value on top (filings, scoring, reconciliation, audit).
+- **Shared compliance modules** — e-Invoice, E-Way Bill, GSTR-2A/2B view, and MaxITC view exist in both Aura (AR operational user) and Complai (compliance officer) with real-time sync. For Phase 1, Complai builds these modules autonomously; cross-app sync is a Phase 2 concern.
+- **Data flow:** Bridge → Apex (POs/contracts) → AP invoices in Apex → consumed by Complai for TDS + 2A/2B recon. Aura → AR invoices → consumed by Complai for GSTR-1. HRMS → Form 16 → consumed by Complai for ITR + 24Q.
 
 ---
 
@@ -11,9 +32,9 @@
 
 ### 1.1 What Complai is
 
-Complai is an enterprise-grade compliance SaaS platform for Indian businesses. It is the single operating system for a company's regulatory obligations: GST returns, e-Invoicing, e-Way Bills, TDS/TCS, income tax, secretarial compliance, accounts payable automation, vendor management, and invoice discounting.
+Complai is the **compliance layer** in the Bank Open product family — an enterprise-grade compliance SaaS platform for Indian businesses. It handles a company's regulatory obligations: GST returns, e-Invoicing, e-Way Bills, ITC reconciliation, TDS/TCS, income tax, and secretarial compliance. It consumes transactional data from sibling apps (Apex for AP, Aura for AR, Bridge for contracts, HRMS for payroll) and adds compliance intelligence on top.
 
-Complai targets mid-market and enterprise Indian businesses (₹100 Cr to ₹10,000 Cr revenue) that today either stitch together 4–8 point solutions or run ad-hoc spreadsheet-based processes with dedicated compliance teams. The platform replaces the stack with one unified product.
+Complai targets mid-market and enterprise Indian businesses (₹100 Cr to ₹10,000 Cr revenue) that today either stitch together 4–8 point solutions or run ad-hoc spreadsheet-based processes with dedicated compliance teams. The platform replaces the compliance stack with one unified product.
 
 ### 1.2 Who it serves
 
@@ -22,13 +43,11 @@ Primary customers: mid-to-large Indian enterprises, including listed companies, 
 Primary users within these customers:
 - **Tax Managers** (filing GST, TDS, ITR)
 - **Tax Analysts** (data preparation, reconciliation)
-- **AP Clerks** (invoice processing)
-- **AP Approvers** (payment approvals)
 - **CFOs / Finance Controllers** (oversight dashboards)
 - **Company Secretaries** (ROC filings, minutes, registers)
 - **Auditors** (read access for statutory audits)
 - **External CAs** (assisted filings via marketplace)
-- **Vendors** (external portal for invoice submission and compliance visibility)
+- **Integration Admins** (configuring data sync from Apex/Aura/Bridge/HRMS)
 
 ### 1.3 Why Complai exists
 
@@ -50,27 +69,25 @@ Complai is built for the post-2024 Indian regulatory era: API-first, AI-augmente
 
 ---
 
-## 2. Product Scope — The 11 Modules
+## 2. Product Scope — The 7 Modules
 
-Complai organizes into eleven functional modules plus a horizontal platform layer. Each module is independently valuable; the platform's power comes from their integration.
+Complai organizes into seven compliance-focused modules plus a horizontal platform layer and an integration layer for consuming data from sibling Bank Open apps. Each module is independently valuable; the platform's power comes from their integration.
 
 ### 2.1 Module overview
 
 | # | Module | Primary Users | Why it matters |
 |---|---|---|---|
 | 1 | **GST Compliance** | Tax Managers, Analysts | Core monthly/annual filings for every business |
-| 2 | **E-Invoicing (IRN)** | Tax Analysts, AR teams | Mandatory for ₹5 Cr+ turnover |
-| 3 | **E-Way Bill** | Logistics, Tax Analysts | Mandatory for goods movement ₹50K+ |
-| 4 | **MaxITC & Vendor Compliance** | Tax Managers, CFOs | Protects ₹ lakhs-crores of input tax credit |
-| 5 | **TDS / TCS** | Tax Analysts, Payroll | Quarterly filings, Form 16 generation |
+| 2 | **E-Invoicing (IRN)** | Tax Analysts | Mandatory for ₹5 Cr+ turnover; syncs with Aura (Phase 2) |
+| 3 | **E-Way Bill** | Logistics, Tax Analysts | Mandatory for goods movement ₹50K+; syncs with Aura (Phase 2) |
+| 4 | **ITC Reconciliation + MaxITC + Vendor Compliance Scoring** | Tax Managers, CFOs | Protects ₹ lakhs-crores of ITC; vendor master sourced from Apex |
+| 5 | **TDS / TCS** | Tax Analysts | Quarterly filings, Form 16 generation |
 | 6 | **Income Tax (ITR)** | Employees, CAs, HR | Employer-bulk filing, CA marketplace |
-| 7 | **AP Automation** | AP Clerks, Approvers, CFO | Replaces paper/email invoice workflows |
-| 8 | **Invoice Discounting** | CFOs, vendors | Working capital via TReDS |
-| 9 | **Complai One (SMB)** | SMB founders, bookkeepers | Simplified GST+billing for small businesses |
-| 10 | **Vendor Management** | Procurement, Tax, AP | Unified vendor master + portal |
-| 11 | **Secretarial (Compliance Cloud)** | Company Secretaries | ROC filings, registers, minutes |
+| 7 | **Secretarial (Compliance Cloud)** | Company Secretaries | ROC filings, registers, minutes |
 
-Plus the **Platform Layer** — identity, tenancy, users/roles, master data, documents, notifications, audit, workflow, rules engine — shared across all 11 modules.
+Plus the **Platform Layer** — identity, tenancy, users/roles, master data, documents, notifications, audit, workflow, rules engine — shared across all 7 modules.
+
+Plus the **Integration Layer** — gateway services consuming data from Apex (AP), Aura (AR), Bridge (contracts), and HRMS (payroll). See §8.
 
 ---
 
@@ -224,25 +241,27 @@ Generate E-Way Bills for goods movement above ₹50,000, as mandated by state GS
 
 ---
 
-## 6. Module 4 — MaxITC & Vendor Compliance
+## 6. Module 4 — ITC Reconciliation + MaxITC + Vendor Compliance Scoring
 
 ### 6.1 Purpose
 
 Protect Input Tax Credit (ITC) by ensuring every vendor is compliant and every invoice is reconciled before it impacts GSTR-3B ITC claims. For a typical mid-market enterprise, ITC represents ₹2–20 crore of working capital annually — losing eligibility because of vendor non-compliance is a real and common risk.
 
+**Important:** Complai does not own the vendor master — Apex does. Complai consumes the vendor master from Apex via the `apex-gateway-service` (read-only sync) and adds compliance scoring + MaxITC orchestration on top. No vendor CRUD in Complai.
+
 ### 6.2 Features
 
-#### Vendor compliance scoring
+#### Vendor compliance scoring (on Apex-sourced vendor master)
 
 - 100-point score across 5 dimensions:
   - Filing regularity (30 points) — how consistently the vendor files GSTR-1/3B
   - IRN compliance (20 points) — does the vendor generate IRNs properly
   - Mismatch rate (20 points) — historical reconciliation gap rate
-  - Payment behavior (15 points) — pays on time, responds to queries
-  - Document hygiene (15 points) — has GST certificate, bank details, PAN, etc.
+  - Payment behavior (15 points) — pays on time, responds to queries (data from Apex)
+  - Document hygiene (15 points) — has GST certificate, bank details, PAN, etc. (data from Apex)
 - Category assignment: A (≥80), B (60–79), C (40–59), D (<40)
 - 12-month rolling window
-- Automatic vendor-level dashboards
+- Automatic vendor-level compliance dashboards
 
 #### ITC orchestration
 
@@ -252,13 +271,7 @@ Protect Input Tax Credit (ITC) by ensuring every vendor is compliant and every i
 - Cross-referencing: which invoices have no matching 2B entry? Which invoices have supplier GSTR-1 mismatches?
 - Automated chase emails (via LLM copilot) to delinquent vendors
 - ITC-at-risk dashboard: ₹ amount, by vendor, by aging
-
-#### Vendor portal
-
-- External-facing portal
-- Magic-link authentication (no passwords for external users)
-- Vendor sees: their compliance score, invoices raised to the buyer, payment status, pending documents
-- Self-service updates: bank account change, address change (triggers re-KYC)
+- Will sync ITC view with Aura (Phase 2)
 
 ### 6.3 Intelligence features (Phase 2+)
 
@@ -369,142 +382,13 @@ ITR-1 through ITR-7, including:
 
 ---
 
-## 9. Module 7 — AP Automation
+## 9. Module 7 — Compliance Cloud (Secretarial)
 
 ### 9.1 Purpose
 
-Automate the accounts payable workflow: vendor invoice receipt → OCR extraction → 3-way match (PO + GRN + Invoice) → approval workflow → payment execution.
-
-### 9.2 Features
-
-#### Invoice ingestion
-
-- Per-tenant dedicated email inbox (e.g., `ap@acme.complai.com`)
-- Email attachment auto-extraction
-- Drag-drop upload
-- ERP push (SAP, Oracle, Tally, Dynamics, NetSuite)
-- Vendor portal submission
-- Mobile capture (photograph → upload)
-
-#### OCR and extraction
-
-- High-accuracy OCR trained on Indian invoice formats
-- Field-level confidence scoring (user reviews low-confidence fields)
-- GST detail extraction (GSTIN, HSN, tax amounts)
-- Multi-page invoice support
-- Auto-linking to existing vendor master
-
-#### Matching and approval
-
-- 3-way match: PO + GRN (Goods Receipt Note) + Invoice
-- Configurable tolerance (amount delta, quantity delta, date delta)
-- Approval workflows (N-of-M approver chains, per-tenant configurable)
-- Exception policies: auto-approve rules (under ₹X, trusted vendor, etc.)
-- Maker-checker separation enforced
-
-#### Payment execution
-
-- Payment file generation (ISO 20022 pain.001 standard + HDFC/ICICI/SBI/Axis specific formats)
-- Direct bank API submission where supported
-- Payment reconciliation (CIN/UTR capture, marking paid)
-- Vendor payment advice dispatch
-
-### 9.3 Integrations
-
-- Bank APIs (Phase 13)
-- ERP bidirectional sync
-- e-Invoice QR verification for incoming invoices (feeds vendor compliance)
-
----
-
-## 10. Module 8 — Invoice Discounting
-
-### 10.1 Purpose
-
-Help vendors access working capital by discounting unpaid-but-approved invoices through TReDS (Trade Receivables Discounting System) — RXIL, Invoicemart, M1exchange.
-
-### 10.2 Features
-
-- Vendor invoice eligibility check (approved in buyer's system, above minimum amount, buyer is eligible anchor)
-- Submission to one or multiple TReDS platforms
-- Bid management (vendors see bids from various financiers)
-- Acceptance flow with buyer concurrence
-- Settlement tracking
-- Dashboard per vendor and per buyer
-
-### 10.3 Business model
-
-Complai takes a platform fee from successful discounting transactions. Creates stickiness for vendor usage of the platform.
-
----
-
-## 11. Module 9 — Complai One (SMB Billing)
-
-### 11.1 Purpose
-
-Simplified billing and GST compliance app for SMBs (under ₹50 Cr revenue). Mobile-first, 5-field invoice creation, integrated GST filing, payment collection.
-
-### 11.2 Target users
-
-Small manufacturers, retailers, service providers, consultants, freelancers. Users who today use Tally, Zoho Books, or QuickBooks — but want lower cost and integrated GST.
-
-### 11.3 Features
-
-- Super-simple invoice creation (5 fields: customer, item, amount, date, GST rate)
-- Mobile PWA (React Native app in Phase 4+)
-- Automatic IRN generation (if above e-Invoice threshold)
-- Automatic EWB if shipment
-- Customer management
-- Item master
-- Recurring invoices
-- Payment links (via Razorpay, Cashfree)
-- Basic GSTR-1 filing for under-threshold taxpayers
-- Simple reports (monthly sales, GST payable, outstanding)
-
-### 11.4 Monetization
-
-- Free tier: 10 invoices/month
-- Pro tier: ₹499/month — unlimited invoices, IRN, EWB, GSTR-1 filing
-- Business tier: ₹1,499/month — includes payment collection, recurring invoices, team access
-
----
-
-## 12. Module 10 — Vendor Management
-
-### 12.1 Purpose
-
-Unified vendor master, KYB (Know Your Business) workflow, and compliance hub for all vendor-facing processes.
-
-### 12.2 Features
-
-- Vendor CRUD with multi-contact, multi-address, multi-bank-account support
-- Onboarding workflow: Basic info → KYC (PAN, GSTIN, bank, Udyam for MSME, MCA for company data) → Compliance check → Score → Approval (maker-checker for high-risk)
-- Bulk import (Excel/CSV, up to 10,000 rows, with column mapping and error reporting)
-- Change history with approval trails
-- Integration with AP (invoice-to-vendor linkage)
-- Integration with MaxITC (compliance scoring)
-- Vendor portal (external, magic-link)
-
-### 12.3 KYC coverage
-
-- PAN verification (individual + business)
-- GSTIN verification with 12-month filing history
-- TAN verification
-- Bank account verification (penny-drop + reverse penny-drop via IMPS)
-- Aadhaar OTP (where required for director KYC)
-- MCA company/LLP/director master
-- Udyam (MSME) verification
-- DigiLocker for document fetch
-
----
-
-## 13. Module 11 — Compliance Cloud (Secretarial)
-
-### 13.1 Purpose
-
 Company Secretary / legal compliance for corporates and LLPs — ROC filings, board/shareholder resolutions, statutory registers, director KYC.
 
-### 13.2 Features
+### 9.2 Features
 
 - Entity registry (companies, LLPs, directors, DINs)
 - Filing calendar with statutory deadlines
@@ -522,18 +406,18 @@ Company Secretary / legal compliance for corporates and LLPs — ROC filings, bo
 - Compliance health score per entity
 - Auditor / CS collaboration
 
-### 13.3 Notes
+### 9.3 Notes
 
 - MCA21 integration is direct (no aggregator covers this fully)
 - Supports companies with 1 to 500+ subsidiaries
 
 ---
 
-## 14. Platform Layer
+## 10. Platform Layer
 
-Shared services underneath all 11 modules.
+Shared services underneath all 7 modules.
 
-### 14.1 Identity & Access
+### 10.1 Identity & Access
 
 - Keycloak-based identity
 - SSO via SAML 2.0 and OIDC (Google Workspace, Azure AD, Okta)
@@ -541,7 +425,7 @@ Shared services underneath all 11 modules.
 - Step-up authentication for filing operations (re-auth within 5-minute window)
 - Session management with device tracking
 
-### 14.2 Tenant & Entity Management
+### 10.2 Tenant & Entity Management
 
 - Multi-tenant with data residency tags
 - Tenancy tiers: Pooled, Bridge, Silo, On-Premise
@@ -549,30 +433,28 @@ Shared services underneath all 11 modules.
 - Per-tenant branding (logo, colors, email sender)
 - Per-tenant feature flags
 
-### 14.3 Users & Roles
+### 10.3 Users & Roles
 
 - Role templates:
   - Tenant Admin
   - Tax Manager
   - Tax Analyst
-  - AP Clerk
-  - AP Approver
   - Viewer
-  - Vendor (external)
   - CA (external)
+  - Integration Admin (configures Apex/Aura/Bridge/HRMS sync)
   - Internal Admin (Complai staff)
-- Permission model: resource-action pairs (e.g., `gst.gstr1.file`, `vendor.create`)
+- Permission model: resource-action pairs (e.g., `gst.gstr1.file`, `vendor-compliance.score.view`)
 - Maker-checker workflows (N-of-M approver chains, per-resource configurable)
 - Fine-grained permission overrides
 
-### 14.4 Master Data
+### 10.4 Master Data
 
 - Vendors, customers, employees, items, chart of accounts, HSN codes, state codes, pincodes, bank branches
 - Tenant-scoped with RLS enforcement
 - Change-data-capture for real-time sync
 - ERP sync (bidirectional)
 
-### 14.5 Document Management
+### 10.5 Document Management
 
 - Invoice PDFs, signed JSONs, FVU files, challans, Form 16 PDFs, resolutions, minutes
 - S3-backed with metadata in Postgres (JSONB for flexible fields)
@@ -582,7 +464,7 @@ Shared services underneath all 11 modules.
 - Pre-signed URL access (15-min TTL)
 - Document lineage graph
 
-### 14.6 Notifications
+### 10.6 Notifications
 
 - Email (Amazon SES)
 - WhatsApp Business (Meta)
@@ -593,7 +475,7 @@ Shared services underneath all 11 modules.
 - Template registry with Handlebars
 - DPDP consent tracking + unsubscribe
 
-### 14.7 Audit Trail
+### 10.7 Audit Trail
 
 - Every state-change event across every service captured
 - Tamper-evident (hourly Merkle-chain hashing)
@@ -601,20 +483,20 @@ Shared services underneath all 11 modules.
 - Export to PDF (signed) for regulatory submission
 - 30-day hot retention (OpenSearch); long-term archive to S3 with Iceberg metadata
 
-### 14.8 Workflow Orchestration
+### 10.8 Workflow Orchestration
 
 - Temporal Cloud for all long-running workflows (filing sagas, reconciliation, bulk IRN, Form 16 generation, vendor onboarding)
 - Human-task integration (approval, OTP entry, DSC selection)
 - Retry and compensation policies per workflow
 
-### 14.9 Rules Engine
+### 10.9 Rules Engine
 
 - Rules as versioned JSON per tenant
 - Categories: tax determination (CGST/SGST/IGST split), HSN applicability, TDS applicability, validation rules, eligibility rules (ITC, RCM, composition)
 - Seeded with FY 2026-27 Indian tax rules
 - Hot-reload (rule changes propagate without service restart)
 
-### 14.10 AI & Intelligence Layer (Phase 12+)
+### 10.10 AI & Intelligence Layer (Phase 12+)
 
 - ML-based invoice matching (CatBoost) for reconciliation Stage 3
 - LLM copilot (Azure OpenAI or Bedrock) for vendor communication drafting, natural-language dashboard queries, return-prep explanation
@@ -623,9 +505,77 @@ Shared services underneath all 11 modules.
 
 ---
 
-## 15. Non-Functional Requirements
+## 11. Integration Layer
 
-### 15.1 Scale targets
+Complai consumes data from the Bank Open sibling applications via dedicated gateway services. Each gateway normalizes sibling-app data into canonical schemas before it enters Complai's core.
+
+### Data flow diagram
+
+```
+┌──────────┐    POs, contracts    ┌──────────┐
+│  Bridge   │ ──────────────────▶ │   Apex   │
+│(contracts)│                     │  (P2P)   │
+└──────────┘                     └────┬─────┘
+                                      │ AP invoices, vendor master,
+                                      │ payments, POs, GRNs
+                                      ▼
+                              ┌───────────────┐
+                              │    Complai     │
+                              │ (compliance)   │
+                              └───────┬───────┘
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    │                 │                   │
+        ┌───────────▼──┐   ┌────────▼────────┐  ┌──────▼──────┐
+        │  TDS + 2A/2B │   │  GSTR-1 (from   │  │ ITR + 24Q   │
+        │  recon (from  │   │  Aura AR inv.)  │  │ (from HRMS  │
+        │  Apex AP inv.)│   │                 │  │  Form 16)   │
+        └──────────────┘   └─────────────────┘  └─────────────┘
+
+┌──────────┐    AR invoices,      ┌───────────────┐
+│   Aura   │ ──────────────────▶ │    Complai     │
+│  (O2C)   │    customer master   │ (compliance)   │
+└──────────┘                     └───────────────┘
+                                      │
+                              filed-IRN-status, EWB status
+                              published back to Aura (Phase 2)
+
+┌──────────┐    Contracts         ┌───────────────┐
+│  Bridge   │ ──────────────────▶ │    Complai     │
+│(contracts)│                     │ (compliance)   │
+└──────────┘                     └───────────────┘
+        used for: TDS section determination, secretarial obligations
+
+┌──────────┐    Payroll,          ┌───────────────┐
+│   HRMS   │    Form 16 ────────▶ │    Complai     │
+│(external)│                     │ (compliance)   │
+└──────────┘                     └───────────────┘
+        used for: ITR filing, 24Q salary TDS
+```
+
+### Gateway services
+
+| Gateway | Source App | Consumes | Publishes back (Phase 2) |
+|---|---|---|---|
+| `apex-gateway-service` | Apex | Vendor master, AP invoices, payments, POs, GRNs | — |
+| `aura-gateway-service` | Aura | Customer master, AR invoices | Filed-IRN-status, EWB status |
+| `bridge-gateway-service` | Bridge | Contracts | — |
+| `hrms-gateway-service` | HRMS | Payroll data, Form 16 | — |
+
+### Canonical schemas
+
+- **Canonical Invoice Schema** (existing) — covers both AP and AR invoices
+- **Canonical Payment Schema** (new) — AP payments from Apex, TDS challans
+- **Canonical Contract Schema** (new) — contract clauses for TDS section determination
+- **Canonical Payroll Schema** (new) — salary components for 24Q and Form 16
+
+For Phase 1, gateway services use mock data sources (since sibling apps don't expose APIs yet). Real integration switches on in Part 13.
+
+---
+
+## 12. Non-Functional Requirements
+
+### 12.1 Scale targets
 
 | Year | Enterprises | GSTINs | Peak IRN/min | Peak filings/min | Peak recon ops/sec |
 |---|---|---|---|---|---|
@@ -633,7 +583,7 @@ Shared services underneath all 11 modules.
 | Year 2 | 2,000 | 20,000 | 6,000 | 1,500 | 3,000 |
 | Year 3 | 5,000 | 50,000 | 12,000 | 3,000 | 6,000 |
 
-### 15.2 Service Level Objectives
+### 12.2 Service Level Objectives
 
 **Tier-0 services** (direct customer impact during filing peaks): 99.99% availability, <300ms P95 latency
 
@@ -657,7 +607,7 @@ Shared services underneath all 11 modules.
 - Audit search
 - Dashboard aggregations
 
-### 15.3 Security & Compliance
+### 12.3 Security & Compliance
 
 - **DPDP Act** (Digital Personal Data Protection Act, India) compliant from day one
 - **SOC 2 Type II** within 12 months of production
@@ -669,20 +619,20 @@ Shared services underneath all 11 modules.
 - **DSC and EVC** support for regulatory signing
 - **Audit-trail immutability** via Merkle-chain hashing
 
-### 15.4 Accessibility
+### 12.4 Accessibility
 
 - WCAG 2.2 Level AA compliance
 - Keyboard-only completion for every critical workflow (login, filing, reconciliation, approvals)
 - Screen reader support for financial tables with proper ARIA labels
 - Color-plus-text for every status indicator (never color-only)
 
-### 15.5 Localization
+### 12.5 Localization
 
 - **Day 1:** English, Hindi
 - **Phase 2:** Tamil, Marathi, Gujarati, Kannada, Telugu, Bengali
 - DD/MM/YYYY date format, ₹ currency prefix, Indian numbering (crore/lakh)
 
-### 15.6 Performance
+### 12.6 Performance
 
 - Page load (authenticated pages): <2s P95
 - Dashboard render: <3s P95 including data fetch
@@ -691,7 +641,7 @@ Shared services underneath all 11 modules.
 
 ---
 
-## 16. Tech Stack Summary
+## 13. Tech Stack Summary
 
 - **Cloud:** AWS, primary `ap-south-1` (Mumbai), DR `ap-south-2` (Hyderabad)
 - **Compute:** Amazon EKS + Istio ambient mesh
@@ -712,23 +662,23 @@ Shared services underneath all 11 modules.
 
 ---
 
-## 17. Go-to-Market & Build Phasing
+## 14. Go-to-Market & Build Phasing
 
 ### Phase 1 (Weeks 1–8): Core MVP
-Modules: Platform layer + GST (1) + e-Invoicing (2) + EWB (3) + Vendor Compliance (4) — limited to core reconciliation
+Modules: Platform layer + GST (1) + e-Invoicing (2) + EWB (3) + ITC Recon + Vendor Compliance Scoring (4) — limited to core reconciliation; vendor master stubbed from Apex
 
-### Phase 2 (Weeks 9–14): TDS + ITR + AP
-Modules: TDS (5) + ITR (6) + AP Automation (7)
+### Phase 2 (Weeks 9–14): TDS + ITR + Secretarial
+Modules: TDS (5) + ITR (6) + Compliance Cloud (7)
 
-### Phase 3 (Weeks 15–20): SMB + Vendor Mgmt + Discounting + Secretarial
-Modules: Complai One (9) + Vendor Management (10) + Invoice Discounting (8) + Compliance Cloud (11)
+### Phase 3 (Weeks 15–20): Integration gateways + AI layer
+Apex/Aura/Bridge/HRMS gateway services (mock → real); AI intelligence; MaxITC orchestration
 
-### Phase 4 (Weeks 21–24): AI layer + Production hardening
-AI intelligence, MaxITC orchestration, observability, security, DR, go-live readiness
+### Phase 4 (Weeks 21–24): Production hardening + Bank Open sync
+Real sibling app integration; e-Invoice/EWB/2A-2B/MaxITC sync with Aura; observability; security; DR; go-live readiness
 
 ---
 
-## 18. Success Criteria — End of Phase 1
+## 15. Success Criteria — End of Phase 1
 
 - 5 pilot enterprise customers onboarded
 - 50 GSTINs filing GSTR-1 and GSTR-3B through Complai
@@ -739,7 +689,7 @@ AI intelligence, MaxITC orchestration, observability, security, DR, go-live read
 
 ---
 
-## 19. Open Questions & Future Considerations
+## 16. Open Questions & Future Considerations
 
 - **Multi-IRP support:** NIC1 default; add IRIS/Cygnet as failover in Phase 2
 - **International expansion:** GCC (Gulf) VAT compliance explored in Year 2+
@@ -748,4 +698,4 @@ AI intelligence, MaxITC orchestration, observability, security, DR, go-live read
 
 ---
 
-**End of PRD v1.0. Approved for build.**
+**End of PRD v2.0. Approved for build. Reflects Bank Open ecosystem scope correction (April 2026).**

@@ -42,7 +42,7 @@ The architecture is designed to:
 
 ## 3. Service Topology
 
-Complai is composed of roughly **28 services** organized into 5 families.
+Complai is composed of roughly **30 services** organized into 5 families.
 
 ### 3.1 Platform services (9)
 
@@ -60,9 +60,9 @@ Foundational services every domain module depends on.
 | `workflow-service` | Go | Temporal Cloud integration layer |
 | `rules-engine-service` | Go | Tax determination, validation, eligibility rules |
 
-### 3.2 Domain services (11)
+### 3.2 Domain services (9)
 
-One per major compliance workflow.
+One per major compliance workflow. Complai does not own AP automation (Apex), AR invoicing (Aura), or contracts (Bridge) — it consumes from siblings via gateways.
 
 | Service | Language | Purpose |
 |---|---|---|
@@ -72,15 +72,17 @@ One per major compliance workflow.
 | `ewb-service` | Go | E-Way Bill lifecycle including multi-vehicle |
 | `tds-service` | Go | TDS/TCS deductees, payments, returns, Form 16 |
 | `itr-service` | Go | ITR filing for employer-bulk and CA-assisted flows |
-| `vendor-service` | Go | Vendor master, onboarding, compliance scoring, portal |
-| `recon-service` | Go | 5-stage match pipeline, IMS actions, bucket views |
-| `ap-service` | Go | Invoice ingestion, OCR, 3-way match, approvals, payments |
-| `billing-service` | Go | Complai One SMB billing, recurring invoices, payment links |
+| `vendor-compliance-service` | Go | Consume vendor master from Apex (read-only sync), compliance scoring, MaxITC orchestration. No vendor CRUD. |
+| `recon-service` | Go | 5-stage match pipeline, IMS actions, bucket views. Consumes AP invoice register from Apex as "purchase register". |
 | `secretarial-service` | Go | ROC filings (MCA21), registers, minutes, resolutions |
 
-### 3.3 Gateway services (8)
+**Note:** e-Invoice, E-Way Bill, GSTR-2A/2B, and MaxITC modules exist in both Aura (AR operational user) and Complai (compliance officer) with real-time sync. For Phase 1, Complai builds these standalone; cross-app sync is a Phase 2 concern.
 
-Thin, single-responsibility services that talk to external providers.
+### 3.3 Gateway services (14)
+
+Thin, single-responsibility services. Split into two families: **external provider gateways** (talk to government/bank APIs) and **sibling app gateways** (talk to Bank Open sister apps).
+
+#### External provider gateways
 
 | Service | Provider | Purpose |
 |---|---|---|
@@ -91,9 +93,20 @@ Thin, single-responsibility services that talk to external providers.
 | `itd-gateway` | Sandbox.co.in | ITR filing, prefill, AIS, 26AS |
 | `kyc-gateway` | Sandbox.co.in | PAN, Aadhaar, GSTIN, bank, MCA, Udyam |
 | `tax-payment-gateway` | Sandbox.co.in | TDS and income tax challans |
-| `bank-gateway` | Direct (HDFC, ICICI, Axis, SBI, Razorpay, Cashfree) | Payments and collections |
+| `bank-gateway` | Direct (HDFC, ICICI, Axis, SBI) | Payments |
 | `mca-gateway` | Direct (MCA21 V3) | ROC filings |
 | `erp-gateway` | Direct (SAP, Oracle, Tally, Dynamics) | Bidirectional ERP sync |
+
+#### Sibling app gateways (Bank Open ecosystem)
+
+| Service | Source App | Consumes | Publishes back (Phase 2) |
+|---|---|---|---|
+| `apex-gateway-service` | Apex (P2P) | Vendor master, AP invoices, payments, POs, GRNs | — |
+| `aura-gateway-service` | Aura (O2C) | Customer master, AR invoices | Filed-IRN-status, EWB status |
+| `bridge-gateway-service` | Bridge (Contracts) | Contracts (for TDS section determination, secretarial obligations) | — |
+| `hrms-gateway-service` | HRMS (external) | Payroll data, Form 16 | — |
+
+For Phase 1, sibling gateways use mock data sources. Real integration in Part 13.
 
 ### 3.4 AI/ML services (3) — Phase 4
 
@@ -103,13 +116,11 @@ Thin, single-responsibility services that talk to external providers.
 | `llm-copilot-service` | Python | Vendor comms, NL queries, explanation generation |
 | `ocr-service` | Python | Form 16 / 26AS / invoice extraction |
 
-### 3.5 Web-facing services (4)
+### 3.5 Web-facing services (2)
 
 | Service | Language | Purpose |
 |---|---|---|
 | `web-bff-service` | Node + NestJS | BFF for `apps/web` (main product) |
-| `portal-bff-service` | Node + NestJS | BFF for `apps/vendor-portal` |
-| `smb-bff-service` | Node + NestJS | BFF for `apps/complai-one` |
 | `reporting-service` | Go | Report execution (PDF/Excel/CSV generation) |
 
 ---
@@ -144,10 +155,8 @@ complai-primary-rds
 ├── ewb_db
 ├── tds_db
 ├── itr_db
-├── vendor_db
+├── vendor_compliance_db
 ├── recon_db
-├── ap_db
-├── billing_db
 ├── secretarial_db
 ├── workflow_db
 ├── reporting_db
@@ -243,10 +252,11 @@ Redis pub/sub powers real-time UI updates (bulk operation progress, filing statu
 
 **SNS topics with fan-out:**
 
-- `FilingCompleted.topic` → SQS subscribers: `notification-service`, `gl-stream`, `audit-service`, `maxitc-orchestrator`
-- `InvoiceCreated.topic` → SQS subscribers: `audit-service`, `recon-service`, `matching-ml-service`
-- `VendorCreated.topic` → SQS subscribers: `audit-service`, `notification-service`, `kyc-gateway`
+- `FilingCompleted.topic` → SQS subscribers: `notification-service`, `audit-service`, `maxitc-orchestrator`
+- `InvoiceSynced.topic` → SQS subscribers: `audit-service`, `recon-service`, `matching-ml-service` (AP invoices synced from Apex)
+- `VendorSynced.topic` → SQS subscribers: `audit-service`, `vendor-compliance-service`, `kyc-gateway` (vendor master synced from Apex)
 - `MasterDataChanged.topic` → SQS subscribers: dependent services
+- `SiblingSyncCompleted.topic` → SQS subscribers: `notification-service`, `audit-service` (Apex/Aura/Bridge/HRMS sync events)
 
 **Operational details:**
 
@@ -285,9 +295,9 @@ For the 8-year regulatory retention requirement:
 
 - `complai-filings` — GSTR-1/3B/9 sagas, TDS quarter flows, ITR filing
 - `complai-reconciliation` — 2A/2B pulls, recon runs, IMS actions
-- `complai-bulk` — bulk IRN generation, bulk EWB, Form 16 generation, vendor bulk import
-- `complai-ap` — invoice ingestion, 3-way match, approval chains, payment execution
-- `complai-onboarding` — tenant and vendor onboarding flows
+- `complai-bulk` — bulk IRN generation, bulk EWB, Form 16 generation
+- `complai-onboarding` — tenant onboarding flows
+- `complai-sync` — sibling app data sync (Apex vendor master, Aura AR invoices, etc.)
 
 **Workflow characteristics:**
 
@@ -604,6 +614,43 @@ Invoice {
 
 Defined in Protobuf (generates Go structs) and JSON Schema (used by the rules engine and frontend validation). Lives in `packages/events/schemas/`.
 
+### 10.2 Additional canonical schemas (Bank Open integration)
+
+The Canonical Invoice Schema covers both AP invoices (from Apex) and AR invoices (from Aura). Additional canonical schemas for sibling app data:
+
+- **Canonical Payment Schema** — AP payments from Apex, TDS challans. Fields: `tenant_id`, `payment_id`, `vendor_gstin`, `amount`, `payment_date`, `payment_mode`, `utr`, `cin`, `status`, `linked_invoices[]`.
+- **Canonical Contract Schema** — Contracts from Bridge. Fields: `tenant_id`, `contract_id`, `vendor_id`, `contract_type`, `effective_date`, `expiry_date`, `clauses[]` (each with TDS section applicability), `total_value`, `status`.
+- **Canonical Payroll Schema** — Payroll from HRMS. Fields: `tenant_id`, `employee_id`, `pan`, `financial_year`, `month`, `gross_salary`, `deductions[]`, `net_salary`, `tds_deducted`, `form16_available`.
+
+All defined in Protobuf alongside the Canonical Invoice Schema in `packages/events/schemas/`.
+
+---
+
+## 10A. Integration Layer — Bank Open Ecosystem
+
+Complai is the compliance layer in the Bank Open product family. It consumes transactional data from four sibling systems via dedicated gateway services and adds compliance value on top.
+
+### Sibling apps and their boundaries
+
+| App | Domain | What Complai consumes | Status |
+|---|---|---|---|
+| **Apex** | Procure-to-Pay | Vendor master (read-only), AP invoices, payments, POs, GRNs | In UAT |
+| **Aura** | Order-to-Cash + AR | Customer master, AR invoices; publishes back filed-IRN-status, EWB status | Early stage |
+| **Bridge** | Contract management | Contracts (TDS section determination from contract clauses; secretarial obligations) | Early stage |
+| **HRMS** | Payroll (external) | Payroll data, Form 16 (for ITR filing + 24Q salary TDS) | External |
+
+### How data flows
+
+1. **Bridge → Apex:** POs and contracts flow from Bridge into Apex as procurement context.
+2. **Apex → Complai:** AP invoices + vendor master sync into Complai for TDS computation + GSTR-2A/2B reconciliation (the AP invoice register serves as the "purchase register" for recon).
+3. **Aura → Complai:** AR invoices sync into Complai for GSTR-1 preparation.
+4. **HRMS → Complai:** Payroll + Form 16 data sync into Complai for ITR filing + 24Q salary TDS.
+5. **Complai → Aura (Phase 2):** Filed IRN status + EWB status published back for operational visibility.
+
+### Phase 1 approach
+
+For Phase 1, all four sibling gateway services use **mock data sources** (since the sibling apps don't expose stable APIs yet). The gateways implement the full internal contract — domain services are unaware of whether the data comes from mock or real. When sibling apps expose APIs (Part 13), the switch is a gateway-internal change with zero impact on domain services.
+
 ---
 
 ## 11. Security Architecture
@@ -742,8 +789,6 @@ Monorepo using Go workspaces + pnpm + Turborepo for a unified build.
 complai/
 ├── apps/
 │   ├── web/                     # Next.js 15 main product
-│   ├── vendor-portal/           # Next.js 15 vendor portal
-│   ├── complai-one/             # Next.js 15 + PWA for SMB
 │   └── admin/                   # Internal admin console
 ├── services/
 │   ├── go/
@@ -762,10 +807,8 @@ complai/
 │   │   ├── ewb-service/
 │   │   ├── tds-service/
 │   │   ├── itr-service/
-│   │   ├── vendor-service/
+│   │   ├── vendor-compliance-service/
 │   │   ├── recon-service/
-│   │   ├── ap-service/
-│   │   ├── billing-service/
 │   │   ├── secretarial-service/
 │   │   ├── reporting-service/
 │   │   ├── gstn-gateway/
@@ -777,15 +820,17 @@ complai/
 │   │   ├── tax-payment-gateway/
 │   │   ├── bank-gateway/
 │   │   ├── mca-gateway/
-│   │   └── erp-gateway/
+│   │   ├── erp-gateway/
+│   │   ├── apex-gateway-service/    # Bank Open: consumes from Apex (P2P)
+│   │   ├── aura-gateway-service/    # Bank Open: consumes from Aura (O2C)
+│   │   ├── bridge-gateway-service/  # Bank Open: consumes from Bridge (contracts)
+│   │   └── hrms-gateway-service/    # Bank Open: consumes from HRMS (payroll)
 │   ├── python/
 │   │   ├── matching-ml-service/
 │   │   ├── llm-copilot-service/
 │   │   └── ocr-service/
 │   └── node/
-│       ├── web-bff-service/
-│       ├── portal-bff-service/
-│       └── smb-bff-service/
+│       └── web-bff-service/
 ├── packages/
 │   ├── shared-kernel-go/        # Go: tenant ctx, outbox, OTel, RLS helper, message bus
 │   ├── shared-kernel-node/      # TS: formatters, Zod schemas, types
@@ -947,4 +992,4 @@ Detailed ADRs live in `/docs/adr/`. Summary:
 
 ---
 
-**End of Architecture v1.0. Approved for build.**
+**End of Architecture v2.0. Approved for build. Reflects Bank Open ecosystem scope correction (April 2026).**

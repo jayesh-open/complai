@@ -3,12 +3,12 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard, ListTodo, Inbox, ShoppingCart, FileText,
-  Building2, CreditCard, Receipt, FileCheck2, Truck,
+  LayoutDashboard, ListTodo, Inbox, FileText,
+  Receipt, FileCheck2, Truck,
   FileSpreadsheet, GitCompareArrows, BarChart3, Gauge, History,
   FolderOpen, Mail, Settings, Users, Workflow, ShieldAlert,
   Wallet, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen,
-  Sparkles,
+  Sparkles, RefreshCw, Link2, ArrowDownToLine,
 } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
 import { cn } from "@/lib/utils";
@@ -36,35 +36,16 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: "procurement",
-    label: "PROCUREMENT",
-    items: [
-      { label: "Purchase Requests", href: "/procurement/purchase-requests", icon: ShoppingCart },
-      { label: "Quotations", href: "/procurement/quotations", icon: FileText },
-      { label: "Purchase Orders", href: "/procurement/purchase-orders", icon: FileText },
-      { label: "Goods Receipts", href: "/procurement/goods-receipts", icon: FileText },
-    ],
-  },
-  {
-    id: "payables",
-    label: "PAYABLES",
-    items: [
-      { label: "Invoices", href: "/payables/invoices", icon: FileText, badge: 40 },
-      { label: "Debit Notes", href: "/payables/debit-notes", icon: Receipt },
-      { label: "Vendors", href: "/payables/vendors", icon: Building2 },
-      { label: "Payments", href: "/payables/payments", icon: CreditCard },
-    ],
-  },
-  {
     id: "compliance",
     label: "COMPLIANCE",
     items: [
-      { label: "GST", href: "/compliance/gst", icon: FileSpreadsheet },
+      { label: "GST Returns", href: "/compliance/gst", icon: FileSpreadsheet },
       { label: "E-Invoicing", href: "/compliance/e-invoice", icon: FileCheck2 },
       { label: "E-Way Bill", href: "/compliance/e-way-bill", icon: Truck },
-      { label: "TDS", href: "/compliance/tds", icon: Receipt },
-      { label: "GSTR-2A Recon", href: "/compliance/recon", icon: GitCompareArrows },
-      { label: "ITR (employer)", href: "/compliance/itr", icon: FileSpreadsheet },
+      { label: "ITC Reconciliation", href: "/compliance/itc-recon", icon: GitCompareArrows },
+      { label: "Vendor Compliance", href: "/compliance/vendor-compliance", icon: Gauge },
+      { label: "TDS/TCS", href: "/compliance/tds", icon: Receipt },
+      { label: "ITR", href: "/compliance/itr", icon: FileSpreadsheet },
       { label: "Secretarial", href: "/compliance/secretarial", icon: ShieldAlert },
     ],
   },
@@ -72,10 +53,22 @@ const NAV_GROUPS: NavGroup[] = [
     id: "insights",
     label: "INSIGHTS",
     items: [
-      { label: "Reports & Analytics", href: "/insights/reports", icon: BarChart3 },
-      { label: "Vendor Evaluation", href: "/insights/vendor-evaluation", icon: Gauge },
-      { label: "Audit Trail", href: "/insights/audit-trail", icon: History },
       { label: "CFO Dashboard", href: "/insights/cfo", icon: Sparkles },
+      { label: "Reports & Analytics", href: "/insights/reports", icon: BarChart3 },
+      { label: "Audit Trail", href: "/insights/audit-trail", icon: History },
+    ],
+  },
+  {
+    id: "data-sources",
+    label: "DATA SOURCES",
+    items: [
+      { label: "Connected Apps", href: "/data-sources/connected-apps", icon: Link2 },
+      { label: "Sync Status", href: "/data-sources/sync-status", icon: RefreshCw },
+      { label: "Imported AR Invoices", href: "/data-sources/ar-invoices", icon: ArrowDownToLine },
+      { label: "Imported AP Invoices", href: "/data-sources/ap-invoices", icon: ArrowDownToLine },
+      { label: "Imported Vendors", href: "/data-sources/vendors", icon: ArrowDownToLine },
+      { label: "Imported Contracts", href: "/data-sources/contracts", icon: FileText },
+      { label: "Imported Payroll Data", href: "/data-sources/payroll", icon: ArrowDownToLine },
     ],
   },
   {
@@ -93,9 +86,10 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Settings", href: "/configure/settings", icon: Settings },
       { label: "Users & Roles", href: "/configure/users", icon: Users },
       { label: "Approval Workflows", href: "/configure/workflows", icon: Workflow },
-      { label: "Exception Policies", href: "/configure/policies", icon: ShieldAlert },
+      { label: "GST Configuration", href: "/configure/gst", icon: FileSpreadsheet },
+      { label: "TDS Configuration", href: "/configure/tds", icon: Receipt },
+      { label: "Integrations", href: "/configure/integrations", icon: Link2 },
       { label: "Billing", href: "/configure/billing", icon: Wallet },
-      { label: "Setup Wizard", href: "/configure/setup", icon: Sparkles },
     ],
   },
 ];

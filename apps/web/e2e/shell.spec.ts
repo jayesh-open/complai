@@ -10,29 +10,29 @@ test.describe("App Shell", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test("renders sidebar with 7 nav groups in correct order", async ({ page }) => {
+  test("renders sidebar with 6 nav groups in correct order", async ({ page }) => {
     const sidebar = page.locator("aside");
     await expect(sidebar).toBeVisible();
 
     const groupLabels = sidebar.locator("[data-testid='sidebar-group-label']");
     const labels = await groupLabels.allTextContents();
-    const expectedOrder = ["PROCUREMENT", "PAYABLES", "COMPLIANCE", "INSIGHTS", "DOCUMENTS", "CONFIGURE"];
+    const expectedOrder = ["COMPLIANCE", "INSIGHTS", "DATA SOURCES", "DOCUMENTS", "CONFIGURE"];
     expect(labels.map((l) => l.trim())).toEqual(expectedOrder);
   });
 
   test("sidebar group collapse persists across reload", async ({ page }) => {
-    const procurementGroup = page.locator("[data-testid='sidebar-group-procurement']");
-    const toggleBtn = procurementGroup.locator("button").first();
+    const complianceGroup = page.locator("[data-testid='sidebar-group-compliance']");
+    const toggleBtn = complianceGroup.locator("button").first();
     await toggleBtn.click();
 
-    const items = procurementGroup.locator("[data-testid='sidebar-item']");
+    const items = complianceGroup.locator("[data-testid='sidebar-item']");
     await expect(items).toHaveCount(0);
 
     await page.reload();
     await page.waitForLoadState("networkidle");
 
     const itemsAfterReload = page
-      .locator("[data-testid='sidebar-group-procurement']")
+      .locator("[data-testid='sidebar-group-compliance']")
       .locator("[data-testid='sidebar-item']");
     await expect(itemsAfterReload).toHaveCount(0);
   });

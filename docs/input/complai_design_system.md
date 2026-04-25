@@ -20,10 +20,10 @@ Complai's design system is built on top of Aura — the foundational design syst
 
 **Added and overridden for Complai:**
 1. **Default theme: Light Classic** — warm cream + terracotta
-2. **Information architecture** — sidebar grouping specific to the 11 compliance modules
+2. **Information architecture** — sidebar grouping specific to the 7 compliance modules + data sources from Bank Open siblings
 3. **Compliance-specific components** — filing wizards, reconciliation grids, government status pills, tax form replicas, audit timelines, vendor scorecards, period selectors
 4. **Regulatory affordances** — signed-action confirmations, audit-trail surfacing, data-residency indicators, downstream system status banners
-5. **Default density: Compact** — compliance users scan thousands of rows
+5. **Default density: Compact** ��� compliance users scan thousands of rows
 6. **Multi-tenant affordances** — tenant switcher, GSTIN/PAN scope selector, environment indicator
 
 Where this document and Aura disagree, this document wins for Complai. Where silent, Aura applies.
@@ -97,16 +97,14 @@ Each top-level module has an identity color used in its icon and module hero. Id
 | Module | Identity color |
 |---|---|
 | Dashboard | `accent` |
-| GST | `accent` |
-| E-Invoice | `info` |
+| GST Returns | `accent` |
+| E-Invoicing | `info` |
 | E-Way Bill | `teal` |
-| TDS | `purple` |
+| ITC Reconciliation + MaxITC + Vendor Compliance | `success` |
+| TDS/TCS | `purple` |
 | ITR | `pink` |
-| MaxITC / Vendor | `success` |
-| AP Automation | `accent` |
-| Invoice Discounting | `orange` |
-| Compliance Cloud | `info` |
-| Complai One (SMB) | `teal` |
+| Secretarial | `orange` |
+| Data Sources | `info` |
 | Reports & Analytics | `purple` |
 | Settings & Config | `textMuted` |
 
@@ -114,7 +112,7 @@ Each top-level module has an identity color used in its icon and module hero. Id
 
 ## 2. Information Architecture
 
-### 2.1 Sidebar — seven groups
+### 2.1 Sidebar — six groups
 
 ```
 ┌─────────────────────────────────────┐
@@ -125,32 +123,28 @@ Each top-level module has an identity color used in its icon and module hero. Id
 │ My Tasks                  [5]       │
 │ Inbox                     [12]      │
 │                                     │
-│ ── PROCUREMENT ─────────────────    │
-│   Purchase Requests                 │
-│   Quotations                        │
-│   Purchase Orders                   │
-│   Goods Receipts                    │
-│                                     │
-│ ── PAYABLES ────────────────────    │
-│   Invoices                [40]      │
-│   Debit Notes                       │
-│   Vendors                           │
-│   Payments                          │
-│                                     │
 │ ── COMPLIANCE ──────────────────    │
-│   GST                               │
+│   GST Returns                       │
 │   E-Invoicing                       │
 │   E-Way Bill                        │
-│   TDS                               │
-│   GSTR-2A Recon                     │
-│   ITR (employer)                    │
+│   ITC Reconciliation                │
+│   TDS / TCS                         │
+│   ITR                               │
 │   Secretarial                       │
 │                                     │
 │ ── INSIGHTS ────────────────────    │
-│   Reports & Analytics               │
-│   Vendor Evaluation                 │
-│   Audit Trail                       │
 │   CFO Dashboard                     │
+│   Reports & Analytics               │
+│   Audit Trail                       │
+│                                     │
+│ ── DATA SOURCES ────────────────    │
+│   Connected Apps                    │
+│   Sync Status                       │
+│   Imported AR Invoices              │
+│   Imported AP Invoices              │
+│   Imported Vendors                  │
+│   Imported Contracts                │
+│   Imported Payroll Data             │
 │                                     │
 │ ── DOCUMENTS ───────────────────    │
 │   Documents                         │
@@ -160,9 +154,10 @@ Each top-level module has an identity color used in its icon and module hero. Id
 │   Settings                          │
 │   Users & Roles                     │
 │   Approval Workflows                │
-│   Exception Policies                │
+│   GST Configuration                 │
+│   TDS Configuration                 │
+│   Integrations                      │
 │   Billing                           │
-│   Setup Wizard                      │
 ├─────────────────────────────────────┤
 │ [Avatar] User Name                  │
 │         Role · Tenant               │
@@ -354,9 +349,9 @@ Every card has drill-down: click → relevant module with filter pre-applied.
 
 Two-row tabs: primary (most-used) on top, secondary (less-used) below.
 
-**Primary:** Organization, Departments, GSTIN Management, Chart of Accounts, Dimensions, Appearance, GST Configuration, API Integrations, Notifications, Policies, Bank Accounts, Vendor Onboarding, Procurement Policy.
+**Primary:** Organization, Departments, GSTIN Management, Chart of Accounts, Dimensions, Appearance, GST Configuration, TDS Configuration, Integrations, Notifications, Policies, Bank Accounts.
 
-**Secondary:** Vendor Evaluation, Email Inbox, Messaging, Process Configuration, Security, Vendor Portal.
+**Secondary:** Email Inbox, Messaging, Process Configuration, Security.
 
 Setup-complete banner at top (dismissible): "Setup complete — all essential configurations are done. [View Summary] [↺ Restart]".
 
@@ -820,17 +815,6 @@ Predictable URL structure:
 /inbox
 /tasks
 
-/procurement/purchase-requests
-/procurement/purchase-requests/{id}
-/procurement/purchase-orders/{id}/edit
-
-/payables/invoices
-/payables/invoices/{id}
-/payables/invoices/{id}/audit
-
-/payables/vendors/{id}
-/payables/vendors/{id}/communications
-
 /compliance/gst
 /compliance/gst/{gstin}/{period}/gstr-1
 /compliance/gst/{gstin}/{period}/gstr-3b
@@ -839,14 +823,34 @@ Predictable URL structure:
 /compliance/e-invoice
 /compliance/e-invoice/generate
 
+/compliance/e-way-bill
+/compliance/e-way-bill/generate
+
+/compliance/itc-recon
+/compliance/itc-recon/{gstin}/{period}
+/compliance/vendor-compliance
+/compliance/vendor-compliance/{vendor-id}
+
 /compliance/tds/{tan}/{quarter}/24q
+/compliance/tds/{tan}/{quarter}/26q
 /compliance/itr/employer
+
+/compliance/secretarial
+
+/data-sources/connected-apps
+/data-sources/sync-status
+/data-sources/ar-invoices
+/data-sources/ap-invoices
+/data-sources/vendors
+/data-sources/contracts
+/data-sources/payroll
 
 /insights/reports/{report-id}
 /insights/audit-trail
 
 /configure/settings
 /configure/users
+/configure/integrations
 ```
 
 - Breadcrumb auto-derived from URL
@@ -860,7 +864,7 @@ Predictable URL structure:
 In priority order:
 
 1. **Default theme is Light Classic** — cream + terracotta. All 15 themes user-switchable.
-2. **Sidebar groups in fixed order:** Dashboard / My Tasks / Inbox → Procurement → Payables → Compliance → Insights → Documents → Configure.
+2. **Sidebar groups in fixed order:** Dashboard / My Tasks / Inbox → Compliance → Insights → Data Sources → Documents → Configure.
 3. **Workflow List is the dominant template** — KPIs → Tabs → Filters → Table → Footer.
 4. **Every regulatory action = Filing Confirmation Modal** with type-to-confirm, DSC/EVC, red confirm button.
 5. **Government Status Pills** show system + state + dot color. Everywhere external systems are involved.

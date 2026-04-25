@@ -4,9 +4,10 @@ import { useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import {
-  LayoutDashboard, FileText, Building2, FileSpreadsheet,
-  Receipt, BarChart3, Settings, Plus, History, Search,
-  HelpCircle, FileCheck2, Truck,
+  LayoutDashboard, FileSpreadsheet,
+  Receipt, BarChart3, Settings, History, Search,
+  HelpCircle, FileCheck2, Truck, GitCompareArrows,
+  Gauge, Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,18 +27,16 @@ interface CommandItem {
 
 const COMMANDS: CommandItem[] = [
   { id: "nav-dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", category: "Navigate", shortcut: "g d" },
-  { id: "nav-invoices", label: "Invoices", icon: FileText, href: "/payables/invoices", category: "Navigate", shortcut: "g i" },
-  { id: "nav-gst", label: "GST", icon: FileSpreadsheet, href: "/compliance/gst", category: "Navigate", shortcut: "g g" },
-  { id: "nav-tds", label: "TDS", icon: Receipt, href: "/compliance/tds", category: "Navigate", shortcut: "g t" },
+  { id: "nav-gst", label: "GST Returns", icon: FileSpreadsheet, href: "/compliance/gst", category: "Navigate", shortcut: "g g" },
+  { id: "nav-tds", label: "TDS/TCS", icon: Receipt, href: "/compliance/tds", category: "Navigate", shortcut: "g t" },
   { id: "nav-einvoice", label: "E-Invoicing", icon: FileCheck2, href: "/compliance/e-invoice", category: "Navigate" },
   { id: "nav-ewb", label: "E-Way Bill", icon: Truck, href: "/compliance/e-way-bill", category: "Navigate" },
-  { id: "nav-vendors", label: "Vendors", icon: Building2, href: "/payables/vendors", category: "Navigate" },
+  { id: "nav-itc-recon", label: "ITC Reconciliation", icon: GitCompareArrows, href: "/compliance/itc-recon", category: "Navigate" },
+  { id: "nav-vendor-compliance", label: "Vendor Compliance", icon: Gauge, href: "/compliance/vendor-compliance", category: "Navigate" },
   { id: "nav-reports", label: "Reports & Analytics", icon: BarChart3, href: "/insights/reports", category: "Navigate" },
+  { id: "nav-data-sources", label: "Connected Apps", icon: Link2, href: "/data-sources/connected-apps", category: "Navigate" },
   { id: "nav-settings", label: "Settings", icon: Settings, href: "/configure/settings", category: "Navigate" },
   { id: "nav-appearance", label: "Appearance", icon: Settings, href: "/configure/appearance", category: "Navigate" },
-  { id: "create-invoice", label: "New Invoice", icon: Plus, href: "/payables/invoices/new", category: "Create", shortcut: "n i" },
-  { id: "create-po", label: "New Purchase Order", icon: Plus, href: "/procurement/purchase-orders/new", category: "Create", shortcut: "n p" },
-  { id: "create-vendor", label: "New Vendor", icon: Plus, href: "/payables/vendors/new", category: "Create" },
   { id: "filing-gstr1", label: "File GSTR-1", icon: FileSpreadsheet, href: "/compliance/gst/gstr-1", category: "Filings" },
   { id: "filing-gstr3b", label: "File GSTR-3B", icon: FileSpreadsheet, href: "/compliance/gst/gstr-3b", category: "Filings" },
   { id: "report-gst-summary", label: "GST Summary Report", icon: BarChart3, href: "/insights/reports/gst-summary", category: "Reports" },
@@ -46,7 +45,7 @@ const COMMANDS: CommandItem[] = [
   { id: "help-shortcuts", label: "Keyboard Shortcuts", icon: HelpCircle, category: "Help" },
 ];
 
-const CATEGORIES = ["Navigate", "Create", "Recent", "Filings", "Reports", "Help"];
+const CATEGORIES = ["Navigate", "Recent", "Filings", "Reports", "Help"];
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();

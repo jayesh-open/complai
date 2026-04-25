@@ -1,7 +1,21 @@
 # CLAUDE.md — Session-durable memory for Complai
 
 ## What we're building
-Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Target: 500 Year-1, 50K GSTINs Year-3. Competitive reference: Clear / ClearTax.
+Complai is the compliance layer in the Bank Open product family — an enterprise GST + TDS + compliance SaaS for Indian enterprises. Target: 500 Year-1, 50K GSTINs Year-3. Competitive reference: Clear / ClearTax.
+
+## Bank Open ecosystem
+Complai is one of four sibling apps plus an external HRMS:
+- **Apex** — Procure-to-Pay (P2P). Owns vendor master, AP invoices, POs, GRNs, payments. In UAT.
+- **Aura** — Order-to-Cash (O2C). Owns customer master, AR invoices, collections. Early stage.
+- **Bridge** — Contract management. Owns contracts, obligations, renewals. Early stage.
+- **Complai** — Compliance only. Consumes data from siblings via gateways.
+- **HRMS** — External. Payroll data, Form 16.
+
+**Boundary rule:** Complai does NOT own vendor master (Apex), AP invoices (Apex), AR invoices (Aura), or contracts (Bridge). It consumes from siblings via gateways and adds compliance value on top.
+
+**7 compliance modules:** GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation + MaxITC + Vendor Compliance Scoring, TDS/TCS, ITR, Secretarial.
+
+**Shared compliance modules (Phase 2):** e-Invoice, E-Way Bill, GSTR-2A/2B view, MaxITC view exist in BOTH Aura and Complai with real-time sync. Phase 1 = standalone.
 
 ## Authoritative input docs (read on every session start)
 - /docs/input/complai_prd.md
@@ -62,9 +76,7 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 
 ## Repo layout
 - apps/web — Next.js main product
-- apps/vendor-portal — external vendor app
-- apps/complai-one — SMB billing PWA
-- services/go/{name}-service — Go services (domain + gateways)
+- services/go/{name}-service — Go services (domain + gateways, including sibling gateways)
 - services/python/{name}-service — Python AI services
 - services/node/{name}-bff-service — TypeScript BFFs
 - packages/shared-kernel-go — Go shared libs (tenant, outbox, messagebus)
@@ -94,15 +106,16 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 - [x] Part 2: Identity + Tenant + User/Role services + auth
 - [x] Part 3: Platform services (master-data, document, notification, audit, workflow, rules)
 - [x] Part 4: API Gateway + BFF + Web Shell + design system components
+- [x] Part 4.5: Scope correction — align with Bank Open ecosystem
 - [ ] Part 5: Adaequare GST gateway + GSTR-1 flow
-- [ ] Part 6: Sandbox KYC gateway + Vendor Compliance
-- [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS
+- [ ] Part 6: Sandbox KYC gateway + Vendor Compliance + Apex Sync
+- [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
 - [ ] Part 8: e-Invoicing + E-Way Bill
 - [ ] Part 9: Sandbox TDS gateway + TDS module
 - [ ] Part 10: Sandbox ITR + GSTR-9/9C
-- [ ] Part 11: AP Automation + ClearOne SMB
+- [ ] Part 11: Sibling gateway services (Aura, Bridge, HRMS)
 - [ ] Part 12: AI layer + MaxITC
-- [ ] Part 13: Real ERP + bank integrations + Compliance Cloud
+- [ ] Part 13: Real Bank Open sibling sync + GL-Stream + Compliance Cloud
 - [ ] Part 14: Reporting + observability + production hardening
 
 ## Credentials / blockers needed

@@ -80,6 +80,7 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 ## Local dev environment
 - All AWS service interactions use LocalStack (via docker-compose.dev.yml)
 - Go services use aws-sdk-go-v2 with AWS_ENDPOINT_URL pointed at LocalStack
+- AWS region is ap-south-1 everywhere — awslocal and aws-sdk-go-v2 must use this region
 - Mailpit replaces Amazon SES for email
 - Temporal dev server replaces Temporal Cloud
 - Jaeger replaces Last9 for tracing

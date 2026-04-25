@@ -28,6 +28,11 @@ echo "  Node: $(node --version)"
 echo "  pnpm: $(pnpm --version)"
 
 echo ""
+echo "Setting AWS region default (ap-south-1 — all LocalStack resources use this)..."
+export AWS_DEFAULT_REGION=ap-south-1
+export AWS_REGION=ap-south-1
+
+echo ""
 echo "Installing Node dependencies..."
 pnpm install
 

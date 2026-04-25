@@ -59,6 +59,7 @@ services:
     environment:
       SERVICES: sqs,sns,s3,secretsmanager,kms
       DEFAULT_REGION: ap-south-1
+      AWS_DEFAULT_REGION: ap-south-1
       DOCKER_HOST: unix:///var/run/docker.sock
     volumes:
       - complai-localstack-data:/var/lib/localstack

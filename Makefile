@@ -111,3 +111,12 @@ clean: ## Clean build artifacts
 
 health-probe: ## Run health-probe-service locally
 	cd services/go/health-probe-service && go run cmd/server/main.go
+
+localstack-queues: ## List SQS queues in LocalStack
+	docker exec complai-localstack awslocal sqs list-queues --region ap-south-1
+
+localstack-topics: ## List SNS topics in LocalStack
+	docker exec complai-localstack awslocal sns list-topics --region ap-south-1
+
+localstack-buckets: ## List S3 buckets in LocalStack
+	docker exec complai-localstack awslocal s3 ls --region ap-south-1

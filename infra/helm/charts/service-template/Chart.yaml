@@ -1,0 +1,9 @@
+apiVersion: v2
+name: complai-service
+description: Reusable Helm chart template for Complai Go/Node microservices
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Complai Platform Team
+    email: platform@complai.in

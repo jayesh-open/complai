@@ -1,0 +1,108 @@
+# Complai Service Template — Default values
+# Override per service via values-<service>.yaml or ArgoCD ApplicationSet.
+
+# -----------------------------------------------------------------------------
+# Service identity
+# -----------------------------------------------------------------------------
+service:
+  name: ""
+  namespace: complai-system
+  port: 8080
+  protocol: TCP
+
+# -----------------------------------------------------------------------------
+# Container image
+# -----------------------------------------------------------------------------
+image:
+  repository: ""
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# -----------------------------------------------------------------------------
+# Replicas & scaling
+# -----------------------------------------------------------------------------
+replicaCount: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 30
+  targetCPUUtilizationPercentage: 70
+
+# -----------------------------------------------------------------------------
+# Resources
+# -----------------------------------------------------------------------------
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+
+# -----------------------------------------------------------------------------
+# Health checks
+# -----------------------------------------------------------------------------
+healthcheck:
+  path: /health
+  port: 8080
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+# -----------------------------------------------------------------------------
+# Service account (IRSA)
+# -----------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  # eks.amazonaws.com/role-arn: arn:aws:iam::role/
+
+# -----------------------------------------------------------------------------
+# Environment variables (non-secret, from ConfigMap)
+# -----------------------------------------------------------------------------
+env:
+  APP_ENV: production
+  LOG_LEVEL: info
+  LOG_FORMAT: json
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.complai-system.svc.cluster.local:4317
+  OTEL_SERVICE_NAME: ""
+  AWS_REGION: ap-south-1
+  DB_SSL_MODE: require
+
+# -----------------------------------------------------------------------------
+# Secret environment variables (from ExternalSecret / K8s Secret)
+# -----------------------------------------------------------------------------
+secretRef:
+  name: ""
+
+# -----------------------------------------------------------------------------
+# Pod scheduling
+# -----------------------------------------------------------------------------
+nodeSelector: {}
+
+tolerations: []
+
+topologySpreadConstraints: []
+
+# Pod anti-affinity is configured in the deployment template by default
+# to spread pods across availability zones.
+
+# -----------------------------------------------------------------------------
+# Additional labels and annotations
+# -----------------------------------------------------------------------------
+labels: {}
+annotations: {}
+podAnnotations: {}

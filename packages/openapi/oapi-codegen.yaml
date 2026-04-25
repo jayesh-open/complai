@@ -1,0 +1,15 @@
+# oapi-codegen configuration for Go code generation.
+# See: https://github.com/oapi-codegen/oapi-codegen
+output-options:
+  skip-prune: false
+
+generate:
+  - chi-server
+  - types
+  - spec
+
+output: gen/go/health_probe.gen.go
+package: healthprobe
+
+compatibility:
+  always-prefix-enum-values: true

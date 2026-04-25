@@ -1,0 +1,246 @@
+# Complai — Local Development Environment
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# All AWS services are emulated via LocalStack. No real AWS credentials required.
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — OLTP for all domain services + Keycloak
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: complai-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: complai
+      POSTGRES_PASSWORD: complai_dev
+      POSTGRES_DB: complai_dev
+    volumes:
+      - complai-postgres-data:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U complai -d complai_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — Cache + session store
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: complai-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - complai-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # LocalStack — SQS, SNS, S3, Secrets Manager, KMS
+  # ---------------------------------------------------------------------------
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: complai-localstack
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      SERVICES: sqs,sns,s3,secretsmanager,kms
+      DEFAULT_REGION: ap-south-1
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - complai-localstack-data:/var/lib/localstack
+      - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"sqs\": \"available\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # OpenSearch 2 — Full-text search
+  # ---------------------------------------------------------------------------
+  opensearch:
+    image: opensearchproject/opensearch:2.17.0
+    container_name: complai-opensearch
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "Admin@123"
+    volumes:
+      - complai-opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # Keycloak 24 — Identity provider
+  # ---------------------------------------------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: complai-keycloak
+    ports:
+      - "8080:8080"
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: complai
+      KC_DB_PASSWORD: complai_dev
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./scripts/keycloak-realm.json:/opt/keycloak/data/import/complai-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # Temporal — Workflow orchestration
+  # ---------------------------------------------------------------------------
+  temporal:
+    image: temporalio/auto-setup:1.24
+    container_name: complai-temporal
+    ports:
+      - "7233:7233"
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: complai
+      POSTGRES_PWD: complai_dev
+      POSTGRES_SEEDS: postgres
+      SKIP_SCHEMA_SETUP: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # Temporal UI
+  # ---------------------------------------------------------------------------
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    container_name: complai-temporal-ui
+    ports:
+      - "8088:8080"
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    depends_on:
+      temporal:
+        condition: service_healthy
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # Mailpit — Local email testing (replaces Amazon SES)
+  # ---------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: complai-mailpit
+    ports:
+      - "8025:8025"   # Web UI
+      - "1025:1025"   # SMTP
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8025/api/v1/info || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # Jaeger — Distributed tracing (replaces Last9)
+  # ---------------------------------------------------------------------------
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: complai-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14250:14250"  # gRPC
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:14269/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - complai-dev
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector — Telemetry pipeline
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.112.0
+    container_name: complai-otel-collector
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./scripts/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    networks:
+      - complai-dev
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  complai-postgres-data:
+    driver: local
+  complai-redis-data:
+    driver: local
+  complai-localstack-data:
+    driver: local
+  complai-opensearch-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  complai-dev:
+    name: complai-dev
+    driver: bridge

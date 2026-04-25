@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package complai.events.v1;
+
+option go_package = "github.com/complai/complai/packages/events/gen/go/complai/events/v1;eventsv1";
+
+import "common.proto";
+
+message InvoiceCreated {
+  string    tenant_id       = 1;
+  string    invoice_id      = 2;
+  string    document_number = 3;
+  string    gstin           = 4;
+  string    supply_type     = 5; // B2B | B2C | EXPORT | SEZ | NIL | DEEMED_EXPORT
+  Money     grand_total     = 6;
+  Timestamp created_at      = 7;
+}

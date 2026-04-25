@@ -89,7 +89,7 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 
 ## Current build state
 - [x] Part 0.5: Repo init + memory scaffolding
-- [ ] Part 1: Repo skeleton + shared foundation
+- [x] Part 1: Repo skeleton + shared foundation
 - [ ] Part 2: Identity + Tenant + User/Role services + auth
 - [ ] Part 3: Platform services (master-data, document, notification, audit, workflow, rules)
 - [ ] Part 4: API Gateway + BFF + Web Shell + design system components
@@ -108,4 +108,18 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 (populated as encountered)
 
 ## Key ADRs
-(populated as written — see /docs/adr/)
+- ADR-0001: Multi-tenancy via Postgres RLS
+- ADR-0002: Adaequare Enriched APIs only (no pass-through)
+- ADR-0003: Two-provider API strategy (Adaequare + Sandbox.co.in)
+- ADR-0004: Go as primary backend language
+- ADR-0005: AWS as cloud provider, ap-south-1 primary
+- ADR-0006: Postgres-only for Phase 1 (OLTP + analytics)
+- ADR-0007: SQS/SNS over Kafka for Phase 1 messaging
+- ADR-0008: Temporal Cloud (managed) for workflows
+- ADR-0009: Cloudflare for CDN/DNS/WAF
+- ADR-0010: Amazon SES for email
+- ADR-0011: Last9 for observability
+- ADR-0012: Keycloak self-hosted for identity
+- ADR-0013: Outbox pattern via polling (not Debezium) in Phase 1
+- ADR-0014: Canonical Invoice Schema as lingua franca
+- ADR-0015: Monorepo with Go workspaces + pnpm + Turborepo

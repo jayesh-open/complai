@@ -3,10 +3,26 @@
 Last updated: 2026-04-25
 
 ## Current part
-None yet. Next = Part 1.
+Part 1 complete. Next = Part 2.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
+- [x] Part 1: Repo skeleton + shared foundation
+  - [x] Monorepo scaffolding (pnpm workspaces + Turborepo + go.work)
+  - [x] Shared Go kernel (packages/shared-kernel-go) — 11 sub-packages, all tests pass
+  - [x] Shared Node kernel (packages/shared-kernel-node) — types, Zod schemas, formatters, client, errors
+  - [x] UI components scaffolding (packages/ui-components)
+  - [x] Events library (packages/events) — 6 Protobuf schemas + TS types
+  - [x] OpenAPI library (packages/openapi) — health-probe spec + codegen config
+  - [x] Terraform scaffolding — 13 modules, 4 environments (dev/sandbox/staging/prod), 57 .tf files
+  - [x] Helm charts — base chart (Istio/ESO/ArgoCD/cert-manager) + service template chart
+  - [x] Docker compose dev environment — 11 services (Postgres, Redis, LocalStack, OpenSearch, Keycloak, Temporal, Mailpit, Jaeger, OTel Collector)
+  - [x] CI/CD workflows — ci.yml, deploy-staging.yml, security.yml
+  - [x] Dev tooling — Makefile, dev-bootstrap.sh, .env.example
+  - [x] ADRs 0001-0015 written
+  - [x] README.md
+  - [x] Health-probe-service — boots, /health returns 200, /metrics returns Prometheus format
+  - [x] All tests green (Go build, Go tests, TS typecheck, lint)
 
 ## Blockers / credentials needed
 - AWS account with IAM roles + ap-south-1/ap-south-2 enabled (Part 1)

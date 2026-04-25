@@ -1,0 +1,12 @@
+{
+  "name": "@complai/admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Admin console - Part 14'",
+    "build": "echo 'Admin console - Part 14'",
+    "typecheck": "echo 'Admin console - Part 14'",
+    "lint": "echo 'ok'",
+    "clean": "rm -rf .next dist"
+  }
+}

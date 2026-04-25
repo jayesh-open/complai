@@ -1,0 +1,88 @@
+# Complai Base Chart — Default values
+
+# -----------------------------------------------------------------------------
+# Namespace
+# -----------------------------------------------------------------------------
+namespace:
+  name: complai-system
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    istio.io/dataplane-mode: ambient
+
+# -----------------------------------------------------------------------------
+# Istio Ambient Mesh
+# -----------------------------------------------------------------------------
+istio:
+  enabled: true
+  ambient:
+    # Waypoint proxy for the complai namespace
+    waypoint:
+      enabled: true
+      name: complai-waypoint
+      namespace: complai-system
+      replicas: 2
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+# -----------------------------------------------------------------------------
+# External Secrets Operator
+# -----------------------------------------------------------------------------
+externalSecrets:
+  enabled: true
+  clusterSecretStore:
+    name: aws-secrets-manager
+    provider: aws
+    region: ap-south-1
+    # IRSA service account — the role ARN is set per environment
+    serviceAccountRef:
+      name: external-secrets-sa
+      namespace: complai-system
+
+# -----------------------------------------------------------------------------
+# ArgoCD
+# -----------------------------------------------------------------------------
+argocd:
+  enabled: true
+  project: complai
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+
+# -----------------------------------------------------------------------------
+# cert-manager
+# -----------------------------------------------------------------------------
+certManager:
+  enabled: true
+  clusterIssuers:
+    staging:
+      name: letsencrypt-staging
+      server: https://acme-staging-v02.api.letsencrypt.org/directory
+      email: platform@complai.in
+      privateKeySecretRef: letsencrypt-staging-key
+      solvers:
+        - dns01:
+            cloudflare:
+              apiTokenSecretRef:
+                name: cloudflare-api-token
+                key: api-token
+    production:
+      name: letsencrypt-prod
+      server: https://acme-v02.api.letsencrypt.org/directory
+      email: platform@complai.in
+      privateKeySecretRef: letsencrypt-prod-key
+      solvers:
+        - dns01:
+            cloudflare:
+              apiTokenSecretRef:
+                name: cloudflare-api-token
+                key: api-token

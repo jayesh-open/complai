@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package complai.events.v1;
+
+option go_package = "github.com/complai/complai/packages/events/gen/go/complai/events/v1;eventsv1";
+
+import "common.proto";
+
+message FilingSubmitted {
+  string    tenant_id    = 1;
+  string    gstin        = 2;
+  string    form_type    = 3; // GSTR1 | GSTR3B | GSTR9 etc.
+  string    period       = 4; // e.g. "012026" for Jan 2026
+  string    status       = 5;
+  Timestamp submitted_at = 6;
+}
+
+message FilingAcknowledged {
+  string    tenant_id       = 1;
+  string    gstin           = 2;
+  string    form_type       = 3;
+  string    period          = 4;
+  string    status          = 5;
+  Timestamp acknowledged_at = 6;
+  string    arn             = 7; // Acknowledgement Reference Number
+}

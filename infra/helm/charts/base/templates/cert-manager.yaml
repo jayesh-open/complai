@@ -1,0 +1,49 @@
+{{- if .Values.certManager.enabled }}
+# ---------------------------------------------------------------------------
+# cert-manager — Let's Encrypt Staging ClusterIssuer
+# ---------------------------------------------------------------------------
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.certManager.clusterIssuers.staging.name }}
+  labels:
+    app.kubernetes.io/part-of: complai
+spec:
+  acme:
+    server: {{ .Values.certManager.clusterIssuers.staging.server }}
+    email: {{ .Values.certManager.clusterIssuers.staging.email }}
+    privateKeySecretRef:
+      name: {{ .Values.certManager.clusterIssuers.staging.privateKeySecretRef }}
+    solvers:
+      {{- range .Values.certManager.clusterIssuers.staging.solvers }}
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: {{ .dns01.cloudflare.apiTokenSecretRef.name }}
+              key: {{ .dns01.cloudflare.apiTokenSecretRef.key }}
+      {{- end }}
+---
+# ---------------------------------------------------------------------------
+# cert-manager — Let's Encrypt Production ClusterIssuer
+# ---------------------------------------------------------------------------
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.certManager.clusterIssuers.production.name }}
+  labels:
+    app.kubernetes.io/part-of: complai
+spec:
+  acme:
+    server: {{ .Values.certManager.clusterIssuers.production.server }}
+    email: {{ .Values.certManager.clusterIssuers.production.email }}
+    privateKeySecretRef:
+      name: {{ .Values.certManager.clusterIssuers.production.privateKeySecretRef }}
+    solvers:
+      {{- range .Values.certManager.clusterIssuers.production.solvers }}
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: {{ .dns01.cloudflare.apiTokenSecretRef.name }}
+              key: {{ .dns01.cloudflare.apiTokenSecretRef.key }}
+      {{- end }}
+{{- end }}

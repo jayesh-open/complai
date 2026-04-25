@@ -1,0 +1,91 @@
+# Complai — Deploy to Staging
+# Triggered after CI passes on main branch.
+# Uses ArgoCD to sync services to the staging environment.
+
+name: Deploy Staging
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: staging
+      url: https://staging.complai.in
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # NOTE: Replace with real ArgoCD server when provisioned.
+      # The ArgoCD ApplicationSet (infra/argocd/application-set.yaml) handles
+      # auto-discovery. This workflow triggers a sync to ensure immediate deploy.
+
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: arn:aws:iam::role/github-actions-deploy
+      #     aws-region: ap-south-1
+
+      # - name: Set up kubectl
+      #   uses: azure/setup-kubectl@v4
+      #   with:
+      #     version: v1.30.0
+
+      # - name: Configure kubeconfig
+      #   run: aws eks update-kubeconfig --name complai-staging --region ap-south-1
+
+      # - name: Install ArgoCD CLI
+      #   run: |
+      #     curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+      #     chmod +x argocd
+      #     sudo mv argocd /usr/local/bin/
+
+      # - name: ArgoCD login
+      #   run: |
+      #     argocd login $ARGOCD_SERVER \
+      #       --username admin \
+      #       --password "${{ secrets.ARGOCD_ADMIN_PASSWORD }}" \
+      #       --grpc-web
+
+      # - name: Sync all staging applications
+      #   run: |
+      #     argocd app list -l complai.in/environment=staging -o name | while read app; do
+      #       echo "==> Syncing ${app}..."
+      #       argocd app sync "${app}" --prune --force
+      #       argocd app wait "${app}" --health --timeout 300
+      #     done
+
+      - name: Deployment placeholder
+        run: |
+          echo "============================================================"
+          echo "  Complai — Staging Deployment"
+          echo "============================================================"
+          echo ""
+          echo "Commit:      ${{ github.event.workflow_run.head_sha }}"
+          echo "Branch:      ${{ github.event.workflow_run.head_branch }}"
+          echo "Triggered:   ${{ github.event.workflow_run.created_at }}"
+          echo ""
+          echo "ArgoCD ApplicationSet is configured at:"
+          echo "  infra/argocd/application-set.yaml"
+          echo ""
+          echo "To enable automated staging deploys:"
+          echo "  1. Provision EKS cluster (infra/terraform/modules/eks)"
+          echo "  2. Install ArgoCD on the cluster"
+          echo "  3. Apply the ApplicationSet manifest"
+          echo "  4. Uncomment the deploy steps in this workflow"
+          echo "  5. Set ARGOCD_ADMIN_PASSWORD in GitHub Secrets"
+          echo ""
+          echo "============================================================"

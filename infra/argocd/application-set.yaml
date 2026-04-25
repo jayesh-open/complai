@@ -1,0 +1,126 @@
+# Complai — ArgoCD ApplicationSet
+# Auto-discovers services from the infra/helm directory and creates
+# an ArgoCD Application for each one.
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: complai-services
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: complai
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    # -------------------------------------------------------------------------
+    # Git directory generator — discovers service charts
+    # -------------------------------------------------------------------------
+    - git:
+        repoURL: https://github.com/complai-platform/complai.git
+        revision: HEAD
+        directories:
+          - path: infra/helm/charts/*
+          - path: infra/helm/charts/base
+            exclude: true
+          - path: infra/helm/charts/service-template
+            exclude: true
+
+    # -------------------------------------------------------------------------
+    # Matrix generator — combine services with environments
+    # -------------------------------------------------------------------------
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/complai-platform/complai.git
+              revision: HEAD
+              directories:
+                - path: infra/helm/services/*
+          - list:
+              elements:
+                - env: staging
+                  namespace: complai-staging
+                  cluster: https://kubernetes.default.svc
+                - env: production
+                  namespace: complai-production
+                  cluster: https://kubernetes.default.svc
+
+  template:
+    metadata:
+      name: "{{.path.basename}}-{{.env}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: complai
+        complai.in/environment: "{{.env}}"
+        complai.in/service: "{{.path.basename}}"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: complai
+      source:
+        repoURL: https://github.com/complai-platform/complai.git
+        targetRevision: HEAD
+        path: "{{.path.path}}"
+        helm:
+          valueFiles:
+            - values.yaml
+            - "values-{{.env}}.yaml"
+      destination:
+        server: "{{.cluster}}"
+        namespace: "{{.namespace}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+          allowEmpty: false
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas
+
+---
+# ---------------------------------------------------------------------------
+# ArgoCD AppProject — Complai
+# ---------------------------------------------------------------------------
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: complai
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: complai
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Complai enterprise compliance platform
+  sourceRepos:
+    - https://github.com/complai-platform/complai.git
+  destinations:
+    - namespace: complai-*
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: cert-manager.io
+      kind: ClusterIssuer
+    - group: external-secrets.io
+      kind: ClusterSecretStore
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: true

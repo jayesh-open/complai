@@ -1,0 +1,13 @@
+{
+  "name": "@complai/portal-bff-service",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Portal BFF - Part 6'",
+    "build": "echo 'Portal BFF - Part 6'",
+    "typecheck": "echo 'Portal BFF - Part 6'",
+    "lint": "echo 'ok'",
+    "test": "echo 'ok'",
+    "clean": "rm -rf dist"
+  }
+}

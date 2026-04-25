@@ -76,6 +76,9 @@ playwright-report/
 # Turborepo
 .turbo/
 
+# Go workspace
+go.work.sum
+
 # Storybook
 storybook-static/
 

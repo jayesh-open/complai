@@ -1,0 +1,13 @@
+{
+  "name": "@complai/web-bff-service",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Web BFF - Part 4'",
+    "build": "echo 'Web BFF - Part 4'",
+    "typecheck": "echo 'Web BFF - Part 4'",
+    "lint": "echo 'ok'",
+    "test": "echo 'ok'",
+    "clean": "rm -rf dist"
+  }
+}

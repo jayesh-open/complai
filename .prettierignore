@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+*.gen.ts
+*.pb.ts
+*.pb.go
+*.gen.go
+infra/terraform/.terraform
+pnpm-lock.yaml

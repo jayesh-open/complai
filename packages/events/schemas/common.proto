@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package complai.events.v1;
+
+option go_package = "github.com/complai/complai/packages/events/gen/go/complai/events/v1;eventsv1";
+
+// Timestamp in UTC, nanosecond precision.
+message Timestamp {
+  int64  seconds = 1;
+  int32  nanos   = 2;
+}
+
+// UUID as a string value.
+message UUID {
+  string value = 1;
+}
+
+// Money represents a monetary amount in minor units (paise for INR).
+message Money {
+  int64  amount_minor = 1;
+  string currency     = 2; // ISO 4217 code, e.g. "INR"
+}

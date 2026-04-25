@@ -1,0 +1,12 @@
+{
+  "name": "@complai/vendor-portal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Vendor portal - Part 6'",
+    "build": "echo 'Vendor portal - Part 6'",
+    "typecheck": "echo 'Vendor portal - Part 6'",
+    "lint": "echo 'ok'",
+    "clean": "rm -rf .next dist"
+  }
+}

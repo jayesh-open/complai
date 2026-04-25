@@ -1,0 +1,12 @@
+# ---------------------------------------------------------------
+# Dev Environment — Example Variable Values
+# ---------------------------------------------------------------
+# Copy this file to terraform.tfvars and fill in real values.
+# Do NOT commit terraform.tfvars to version control.
+# ---------------------------------------------------------------
+
+environment        = "dev"
+region             = "ap-south-1"
+vpc_cidr           = "10.0.0.0/16"
+domain_name        = "complai.in"
+cloudflare_zone_id = "REPLACE_WITH_CLOUDFLARE_ZONE_ID"

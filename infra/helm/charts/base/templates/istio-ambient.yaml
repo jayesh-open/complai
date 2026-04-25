@@ -1,0 +1,65 @@
+{{- if .Values.istio.enabled }}
+# ---------------------------------------------------------------------------
+# Istio Ambient Mesh — Label namespace for ambient mode
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace.name }}
+  labels:
+    istio.io/dataplane-mode: ambient
+---
+{{- if .Values.istio.ambient.waypoint.enabled }}
+# ---------------------------------------------------------------------------
+# Waypoint Proxy — L7 processing for the complai namespace
+# ---------------------------------------------------------------------------
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.istio.ambient.waypoint.name }}
+  namespace: {{ .Values.istio.ambient.waypoint.namespace }}
+  labels:
+    istio.io/waypoint-for: service
+    app.kubernetes.io/part-of: complai
+  annotations:
+    gateway.istio.io/controller-version: "1.22"
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: HBONE
+---
+# ---------------------------------------------------------------------------
+# AuthorizationPolicy — Deny-by-default for the waypoint
+# ---------------------------------------------------------------------------
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: complai-default-deny
+  namespace: {{ .Values.istio.ambient.waypoint.namespace }}
+  labels:
+    app.kubernetes.io/part-of: complai
+spec:
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: {{ .Values.istio.ambient.waypoint.name }}
+  action: DENY
+  rules: []
+---
+# ---------------------------------------------------------------------------
+# PeerAuthentication — Strict mTLS
+# ---------------------------------------------------------------------------
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: complai-strict-mtls
+  namespace: {{ .Values.istio.ambient.waypoint.namespace }}
+  labels:
+    app.kubernetes.io/part-of: complai
+spec:
+  mtls:
+    mode: STRICT
+{{- end }}
+{{- end }}

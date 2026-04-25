@@ -1,0 +1,12 @@
+version: v2
+plugins:
+  # Go code generation
+  - remote: buf.build/protocolbuffers/go
+    out: gen/go
+    opt:
+      - paths=source_relative
+  # TypeScript code generation
+  - remote: buf.build/bufbuild/es
+    out: gen/ts
+    opt:
+      - target=ts

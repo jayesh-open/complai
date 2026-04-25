@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package complai.events.v1;
+
+option go_package = "github.com/complai/complai/packages/events/gen/go/complai/events/v1;eventsv1";
+
+import "common.proto";
+
+// Full canonical invoice schema (architecture section 10).
+// Every invoice across the platform, regardless of source, conforms to this schema.
+
+message CanonicalInvoice {
+  // Header
+  string tenant_id       = 1;
+  string pan             = 2;
+  string gstin           = 3;
+  string id              = 4; // ULID
+  string document_number = 5;
+  Timestamp document_date = 6;
+  string supply_type     = 7; // B2B | B2C | EXPORT | SEZ | NIL | DEEMED_EXPORT
+  string document_type   = 8; // INV | CRN | DBN
+  bool   reverse_charge  = 9;
+
+  // Parties
+  Party supplier = 10;
+  Party buyer    = 11;
+
+  // Lines
+  repeated LineItem line_items = 12;
+
+  // Totals
+  InvoiceTotals totals = 13;
+
+  // Payment
+  Payment payment = 14;
+
+  // References
+  References references = 15;
+
+  // Metadata
+  InvoiceMetadata metadata = 16;
+}
+
+message Party {
+  string gstin      = 1;
+  string name       = 2;
+  string address    = 3;
+  string state_code = 4;
+}
+
+message TaxComponent {
+  int32 rate   = 1; // basis points (e.g. 1800 = 18%)
+  Money amount = 2;
+}
+
+message LineItem {
+  string       item_id       = 1;
+  string       description   = 2;
+  string       hsn           = 3;
+  string       unit          = 4;
+  int64        quantity       = 5; // in minor units for precision
+  Money        unit_price    = 6;
+  Money        discount      = 7;
+  Money        taxable_value = 8;
+  TaxComponent cgst          = 9;
+  TaxComponent sgst          = 10;
+  TaxComponent igst          = 11;
+  TaxComponent cess          = 12;
+}
+
+message InvoiceTotals {
+  Money taxable     = 1;
+  Money cgst        = 2;
+  Money sgst        = 3;
+  Money igst        = 4;
+  Money cess        = 5;
+  Money round_off   = 6;
+  Money grand_total = 7;
+}
+
+message Payment {
+  string mode         = 1;
+  string bank_details = 2;
+}
+
+message References {
+  string po_number       = 1;
+  string grn_number      = 2;
+  string contract_number = 3;
+  string irn             = 4;
+  string ewb_number      = 5;
+}
+
+message InvoiceMetadata {
+  string          source_system      = 1;
+  string          source_document_id = 2;
+  string          created_by         = 3;
+  Timestamp       created_at         = 4;
+  repeated string tags               = 5;
+}

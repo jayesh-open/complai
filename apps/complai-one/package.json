@@ -1,0 +1,12 @@
+{
+  "name": "@complai/complai-one",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Complai One SMB - Part 11'",
+    "build": "echo 'Complai One SMB - Part 11'",
+    "typecheck": "echo 'Complai One SMB - Part 11'",
+    "lint": "echo 'ok'",
+    "clean": "rm -rf .next dist"
+  }
+}

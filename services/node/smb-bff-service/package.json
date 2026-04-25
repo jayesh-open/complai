@@ -1,0 +1,13 @@
+{
+  "name": "@complai/smb-bff-service",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'SMB BFF - Part 11'",
+    "build": "echo 'SMB BFF - Part 11'",
+    "typecheck": "echo 'SMB BFF - Part 11'",
+    "lint": "echo 'ok'",
+    "test": "echo 'ok'",
+    "clean": "rm -rf dist"
+  }
+}

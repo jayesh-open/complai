@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package complai.events.v1;
+
+option go_package = "github.com/complai/complai/packages/events/gen/go/complai/events/v1;eventsv1";
+
+import "common.proto";
+
+message TenantCreated {
+  string    tenant_id  = 1;
+  string    name       = 2;
+  string    tier       = 3; // pooled | bridge | silo | on_prem
+  Timestamp created_at = 4;
+}

@@ -1,0 +1,44 @@
+openapi: "3.1.0"
+info:
+  title: Health Probe Service
+  version: "0.1.0"
+  description: Health and metrics endpoints for all Complai services.
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags:
+        - health
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                required:
+                  - status
+                  - version
+                  - timestamp
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      operationId: getMetrics
+      tags:
+        - observability
+      responses:
+        "200":
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string

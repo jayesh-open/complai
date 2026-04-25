@@ -1,0 +1,397 @@
+# Complai — Continuous Integration
+# Runs on every push to main and on all pull requests.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.22"
+  NODE_VERSION: "20.18"
+  PNPM_VERSION: "9"
+
+jobs:
+  # ===========================================================================
+  # Go — Lint
+  # ===========================================================================
+  lint-go:
+    name: Lint Go
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: .
+          args: --timeout=5m
+
+  # ===========================================================================
+  # Node — Lint
+  # ===========================================================================
+  lint-node:
+    name: Lint Node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        run: pnpm -r run lint
+
+  # ===========================================================================
+  # Go — Test (matrix per service)
+  # ===========================================================================
+  test-go:
+    name: Test Go (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - packages/shared-kernel-go
+          - services/go/identity-service
+          - services/go/tenant-service
+          - services/go/user-role-service
+          - services/go/master-data-service
+          - services/go/document-service
+          - services/go/audit-service
+          - services/go/gst-service
+          - services/go/einvoice-service
+          - services/go/ewb-service
+          - services/go/tds-service
+          - services/go/itr-service
+          - services/go/vendor-service
+          - services/go/recon-service
+          - services/go/notification-service
+          - services/go/workflow-service
+          - services/go/rules-engine-service
+          - services/go/billing-service
+          - services/go/reporting-service
+          - services/go/adaequare-gateway
+          - services/go/sandbox-gateway
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: complai
+          POSTGRES_PASSWORD: complai_test
+          POSTGRES_DB: complai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U complai"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Check if service exists
+        id: check
+        run: |
+          if [ -d "${{ matrix.service }}" ] && [ -f "${{ matrix.service }}/go.mod" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run tests
+        if: steps.check.outputs.exists == 'true'
+        working-directory: ${{ matrix.service }}
+        env:
+          DATABASE_URL: postgres://complai:complai_test@localhost:5432/complai_test?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ hashFiles(format('{0}/go.mod', matrix.service)) }}
+          path: ${{ matrix.service }}/coverage.out
+          retention-days: 7
+
+  # ===========================================================================
+  # Node — Test
+  # ===========================================================================
+  test-node:
+    name: Test Node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm -r run test
+
+  # ===========================================================================
+  # Node — Type check
+  # ===========================================================================
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run typecheck
+        run: pnpm -r run typecheck
+
+  # ===========================================================================
+  # Go — Build
+  # ===========================================================================
+  build-go:
+    name: Build Go
+    runs-on: ubuntu-latest
+    needs: [lint-go, test-go]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build all Go services
+        run: |
+          for dir in services/go/*/; do
+            if [ -f "${dir}go.mod" ]; then
+              echo "==> Building ${dir}..."
+              (cd "${dir}" && go build -ldflags="-s -w" -o /dev/null ./cmd/... 2>/dev/null || go build -ldflags="-s -w" -o /dev/null ./... )
+            fi
+          done
+
+  # ===========================================================================
+  # Node — Build
+  # ===========================================================================
+  build-node:
+    name: Build Node
+    runs-on: ubuntu-latest
+    needs: [lint-node, test-node, typecheck]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages and apps
+        run: pnpm -r run build
+
+  # ===========================================================================
+  # Docker — Build, scan, push (main only)
+  # ===========================================================================
+  docker:
+    name: Docker (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build-go, build-node]
+    permissions:
+      contents: read
+      id-token: write
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - identity-service
+          - tenant-service
+          - user-role-service
+          - master-data-service
+          - document-service
+          - audit-service
+          - gst-service
+          - einvoice-service
+          - ewb-service
+          - tds-service
+          - itr-service
+          - vendor-service
+          - recon-service
+          - notification-service
+          - workflow-service
+          - rules-engine-service
+          - billing-service
+          - reporting-service
+          - adaequare-gateway
+          - sandbox-gateway
+        include:
+          - service: web
+            context: apps/web
+            type: node
+          - service: vendor-portal
+            context: apps/vendor-portal
+            type: node
+    env:
+      # Placeholder — replace with real ECR registry
+      ECR_REGISTRY: 123456789012.dkr.ecr.ap-south-1.amazonaws.com
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set service context
+        id: ctx
+        run: |
+          if [ "${{ matrix.type }}" = "node" ]; then
+            echo "context=${{ matrix.context }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "context=services/go/${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if Dockerfile exists
+        id: check
+        run: |
+          if [ -f "${{ steps.ctx.outputs.context }}/Dockerfile" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Dockerfile not found at ${{ steps.ctx.outputs.context }}/Dockerfile — skipping"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      # NOTE: Uncomment when ECR is provisioned
+      # - name: Configure AWS credentials
+      #   if: steps.check.outputs.exists == 'true'
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: arn:aws:iam::role/github-actions-ecr
+      #     aws-region: ap-south-1
+      #
+      # - name: Login to Amazon ECR
+      #   if: steps.check.outputs.exists == 'true'
+      #   uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.ctx.outputs.context }}
+          push: false
+          load: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/complai/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/complai/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy vulnerability scan
+        if: steps.check.outputs.exists == 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/complai/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Upload Trivy results to GitHub Security
+        if: steps.check.outputs.exists == 'true' && always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Generate SBOM
+        if: steps.check.outputs.exists == 'true'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.ECR_REGISTRY }}/complai/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+          artifact-name: sbom-${{ matrix.service }}.spdx.json
+          output-file: sbom-${{ matrix.service }}.spdx.json
+
+      # NOTE: Uncomment when ECR is provisioned
+      # - name: Push to ECR
+      #   if: steps.check.outputs.exists == 'true'
+      #   run: |
+      #     docker push ${{ env.ECR_REGISTRY }}/complai/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+      #     docker push ${{ env.ECR_REGISTRY }}/complai/${{ matrix.service }}:latest

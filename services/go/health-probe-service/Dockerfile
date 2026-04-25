@@ -2,9 +2,10 @@ FROM golang:1.22-alpine AS builder
 
 WORKDIR /build
 
-COPY packages/shared-kernel-go/ /build/packages/shared-kernel-go/
+COPY packages/shared-kernel-go/ ./packages/shared-kernel-go/
 
-COPY services/go/health-probe-service/go.mod services/go/health-probe-service/go.sum ./
+COPY services/go/health-probe-service/go.mod services/go/health-probe-service/go.sum ./services/go/health-probe-service/
+WORKDIR /build/services/go/health-probe-service
 RUN go mod download
 
 COPY services/go/health-probe-service/ ./

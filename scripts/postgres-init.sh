@@ -52,4 +52,30 @@ SQL
   done
 done
 
+# ---------------------------------------------------------------------------
+# Application role (non-superuser) — RLS policies apply to this role
+# ---------------------------------------------------------------------------
+echo ""
+echo "==> Creating application role..."
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-SQL
+  DO \$\$
+  BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'complai_app') THEN
+      CREATE ROLE complai_app WITH LOGIN PASSWORD 'complai_app_dev';
+    END IF;
+  END
+  \$\$;
+SQL
+
+for db in "${DATABASES[@]}"; do
+  echo "  -> Granting privileges on ${db} to complai_app"
+  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "${db}" <<-SQL
+    GRANT CONNECT ON DATABASE ${db} TO complai_app;
+    GRANT USAGE ON SCHEMA public TO complai_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO complai_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO complai_app;
+SQL
+done
+
 echo "==> PostgreSQL initialisation complete."

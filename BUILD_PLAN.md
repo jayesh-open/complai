@@ -3,11 +3,20 @@
 Last updated: 2026-04-25
 
 ## Current part
-Part 1 complete. Next = Part 2.
+Part 2 complete. Next = Part 3.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
 - [x] Part 1: Repo skeleton + shared foundation
+- [x] Part 2: Identity + Tenant + User/Role services + auth
+  - [x] identity-service: Keycloak OIDC login/refresh/logout, JWT with tenant_id claim, MFA enrollment, step-up auth (5-min window)
+  - [x] tenant-service: CRUD + PAN/GSTIN/TAN hierarchy, per-tenant KMS CMK via LocalStack, suspend/reactivate
+  - [x] user-role-service: RBAC (roles, permissions, policy check), maker-checker approval workflow (self-approval denied), role templates
+  - [x] Postgres RLS enforced on all 3 databases (complai_app role, SET LOCAL app.tenant_id)
+  - [x] seed-dev.sh: 3 tenants, 15 users, 15 roles, 55 permissions, 15 Keycloak users with tenant_id attribute
+  - [x] Dockerfiles for all 3 services
+  - [x] Unit test coverage: identity 98.4%, tenant 100%, user-role 100%
+  - [x] E2E verified: auth flow, RLS isolation, maker-checker, step-up, KMS key creation
   - [x] Monorepo scaffolding (pnpm workspaces + Turborepo + go.work)
   - [x] Shared Go kernel (packages/shared-kernel-go) — 11 sub-packages, all tests pass
   - [x] Shared Node kernel (packages/shared-kernel-node) — types, Zod schemas, formatters, client, errors

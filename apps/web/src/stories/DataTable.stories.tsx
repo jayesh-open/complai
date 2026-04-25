@@ -36,7 +36,7 @@ export default meta;
 type Story = StoryObj<typeof DataTable>;
 
 export const Compact: Story = {
-  render: () => <DataTable columns={COLUMNS} data={SAMPLE_DATA} density="compact" onRowClick={(r) => alert(String(r.invoiceNo))} />,
+  render: () => <DataTable columns={COLUMNS} data={SAMPLE_DATA} density="compact" onRowClick={(r: InvoiceRow) => alert(String(r.invoiceNo))} />,
 };
 
 export const Comfortable: Story = {

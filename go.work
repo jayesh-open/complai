@@ -3,7 +3,10 @@ go 1.23.0
 use (
 	packages/shared-kernel-go
 	services/go/audit-service
+	services/go/aura-gateway-service
 	services/go/document-service
+	services/go/gst-service
+	services/go/gstn-gateway-service
 	services/go/health-probe-service
 	services/go/identity-service
 	services/go/master-data-service

@@ -82,6 +82,7 @@ export function FilingConfirmationModal({
               Type &quot;{confirmWord}&quot; to confirm:
             </label>
             <input
+              data-testid="confirm-input"
               type="text"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
@@ -98,12 +99,14 @@ export function FilingConfirmationModal({
         </div>
         <div className="px-6 py-4 border-t border-[var(--border-default)] flex justify-end gap-3">
           <button
+            data-testid="modal-cancel-button"
             onClick={onClose}
             className="px-4 py-2 text-xs font-medium rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
           >
             Cancel
           </button>
           <button
+            data-testid="modal-confirm-button"
             onClick={() => { if (confirmed) { onConfirm(); setTyped(''); } }}
             disabled={!confirmed}
             className={cn(

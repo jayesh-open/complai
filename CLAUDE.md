@@ -107,7 +107,7 @@ Complai is one of four sibling apps plus an external HRMS:
 - [x] Part 3: Platform services (master-data, document, notification, audit, workflow, rules)
 - [x] Part 4: API Gateway + BFF + Web Shell + design system components
 - [x] Part 4.5: Scope correction — align with Bank Open ecosystem
-- [ ] Part 5: Adaequare GST gateway + GSTR-1 flow
+- [x] Part 5: Adaequare GST gateway + GSTR-1 flow
 - [ ] Part 6: Sandbox KYC gateway + Vendor Compliance + Apex Sync
 - [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
 - [ ] Part 8: e-Invoicing + E-Way Bill

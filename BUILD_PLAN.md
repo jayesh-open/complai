@@ -3,7 +3,7 @@
 Last updated: 2026-04-25
 
 ## Current part
-Part 4.5 complete (Bank Open scope correction). Next = Part 5.
+Part 5 complete (Adaequare GST gateway + GSTR-1 flow). Next = Part 6.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -65,6 +65,33 @@ Part 4.5 complete (Bank Open scope correction). Next = Part 5.
   - [x] Data Sources route pages created: connected-apps, sync-status, ar-invoices, ap-invoices, vendors, contracts, payroll
   - [x] E2E tests updated: 6 groups assertion, compliance group collapse test
   - [x] CLAUDE.md + BUILD_PLAN.md updated
+
+- [x] Part 5: Adaequare GST gateway + GSTR-1 flow
+  - [x] gstn-gateway-service: Mock Adaequare Enriched GST APIs — Save, Submit, File GSTR-1 (port 8091)
+  - [x] aura-gateway-service: Stubbed AR invoice data — 100 mock invoices (B2B intra/inter, B2CL, B2CS, export, NIL-rated, CRN/DBN) with type mix (port 8092)
+  - [x] gst-service: GSTR-1 domain logic — 11-section categorization, validation, filing lifecycle (ingest→validate→review→approve→file→acknowledge), maker-checker, outbox pattern (port 8093)
+  - [x] Categorizer engine: B2B, B2CL, B2CS, CDNR, CDNUR, EXP, NIL, HSN, DOCS, AT, ATADJ — 14 tests, 100% coverage
+  - [x] Filing wizard UI: 6-step wizard (Next.js), step indicator, section review table (7 columns), filing confirmation modal (type-to-confirm, DSC/EVC selector)
+  - [x] GST Returns landing page with cards for GSTR-1, GSTR-3B, GSTR-2B, GSTR-9
+  - [x] Postgres RLS enforced on gst_db (sales_register, gstr1_filings, gstr1_sections, validation_errors, outbox)
+  - [x] Goose migrations for gst_db (5 tables, RLS policies, unique constraints)
+  - [x] Unit test coverage: gst-service handlers 84.3%, categorizer 100%, aura-gateway 100%, gstn-gateway 100%
+  - [x] TypeScript typecheck clean (tsc --noEmit)
+  - [x] go.work updated with 3 new services
+  - [x] Dockerfiles for all 3 services
+  - [x] Step-up auth gate: StepUpVerifier interface, File handler blocks without valid step-up (403 step_up_required), 2 tests PASS
+  - [x] Maker-checker enforcement: CreatedBy tracked on filing, self-approval denied (403 self_approval_denied), different user can approve, 2 tests PASS
+  - [x] Playwright E2E: Full wizard lifecycle (Ingest→Validate→Review→Approve→File with Cancel+type FILE+EVC→Acknowledge with ARN), 1 test PASS
+
+### Deferred Part 5 hardening tests (→ Part 14)
+- [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count
+- [ ] Failure recovery: GSTN gateway returns 5xx mid-file → filing status = 'failed', retryable
+- [ ] Filing Confirmation Modal Playwright: test DSC path, wrong confirm word rejected, modal a11y audit
+- [ ] Full audit pipeline: filing lifecycle events → audit-service → Merkle chain verification
+- [ ] Outbox delivery: outbox row created on file → SQS delivery → published status
+- [ ] RLS isolation E2E: tenant A cannot read tenant B's filings via API
+- [ ] Concurrent filing: two users file same period simultaneously → only one succeeds
+- [ ] Wire wizard to real backend APIs (requires BFF proxy gst-service route)
 
 ## Bank Open ecosystem
 Complai is one of four sibling apps in the Bank Open family:

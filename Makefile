@@ -49,7 +49,8 @@ MIGRATE_ORDER := \
 	services/go/audit-service \
 	services/go/workflow-service \
 	services/go/rules-engine-service \
-	services/go/gst-service
+	services/go/gst-service \
+	services/go/vendor-compliance-service
 
 migrate-all: ## Run migrations for all services in dependency order (stops on failure)
 	@failed=0; \

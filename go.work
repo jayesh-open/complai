@@ -2,6 +2,7 @@ go 1.23.0
 
 use (
 	packages/shared-kernel-go
+	services/go/apex-gateway-service
 	services/go/audit-service
 	services/go/aura-gateway-service
 	services/go/document-service
@@ -9,10 +10,12 @@ use (
 	services/go/gstn-gateway-service
 	services/go/health-probe-service
 	services/go/identity-service
+	services/go/kyc-gateway-service
 	services/go/master-data-service
 	services/go/notification-service
 	services/go/rules-engine-service
 	services/go/tenant-service
 	services/go/user-role-service
+	services/go/vendor-compliance-service
 	services/go/workflow-service
 )

@@ -19,6 +19,7 @@ DATABASES=(
   tds_db
   itr_db
   vendor_db
+  vendor_compliance_db
   recon_db
   ap_db
   billing_db

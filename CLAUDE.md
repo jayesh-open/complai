@@ -99,7 +99,7 @@ Complai is one of four sibling apps plus an external HRMS:
 - LocalStack KMS replaces real KMS
 - Terraform files generated as scaffolding only — not executed locally
 - No AWS CLI or Terraform installed on dev machine
-- All 10 service databases auto-provisioned via `scripts/postgres-init.sh`; apply migrations with `make migrate-all`
+- All 11 service databases auto-provisioned via `scripts/postgres-init.sh`; apply migrations with `make migrate-all`
 
 ## Current build state
 - [x] Part 0.5: Repo init + memory scaffolding
@@ -109,7 +109,7 @@ Complai is one of four sibling apps plus an external HRMS:
 - [x] Part 4: API Gateway + BFF + Web Shell + design system components
 - [x] Part 4.5: Scope correction — align with Bank Open ecosystem
 - [x] Part 5: Adaequare GST gateway + GSTR-1 flow
-- [ ] Part 6: Sandbox KYC gateway + Vendor Compliance + Apex Sync
+- [x] Part 6: Sandbox KYC gateway + Vendor Compliance + Apex Sync
 - [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
 - [ ] Part 8: e-Invoicing + E-Way Bill
 - [ ] Part 9: Sandbox TDS gateway + TDS module

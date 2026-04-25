@@ -3,7 +3,7 @@
 Last updated: 2026-04-25
 
 ## Current part
-Part 5 complete (Adaequare GST gateway + GSTR-1 flow). Next = Part 6.
+Part 6 complete (Sandbox KYC gateway + Vendor Compliance + Apex Sync). Next = Part 7.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -82,6 +82,47 @@ Part 5 complete (Adaequare GST gateway + GSTR-1 flow). Next = Part 6.
   - [x] Step-up auth gate: StepUpVerifier interface, File handler blocks without valid step-up (403 step_up_required), 2 tests PASS
   - [x] Maker-checker enforcement: CreatedBy tracked on filing, self-approval denied (403 self_approval_denied), different user can approve, 2 tests PASS
   - [x] Playwright E2E: Full wizard lifecycle (Ingest→Validate→Review→Approve→File with Cancel+type FILE+EVC→Acknowledge with ARN), 1 test PASS
+
+- [x] Part 6: Sandbox KYC gateway + Vendor Compliance + Apex Sync
+  - [x] kyc-gateway-service: Mock Sandbox.co.in KYC APIs — PAN, GSTIN, TAN, Bank verification (port 8094)
+    - [x] PAN: format validation (10-char alphanumeric), entity type detection (Company/Individual/HUF/Trust/Firm/AOP/BOI/Government/AJP/Local Authority)
+    - [x] GSTIN: 15-char validation, state code lookup (37 states), PAN extraction, status + registration type
+    - [x] TAN: 10-char validation, deductor name generation
+    - [x] Bank: IFSC validation (11-char format), 6-bank mapping (SBI/HDFC/ICICI/Axis/Kotak/PNB), account verification
+    - [x] Unit test coverage: API 83.2%, provider 100% (43 tests total)
+  - [x] apex-gateway-service: Mock Apex P2P client — 50 diverse vendor profiles + AP invoices (port 8095)
+    - [x] 50 vendors across 4 compliance tiers: 10 exemplary (Cat A), 15 good (Cat B), 15 average (Cat C), 10 poor (Cat D)
+    - [x] Indian enterprise names (Tata Steel, Infosys, Reliance, etc.), valid GSTIN format, 10 states, 5 categories
+    - [x] 270+ AP invoices (3-9 per vendor), Oct 2025 - Mar 2026, 4 GST rates, CGST/SGST vs IGST
+    - [x] Deterministic mock data (no randomness)
+    - [x] Unit test coverage: API 86.7%, provider 96.3% (35 tests total)
+  - [x] vendor-compliance-service: 100-point compliance scoring engine (port 8096, vendor_compliance_db)
+    - [x] 5-dimension scorer: Filing Regularity (30pts), IRN Compliance (20pts), Mismatch Rate (20pts), Payment Behavior (15pts), Document Hygiene (15pts)
+    - [x] Categories: A (≥90), B (60-89), C (40-59), D (<40). Risk levels: Low (≥80), Medium (60-79), High (40-59), Critical (<40)
+    - [x] Sync endpoint: POST /sync → fetches 50 vendors from apex-gateway, scores all, persists to vendor_compliance_db
+    - [x] Read-only API: GET /vendors, GET /vendors/{id}/score, GET /summary, GET /sync/status (no vendor CRUD)
+    - [x] Postgres RLS enforced: vendor_snapshots, compliance_scores, sync_status tables
+    - [x] Goose migration with CHECK constraints on score ranges and category/risk values
+    - [x] Unit test coverage: API 82.7%, scorer 95.7% (33 tests total)
+  - [x] Vendor compliance UI page (apps/web/src/app/compliance/vendor-compliance/page.tsx)
+    - [x] List view: 50 mock vendors, KPI summary cards, category filter (A/B/C/D/All), search, vendor table
+    - [x] Detail view: VendorComplianceScoreCard (10-dot bar + 5-dimension breakdown), vendor details, category badge
+    - [x] Sync from Apex button with loading state
+    - [x] data-testid attributes for Playwright testing
+  - [x] Playwright E2E test (apps/web/e2e/vendor-compliance.spec.ts)
+    - [x] List view renders with 50 vendors, KPI summary visible
+    - [x] Category filter (A→10, D→10, All→50)
+    - [x] Search filter ("Tata"→1 row)
+    - [x] Click vendor → detail view with VendorComplianceScoreCard (5 dimensions visible)
+    - [x] Back button returns to list, sync button interaction
+  - [x] Infrastructure: vendor_compliance_db added to postgres-init.sh, go.work updated with 3 services, Makefile MIGRATE_ORDER updated
+  - [x] Storybook: VendorComplianceScoreCard story exists, Storybook builds clean
+  - [x] TypeScript typecheck clean (tsc --noEmit)
+  - [x] go vet + go build clean on all 17 Go modules
+  - [x] Dockerfiles for all 3 new services
+  - [x] RLS regression verified: cross-tenant query returns 0 rows
+  - [x] Read-only API verified: PUT/DELETE return 405
+  - [x] End-to-end sync verified: 50 vendors synced + scored (CatA=6, CatB=27, CatC=11, CatD=6, Avg=69)
 
 ### Deferred Part 5 hardening tests (→ Part 14)
 - [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count
@@ -208,4 +249,4 @@ Items that require real AWS/cloud access. The DevOps team should execute these w
 - Every part ends with: tests green + BUILD_PLAN updated + commit
 - All dev uses LocalStack — same code runs on real AWS via env var swap
 - Terraform files are scaffolding for DevOps team — never run locally
-- All 10 service databases auto-provisioned via `scripts/postgres-init.sh`; migrations applied via `make migrate-all` (dependency-ordered, stops on failure)
+- All 11 service databases auto-provisioned via `scripts/postgres-init.sh`; migrations applied via `make migrate-all` (dependency-ordered, stops on failure)

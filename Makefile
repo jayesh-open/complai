@@ -1,4 +1,4 @@
-.PHONY: dev down db-up migrate seed lint test build clean fmt help
+.PHONY: dev down db-up migrate migrate-all seed lint test build clean fmt help
 
 DOCKER_COMPOSE := docker compose -f docker-compose.dev.yml
 GO_SERVICES := $(shell find services/go -name 'go.mod' -exec dirname {} \;)
@@ -38,6 +38,28 @@ migrate: ## Run database migrations for all services
 			cd $(CURDIR); \
 		fi; \
 	done
+
+MIGRATE_ORDER := \
+	services/go/identity-service \
+	services/go/tenant-service \
+	services/go/user-role-service \
+	services/go/master-data-service \
+	services/go/document-service \
+	services/go/notification-service \
+	services/go/audit-service \
+	services/go/workflow-service \
+	services/go/rules-engine-service \
+	services/go/gst-service
+
+migrate-all: ## Run migrations for all services in dependency order (stops on failure)
+	@failed=0; \
+	for svc in $(MIGRATE_ORDER); do \
+		if [ -d "$$svc/migrations" ] && [ "$$(ls -A $$svc/migrations 2>/dev/null)" ]; then \
+			echo "Migrating: $$svc"; \
+			(cd $$svc && go run cmd/server/main.go migrate) || { echo "FAILED: $$svc"; failed=1; break; }; \
+		fi; \
+	done; \
+	if [ $$failed -eq 0 ]; then echo "All migrations applied successfully."; else exit 1; fi
 
 seed: ## Seed development data
 	@if [ -f scripts/seed-dev.sh ]; then \

@@ -13,6 +13,7 @@ CREATE TABLE gstr1_filings (
     filed_by UUID,
     approved_by UUID,
     approved_at TIMESTAMPTZ,
+    created_by UUID,
     request_id UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

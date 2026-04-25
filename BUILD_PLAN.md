@@ -208,3 +208,4 @@ Items that require real AWS/cloud access. The DevOps team should execute these w
 - Every part ends with: tests green + BUILD_PLAN updated + commit
 - All dev uses LocalStack — same code runs on real AWS via env var swap
 - Terraform files are scaffolding for DevOps team — never run locally
+- All 10 service databases auto-provisioned via `scripts/postgres-init.sh`; migrations applied via `make migrate-all` (dependency-ordered, stops on failure)

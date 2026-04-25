@@ -99,6 +99,7 @@ Complai is one of four sibling apps plus an external HRMS:
 - LocalStack KMS replaces real KMS
 - Terraform files generated as scaffolding only — not executed locally
 - No AWS CLI or Terraform installed on dev machine
+- All 10 service databases auto-provisioned via `scripts/postgres-init.sh`; apply migrations with `make migrate-all`
 
 ## Current build state
 - [x] Part 0.5: Repo init + memory scaffolding

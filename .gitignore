@@ -1,0 +1,84 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Generated
+*.gen.go
+*.gen.ts
+*.pb.go
+*.pb.ts
+
+# Turborepo
+.turbo/
+
+# Storybook
+storybook-static/
+
+# LocalStack
+.localstack/
+volume/

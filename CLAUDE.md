@@ -1,0 +1,111 @@
+# CLAUDE.md — Session-durable memory for Complai
+
+## What we're building
+Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Target: 500 Year-1, 50K GSTINs Year-3. Competitive reference: Clear / ClearTax.
+
+## Authoritative input docs (read on every session start)
+- /docs/input/complai_prd.md
+- /docs/input/complai_architecture.md
+- /docs/input/complai_design_system.md
+- /docs/input/complai_api_integration.md
+- /docs/input/AURA_DESIGN_SYSTEM.md
+
+## Non-negotiable invariants
+1. Multi-tenant: tenant_id on every row, Postgres RLS, asserted in every service
+2. Enriched APIs only (Adaequare). No SEK/crypto in our repo.
+3. Two providers: Adaequare (GST/IRP/EWB) + Sandbox.co.in (TDS/ITR/KYC/Tax-Payment)
+4. Cloud: AWS, ap-south-1 (Mumbai) primary, ap-south-2 (Hyderabad) DR
+5. Backend: Go 1.22 everywhere (domain + gateways); Python 3.12 for AI only
+6. Frontend: TypeScript 5.4 + Next.js 15
+7. OLTP + Phase 1 analytics: Postgres RDS (Multi-AZ + read replica)
+8. No MongoDB. No Kafka. No ClickHouse in Phase 1.
+9. Messaging: SQS + SNS, abstracted behind MessageBus interface
+10. Design system: Light Classic default, Compact density, DD/MM/YYYY, ₹ + crore/lakh
+11. Outbox pattern for every external call
+12. Idempotency via request_id UUIDs
+13. OTel traces with tenant_id + gstin/tan/pan baggage → Last9
+
+## Stack (pinned)
+- Cloud: AWS (ap-south-1 primary, ap-south-2 DR)
+- Compute: EKS 1.30 + Istio 1.22 ambient
+- Backend: Go 1.22 (domain + gateways), Python 3.12 (AI only)
+- Frontend: TypeScript 5.4 + Next.js 15 + React 19 + Tailwind + shadcn/ui
+- OLTP: Amazon RDS PostgreSQL 16 Multi-AZ + read replica
+- Cache: ElastiCache Redis 7
+- Messaging: SQS + SNS (MessageBus abstraction)
+- Search: Amazon OpenSearch Service 2
+- Storage: S3
+- Secrets: AWS Secrets Manager + KMS
+- Identity: Keycloak 24 on EKS
+- Workflow: Temporal Cloud (managed)
+- Email: Amazon SES
+- CDN/DNS/WAF: Cloudflare
+- Observability: Last9 (OpenTelemetry-native)
+- CI/CD: GitHub Actions + ArgoCD
+
+## Go framework stack (consistent across all services)
+- HTTP: go-chi/chi/v5
+- DB: jackc/pgx/v5 + sqlc + goose
+- DI: uber-go/fx
+- Config: spf13/viper
+- Logging: rs/zerolog
+- Validation: go-playground/validator/v10
+- Tracing: OpenTelemetry Go SDK
+- Testing: testify + testcontainers-go
+- Mocking: gomock
+- Money: shopspring/decimal
+- JWT: golang-jwt/jwt/v5
+- Temporal: temporal.io/sdk
+- AWS: aws-sdk-go-v2
+- Circuit breaker: sony/gobreaker
+- Linting: golangci-lint
+
+## Repo layout
+- apps/web — Next.js main product
+- apps/vendor-portal — external vendor app
+- apps/complai-one — SMB billing PWA
+- services/go/{name}-service — Go services (domain + gateways)
+- services/python/{name}-service — Python AI services
+- services/node/{name}-bff-service — TypeScript BFFs
+- packages/shared-kernel-go — Go shared libs (tenant, outbox, messagebus)
+- packages/shared-kernel-node — TS shared libs
+- packages/ui-components — Complai component library
+- packages/events — Protobuf schemas
+- packages/openapi — OpenAPI specs
+- infra/terraform — AWS infra
+- infra/helm — K8s charts
+- docs/adr — ADRs
+- docs/input — authoritative docs
+
+## Local dev environment
+- All AWS service interactions use LocalStack (via docker-compose.dev.yml)
+- Go services use aws-sdk-go-v2 with AWS_ENDPOINT_URL pointed at LocalStack
+- Mailpit replaces Amazon SES for email
+- Temporal dev server replaces Temporal Cloud
+- Jaeger replaces Last9 for tracing
+- LocalStack KMS replaces real KMS
+- Terraform files generated as scaffolding only — not executed locally
+- No AWS CLI or Terraform installed on dev machine
+
+## Current build state
+- [x] Part 0.5: Repo init + memory scaffolding
+- [ ] Part 1: Repo skeleton + shared foundation
+- [ ] Part 2: Identity + Tenant + User/Role services + auth
+- [ ] Part 3: Platform services (master-data, document, notification, audit, workflow, rules)
+- [ ] Part 4: API Gateway + BFF + Web Shell + design system components
+- [ ] Part 5: Adaequare GST gateway + GSTR-1 flow
+- [ ] Part 6: Sandbox KYC gateway + Vendor Compliance
+- [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS
+- [ ] Part 8: e-Invoicing + E-Way Bill
+- [ ] Part 9: Sandbox TDS gateway + TDS module
+- [ ] Part 10: Sandbox ITR + GSTR-9/9C
+- [ ] Part 11: AP Automation + ClearOne SMB
+- [ ] Part 12: AI layer + MaxITC
+- [ ] Part 13: Real ERP + bank integrations + Compliance Cloud
+- [ ] Part 14: Reporting + observability + production hardening
+
+## Credentials / blockers needed
+(populated as encountered)
+
+## Key ADRs
+(populated as written — see /docs/adr/)

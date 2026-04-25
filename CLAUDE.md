@@ -93,7 +93,7 @@ Complai is an enterprise GST + TDS + compliance SaaS for Indian enterprises. Tar
 - [x] Part 1: Repo skeleton + shared foundation
 - [x] Part 2: Identity + Tenant + User/Role services + auth
 - [x] Part 3: Platform services (master-data, document, notification, audit, workflow, rules)
-- [ ] Part 4: API Gateway + BFF + Web Shell + design system components
+- [x] Part 4: API Gateway + BFF + Web Shell + design system components
 - [ ] Part 5: Adaequare GST gateway + GSTR-1 flow
 - [ ] Part 6: Sandbox KYC gateway + Vendor Compliance
 - [ ] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS

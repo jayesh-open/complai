@@ -10,7 +10,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -22,7 +24,14 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "typescript": "~5.4.5",
-    "@types/react": "^19.0.0"
+    "@types/react": "^19.0.0",
+    "typescript": "~5.4.5"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7",
+    "clsx": "^2",
+    "lucide-react": "^0.400",
+    "tailwind-merge": "^2",
+    "zustand": "^4"
   }
 }

@@ -27,6 +27,12 @@ test.describe("Storybook a11y (axe-core)", () => {
       await page.waitForSelector("#storybook-root", { state: "attached" });
       await page.waitForTimeout(1000);
 
+      const hasError = await page.locator("#storybook-root .sb-errordisplay").count();
+      expect(hasError, `${story.name} failed to render — error page detected`).toBe(0);
+
+      const childCount = await page.locator("#storybook-root > *").count();
+      expect(childCount, `${story.name} rendered empty`).toBeGreaterThan(0);
+
       const results = await new AxeBuilder({ page })
         .include("#storybook-root")
         .analyze();

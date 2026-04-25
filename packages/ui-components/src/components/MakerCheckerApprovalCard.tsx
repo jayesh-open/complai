@@ -48,8 +48,9 @@ export function MakerCheckerApprovalCard({
           </div>
         ))}
         <div>
-          <label className="text-[11px] font-medium text-[var(--text-muted)]">Comments (optional):</label>
+          <label htmlFor="approval-comment" className="text-[11px] font-medium text-[var(--text-muted)]">Comments (optional):</label>
           <textarea
+            id="approval-comment"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={2}

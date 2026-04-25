@@ -52,7 +52,7 @@ export function VendorComplianceScoreCard({
             <span className="text-[var(--text-muted)] min-w-[140px]">{d.label}:</span>
             <span className="font-semibold text-[var(--text-primary)]">{d.score}/{d.maxScore}</span>
             <span>{d.status === 'pass' ? '✓' : '⚠'}</span>
-            {d.note && <span className="text-[var(--text-disabled)]">&mdash; {d.note}</span>}
+            {d.note && <span className="text-[var(--text-muted)]">&mdash; {d.note}</span>}
           </div>
         ))}
       </div>

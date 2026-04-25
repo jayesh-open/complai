@@ -38,7 +38,7 @@ export function AuditTrailTimeline({ entries, className }: AuditTrailTimelinePro
               </span>
             </div>
             <div className="text-[11px] text-[var(--text-muted)] mt-0.5">by {entry.actor}</div>
-            {entry.detail && <div className="text-[11px] text-[var(--text-disabled)] mt-0.5">{entry.detail}</div>}
+            {entry.detail && <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{entry.detail}</div>}
           </div>
         </div>
       ))}

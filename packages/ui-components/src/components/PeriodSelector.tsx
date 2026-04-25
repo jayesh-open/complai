@@ -19,6 +19,7 @@ export function PeriodSelector({ financialYear, month, onYearChange, onMonthChan
       <select
         value={financialYear}
         onChange={(e) => onYearChange(e.target.value)}
+        aria-label="Financial year"
         className={cn(
           'px-3 py-1.5 rounded-lg border text-xs font-medium',
           'bg-[var(--bg-tertiary)] border-[var(--border-default)] text-[var(--text-primary)]',
@@ -32,6 +33,7 @@ export function PeriodSelector({ financialYear, month, onYearChange, onMonthChan
       <select
         value={month}
         onChange={(e) => onMonthChange(e.target.value)}
+        aria-label="Month"
         className={cn(
           'px-3 py-1.5 rounded-lg border text-xs font-medium',
           'bg-[var(--bg-tertiary)] border-[var(--border-default)] text-[var(--text-primary)]',

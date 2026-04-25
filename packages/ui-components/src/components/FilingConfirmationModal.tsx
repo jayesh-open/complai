@@ -42,10 +42,11 @@ export function FilingConfirmationModal({
         )}
         role="alertdialog"
         aria-modal="true"
+        aria-labelledby="filing-modal-title"
       >
         <div className="px-6 py-4 border-b border-[var(--border-default)] flex items-center gap-2">
-          <span className="text-[var(--warning)] text-lg">{'⚠'}</span>
-          <h2 className="text-sm font-bold text-[var(--text-primary)]">{title}</h2>
+          <span className="text-[var(--warning)] text-lg" aria-hidden="true">{'⚠'}</span>
+          <h2 id="filing-modal-title" className="text-sm font-bold text-[var(--text-primary)]">{title}</h2>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="space-y-2">

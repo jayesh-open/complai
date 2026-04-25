@@ -1,6 +1,6 @@
 import type { Preview } from "@storybook/react";
 import "../src/app/globals.css";
-import { THEME_MAP } from "../src/lib/themes";
+import { THEME_MAP } from "@complai/ui-components";
 
 const lightColors = THEME_MAP.light;
 

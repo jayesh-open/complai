@@ -64,7 +64,7 @@ services:
       - complai-localstack-data:/var/lib/localstack
       - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"sqs\": \"available\"'"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -qE '\"sqs\": \"(available|running)\"'"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -104,7 +104,7 @@ services:
     container_name: complai-keycloak
     ports:
       - "8080:8080"
-    command: start-dev --import-realm
+    command: start-dev --import-realm --health-enabled=true
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
@@ -145,11 +145,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "temporal", "operator", "cluster", "health"]
+      test: ["CMD-SHELL", "temporal operator cluster health --address $(hostname):7233"]
       interval: 10s
       timeout: 5s
       retries: 15
-      start_period: 30s
+      start_period: 60s
     networks:
       - complai-dev
 
@@ -191,7 +191,7 @@ services:
   # Jaeger — Distributed tracing (replaces Last9)
   # ---------------------------------------------------------------------------
   jaeger:
-    image: jaegertracing/all-in-one:1.62
+    image: jaegertracing/all-in-one:1.60.0
     container_name: complai-jaeger
     ports:
       - "16686:16686"  # Jaeger UI

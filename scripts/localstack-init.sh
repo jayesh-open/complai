@@ -74,14 +74,24 @@ for queue in "${!QUEUE_MAP[@]}"; do
   if [[ "${queue}" == *.fifo ]]; then
     awslocal sqs create-queue \
       --queue-name "${queue}" \
-      --attributes "FifoQueue=true,ContentBasedDeduplication=true,RedrivePolicy={\"deadLetterTargetArn\":\"${dlq_arn}\",\"maxReceiveCount\":\"3\"}" \
+      --attributes FifoQueue=true,ContentBasedDeduplication=true \
       --region "${REGION}"
   else
     awslocal sqs create-queue \
       --queue-name "${queue}" \
-      --attributes "RedrivePolicy={\"deadLetterTargetArn\":\"${dlq_arn}\",\"maxReceiveCount\":\"3\"}" \
       --region "${REGION}"
   fi
+
+  queue_url=$(awslocal sqs get-queue-url \
+    --queue-name "${queue}" \
+    --region "${REGION}" \
+    --query 'QueueUrl' \
+    --output text)
+
+  awslocal sqs set-queue-attributes \
+    --queue-url "${queue_url}" \
+    --cli-input-json "{\"QueueUrl\": \"${queue_url}\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"deadLetterTargetArn\\\": \\\"${dlq_arn}\\\", \\\"maxReceiveCount\\\": \\\"3\\\"}\"}}" \
+    --region "${REGION}"
 done
 
 # ---------------------------------------------------------------------------

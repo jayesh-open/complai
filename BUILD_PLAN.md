@@ -1,9 +1,9 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-04-25
+Last updated: 2026-04-26
 
 ## Current part
-Part 6 complete (Sandbox KYC gateway + Vendor Compliance + Apex Sync). Next = Part 7.
+Part 7 complete (Reconciliation engine + GSTR-3B + GSTR-2B/IMS). Next = Part 8.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -123,6 +123,39 @@ Part 6 complete (Sandbox KYC gateway + Vendor Compliance + Apex Sync). Next = Pa
   - [x] RLS regression verified: cross-tenant query returns 0 rows
   - [x] Read-only API verified: PUT/DELETE return 405
   - [x] End-to-end sync verified: 50 vendors synced + scored (CatA=6, CatB=27, CatC=11, CatD=6, Avg=69)
+
+- [x] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
+  - [x] recon-service: 5-stage ITC reconciliation engine (port 8097, recon_db)
+    - [x] Matcher pipeline: exact → fuzzy (Levenshtein) → amount → partial → residual
+    - [x] 6 match types: Direct, Probable, Partial, Missing2B, MissingPR, Duplicate
+    - [x] IMS round-trip: send ACCEPT/REJECT action to GSTN gateway, local action store, fetch IMS state
+    - [x] Gateway integration: Apex (AP invoices, double-wrapped response), GSTN (GSTR-2B, IMS)
+    - [x] Precision/recall: 1000×1000 synthetic benchmark — 100% precision, >95% recall
+    - [x] Fuzzy match: Levenshtein distance ≤2, amount within 1% tolerance, 4 test scenarios
+    - [x] Performance: 10K×10K reconciliation under 5 minutes (2.8s actual)
+  - [x] gst-service: GSTR-3B auto-fill pipeline
+    - [x] 3-source aggregation: GSTR-1 summary (outward supply), GSTR-2B (inward supply), IMS (ITC filtering)
+    - [x] Computed fields: outward supply rows, inward supply, eligible ITC (IMS-filtered), gross liability, net liability
+    - [x] IMS-aware ITC: rejected invoices excluded, RCM excluded, pending IMS flagged
+    - [x] Filing lifecycle: populate → review → approve (maker-checker) → save → submit → file → acknowledge
+    - [x] GSTR3BSummary, GSTR3BApprove (self-approval denied), GSTR3BFile (step-up, DSC/EVC) handlers
+  - [x] ITC Reconciliation Workspace UI
+    - [x] Bucket summary (matched/mismatch/missing2B/missingPR/duplicate)
+    - [x] Reconciliation table with search, bucket filter, AI suggestions toggle
+    - [x] Run reconciliation button, export button
+  - [x] GSTR-3B Filing Wizard UI
+    - [x] 6-step wizard: Auto-Populate → Review → Pay → Sign → File → Acknowledge
+    - [x] Step indicator with completed/active/pending states
+    - [x] Review tabs: Tax Liability (Tables 1-6), ITC (Tables 4A-D) with SourceBadge
+    - [x] Filing confirmation modal: DSC/EVC selector, type-to-confirm, ARN receipt
+  - [x] Postgres RLS enforced on recon_db (recon_runs, recon_matches, ims_actions)
+  - [x] Goose migrations for recon_db (3 tables, RLS policies)
+  - [x] Unit test coverage: recon-service handlers 88.5%, matcher 91.2%; gst-service handlers 81.1%, categorizer 100%
+  - [x] Playwright E2E: Recon Workspace (6 tests), GSTR-3B Wizard full lifecycle (3 tests)
+  - [x] TypeScript typecheck clean (tsc --noEmit)
+  - [x] go vet + go build clean on all affected modules
+  - [x] Storybook: build clean, 16/16 story tests pass, axe-core 0 a11y violations
+  - [x] StepIndicator: data-testid added for E2E
 
 ### Deferred Part 5 hardening tests (→ Part 14)
 - [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count

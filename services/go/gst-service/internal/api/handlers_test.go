@@ -802,6 +802,144 @@ func TestApprove_SelfApprovalDenied(t *testing.T) {
 	assert.Equal(t, "self_approval_denied", errResp["error"])
 }
 
+func fakeGSTNServerWith3B() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/v1/gateway/adaequare/gstr1/summary":
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": gateway.GSTR1SummaryResponse{
+					GSTIN: "29AABCA1234A1Z5", RetPeriod: "042026", Status: "success",
+					Summary: map[string]interface{}{
+						"b2b":  map[string]interface{}{"taxable_value": 500000.0, "cgst": 0.0, "sgst": 0.0, "igst": 90000.0},
+						"b2cs": map[string]interface{}{"taxable_value": 200000.0, "cgst": 18000.0, "sgst": 18000.0, "igst": 0.0},
+						"cdnr": map[string]interface{}{"taxable_value": 50000.0, "cgst": 0.0, "sgst": 0.0, "igst": 9000.0},
+					},
+				},
+			})
+		case "/v1/gateway/adaequare/gstr2b/get":
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": gateway.GSTR2BGetResponse{
+					GSTIN: "29AABCA1234A1Z5", RetPeriod: "042026", Status: "success", TotalCount: 4,
+					Invoices: []gateway.GSTR2BInvoice{
+						{SupplierGSTIN: "27AABCB0001B1Z5", InvoiceNumber: "INV-P001", InvoiceDate: "01/04/2026", TaxableValue: 100000, IGSTAmount: 18000, TotalValue: 118000, HSN: "9988"},
+						{SupplierGSTIN: "27AABCB0002B1Z5", InvoiceNumber: "INV-P002", InvoiceDate: "05/04/2026", TaxableValue: 100000, IGSTAmount: 18000, TotalValue: 118000, HSN: "9988"},
+						{SupplierGSTIN: "27AABCB0003B1Z5", InvoiceNumber: "INV-P003", InvoiceDate: "10/04/2026", TaxableValue: 100000, IGSTAmount: 18000, TotalValue: 118000, HSN: "9988"},
+						{SupplierGSTIN: "29AABCB0004B1Z5", InvoiceNumber: "INV-P004", InvoiceDate: "15/04/2026", TaxableValue: 50000, CGSTAmount: 4500, SGSTAmount: 4500, TotalValue: 59000, HSN: "9988"},
+					},
+				},
+			})
+		case "/v1/gateway/adaequare/ims/get":
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": gateway.IMSGetResponse{
+					GSTIN: "29AABCA1234A1Z5", RetPeriod: "042026", Status: "success",
+					Invoices: []gateway.IMSInvoice{
+						{InvoiceID: "ims-001", SupplierGSTIN: "27AABCB0001B1Z5", InvoiceNumber: "INV-P001", TaxableValue: 100000, TotalValue: 118000, IGSTAmount: 18000, Action: "ACCEPT"},
+						{InvoiceID: "ims-002", SupplierGSTIN: "27AABCB0002B1Z5", InvoiceNumber: "INV-P002", TaxableValue: 100000, TotalValue: 118000, IGSTAmount: 18000, Action: "ACCEPT"},
+						{InvoiceID: "ims-003", SupplierGSTIN: "27AABCB0003B1Z5", InvoiceNumber: "INV-P003", TaxableValue: 100000, TotalValue: 118000, IGSTAmount: 18000, Action: "REJECT"},
+					},
+					Summary: gateway.IMSSummary{Accepted: 2, Rejected: 1, Pending: 1, AcceptedValue: 236000, RejectedValue: 118000, PendingValue: 59000},
+				},
+			})
+		default:
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": map[string]interface{}{"status": "success", "message": "ok", "arn": "AA2904202600001234"},
+			})
+		}
+	}))
+}
+
+func setupHandlersWith3B(t *testing.T) (*Handlers, *store.MockStore, func()) {
+	t.Helper()
+	auraServer := fakeAuraServer()
+	gstnServer := fakeGSTNServerWith3B()
+
+	mockStore := store.NewMockStore()
+	aura := gateway.NewAuraClient(auraServer.URL)
+	gstn := gateway.NewGSTNClient(gstnServer.URL)
+	h := NewHandlers(mockStore, aura, gstn, nil)
+
+	return h, mockStore, func() {
+		auraServer.Close()
+		gstnServer.Close()
+	}
+}
+
+func TestGSTR3BAutoFill(t *testing.T) {
+	h, mockStore, cleanup := setupHandlersWith3B(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	body := domain.GSTR3BAutoFillRequest{GSTIN: "29AABCA1234A1Z5", ReturnPeriod: "042026"}
+	rec := postJSON(t, h.GSTR3BAutoFill, "/v1/gst/gstr3b/auto-fill", body, tenantID)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp domain.GSTR3BAutoFillResponse
+	parseDataResponse(t, rec.Body.Bytes(), &resp)
+	assert.NotEqual(t, uuid.Nil, resp.FilingID)
+
+	d := resp.Data
+
+	// Table 1: Outward supply from GSTR-1
+	assert.True(t, d.GSTR1Summary.B2B.IGST.Equal(decimal.NewFromInt(90000)), "B2B IGST should be 90000")
+	assert.True(t, d.GSTR1Summary.B2B.TaxableValue.Equal(decimal.NewFromInt(500000)), "B2B taxable should be 500000")
+	assert.True(t, d.GSTR1Summary.B2CS.CGST.Equal(decimal.NewFromInt(18000)), "B2CS CGST should be 18000")
+	assert.True(t, d.GSTR1Summary.B2CS.SGST.Equal(decimal.NewFromInt(18000)), "B2CS SGST should be 18000")
+	assert.True(t, d.GSTR1Summary.CreditNote.IGST.Equal(decimal.NewFromInt(9000)), "Credit note IGST should be 9000")
+
+	// Table 2: Inward supply from GSTR-2B (4 invoices, all 18% rate)
+	assert.True(t, d.InwardSupply.TotalValue.Equal(decimal.NewFromFloat(413000)), "Inward total value")
+	assert.True(t, d.InwardSupply.TaxableAt18.Equal(decimal.NewFromFloat(350000)), "All taxable at 18%")
+	assert.True(t, d.InwardSupply.ITCAvailable.IGST.Equal(decimal.NewFromFloat(54000)), "Inward ITC IGST")
+	assert.True(t, d.InwardSupply.ITCAvailable.CGST.Equal(decimal.NewFromFloat(4500)), "Inward ITC CGST")
+
+	// Table 3: IMS summary
+	assert.Equal(t, 2, d.IMSActions.Accepted)
+	assert.Equal(t, 1, d.IMSActions.Rejected)
+	assert.Equal(t, 1, d.IMSActions.Pending)
+
+	// Table 4A-D: Eligible ITC (GSTR-2B minus rejected by IMS, minus RCM)
+	// INV-P001 (IGST 18000) + INV-P002 (IGST 18000) + INV-P004 (CGST 4500, SGST 4500) = IGST 36000, CGST 4500, SGST 4500
+	assert.True(t, d.EligibleITC.Total.IGST.Equal(decimal.NewFromFloat(36000)), "Eligible ITC IGST = 36000")
+	assert.True(t, d.EligibleITC.Total.CGST.Equal(decimal.NewFromFloat(4500)), "Eligible ITC CGST = 4500")
+	assert.True(t, d.EligibleITC.Total.SGST.Equal(decimal.NewFromFloat(4500)), "Eligible ITC SGST = 4500")
+
+	// Table 5: Gross liability = B2B + B2CS - CreditNote (B2CL, Exports, Advances are zero)
+	// CGST: 0 + 18000 - 0 = 18000, SGST: 0 + 18000 - 0 = 18000, IGST: 90000 + 0 - 9000 = 81000
+	assert.True(t, d.GrossLiability.CGST.Equal(decimal.NewFromInt(18000)), "Gross CGST = 18000")
+	assert.True(t, d.GrossLiability.SGST.Equal(decimal.NewFromInt(18000)), "Gross SGST = 18000")
+	assert.True(t, d.GrossLiability.IGST.Equal(decimal.NewFromInt(81000)), "Gross IGST = 81000")
+
+	// Table 6: Net liability = Gross - Eligible ITC
+	// CGST: 18000 - 4500 = 13500, SGST: 18000 - 4500 = 13500, IGST: 81000 - 36000 = 45000
+	assert.True(t, d.NetLiability.CGST.Equal(decimal.NewFromInt(13500)), "Net CGST = 13500")
+	assert.True(t, d.NetLiability.SGST.Equal(decimal.NewFromInt(13500)), "Net SGST = 13500")
+	assert.True(t, d.NetLiability.IGST.Equal(decimal.NewFromInt(45000)), "Net IGST = 45000")
+
+	// Flags: 1 pending IMS action, no RCM
+	require.Len(t, d.Flags, 1)
+	assert.Contains(t, d.Flags[0], "pending IMS action")
+
+	// Filing persisted in store with correct status
+	filing, err := mockStore.GetGSTR3BFiling(context.Background(), tenantID, resp.FilingID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.GSTR3BStatusPopulated, filing.Status)
+	assert.Equal(t, "29AABCA1234A1Z5", filing.GSTIN)
+	assert.NotEmpty(t, filing.DataJSON)
+}
+
+func TestGSTR3BAutoFill_MissingFields(t *testing.T) {
+	h, _, cleanup := setupHandlersWith3B(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	body := domain.GSTR3BAutoFillRequest{GSTIN: "", ReturnPeriod: "042026"}
+	rec := postJSON(t, h.GSTR3BAutoFill, "/v1/gst/gstr3b/auto-fill", body, tenantID)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
 func TestApprove_MakerCheckerFlow(t *testing.T) {
 	h, mockStore, cleanup := setupHandlers(t)
 	defer cleanup()
@@ -848,4 +986,190 @@ func TestApprove_MakerCheckerFlow(t *testing.T) {
 	f, _ = mockStore.GetFiling(nil, tenantID, ingestResp.FilingID)
 	assert.Equal(t, domain.FilingStatusApproved, f.Status)
 	assert.Equal(t, taxManager, *f.ApprovedBy)
+}
+
+// ---------------------------------------------------------------------------
+// Tests: GSTR3BSummary
+// ---------------------------------------------------------------------------
+
+func TestGSTR3BSummary_Success(t *testing.T) {
+	h, mockStore, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	filing := &domain.GSTR3BFiling{GSTIN: "29AABCA1234A1Z5", ReturnPeriod: "042026", Status: domain.GSTR3BStatusPopulated}
+	_ = mockStore.CreateGSTR3BFiling(nil, tenantID, filing)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/gst/gstr3b/summary?filing_id="+filing.ID.String(), nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	rec := httptest.NewRecorder()
+	h.GSTR3BSummary(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestGSTR3BSummary_MissingTenant(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/gst/gstr3b/summary?filing_id="+uuid.New().String(), nil)
+	rec := httptest.NewRecorder()
+	h.GSTR3BSummary(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR3BSummary_InvalidFilingID(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/gst/gstr3b/summary?filing_id=bad", nil)
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR3BSummary(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR3BSummary_NotFound(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/gst/gstr3b/summary?filing_id="+uuid.New().String(), nil)
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR3BSummary(rec, req)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+// ---------------------------------------------------------------------------
+// Tests: GSTR3BApprove
+// ---------------------------------------------------------------------------
+
+func TestGSTR3BApprove_Success(t *testing.T) {
+	h, mockStore, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	maker := uuid.New()
+	checker := uuid.New()
+	filing := &domain.GSTR3BFiling{GSTIN: "29AABCA1234A1Z5", ReturnPeriod: "042026", Status: domain.GSTR3BStatusPopulated, CreatedBy: &maker}
+	_ = mockStore.CreateGSTR3BFiling(nil, tenantID, filing)
+
+	body := domain.GSTR3BApproveRequest{FilingID: filing.ID, ApprovedBy: checker}
+	rec := postJSONWithUser(t, h.GSTR3BApprove, "/v1/gst/gstr3b/approve", body, tenantID, checker)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestGSTR3BApprove_SelfApprovalDenied(t *testing.T) {
+	h, mockStore, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	maker := uuid.New()
+	filing := &domain.GSTR3BFiling{GSTIN: "29AABCA1234A1Z5", ReturnPeriod: "042026", Status: domain.GSTR3BStatusPopulated, CreatedBy: &maker}
+	_ = mockStore.CreateGSTR3BFiling(nil, tenantID, filing)
+
+	body := domain.GSTR3BApproveRequest{FilingID: filing.ID, ApprovedBy: maker}
+	rec := postJSONWithUser(t, h.GSTR3BApprove, "/v1/gst/gstr3b/approve", body, tenantID, maker)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestGSTR3BApprove_WrongStatus(t *testing.T) {
+	h, mockStore, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	filing := &domain.GSTR3BFiling{GSTIN: "29AABCA1234A1Z5", ReturnPeriod: "042026", Status: domain.GSTR3BStatusDraft}
+	_ = mockStore.CreateGSTR3BFiling(nil, tenantID, filing)
+
+	body := domain.GSTR3BApproveRequest{FilingID: filing.ID, ApprovedBy: uuid.New()}
+	rec := postJSONWithUser(t, h.GSTR3BApprove, "/v1/gst/gstr3b/approve", body, tenantID, uuid.New())
+	assert.Equal(t, http.StatusConflict, rec.Code)
+}
+
+func TestGSTR3BApprove_NotFound(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	body := domain.GSTR3BApproveRequest{FilingID: uuid.New(), ApprovedBy: uuid.New()}
+	rec := postJSONWithUser(t, h.GSTR3BApprove, "/v1/gst/gstr3b/approve", body, uuid.New(), uuid.New())
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestGSTR3BApprove_InvalidBody(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/gst/gstr3b/approve", bytes.NewReader([]byte("bad")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR3BApprove(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+// ---------------------------------------------------------------------------
+// Tests: GSTR3BFile
+// ---------------------------------------------------------------------------
+
+func TestGSTR3BFile_Success(t *testing.T) {
+	h, mockStore, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	filer := uuid.New()
+	filing := &domain.GSTR3BFiling{GSTIN: "29AABCA1234A1Z5", ReturnPeriod: "042026", Status: domain.GSTR3BStatusApproved}
+	_ = mockStore.CreateGSTR3BFiling(nil, tenantID, filing)
+
+	body := domain.GSTR3BFileRequest{FilingID: filing.ID, SignType: "EVC", FiledBy: filer}
+	rec := postJSONWithUser(t, h.GSTR3BFile, "/v1/gst/gstr3b/file", body, tenantID, filer)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var wrapper struct {
+		Data domain.GSTR3BFileResponse `json:"data"`
+	}
+	json.NewDecoder(rec.Body).Decode(&wrapper)
+	assert.Equal(t, domain.GSTR3BStatusFiled, wrapper.Data.Status)
+	assert.NotEmpty(t, wrapper.Data.ARN)
+}
+
+func TestGSTR3BFile_InvalidSignType(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	body := domain.GSTR3BFileRequest{FilingID: uuid.New(), SignType: "INVALID", FiledBy: uuid.New()}
+	rec := postJSONWithUser(t, h.GSTR3BFile, "/v1/gst/gstr3b/file", body, uuid.New(), uuid.New())
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR3BFile_NotApproved(t *testing.T) {
+	h, mockStore, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	tenantID := uuid.New()
+	filing := &domain.GSTR3BFiling{GSTIN: "29AABCA1234A1Z5", ReturnPeriod: "042026", Status: domain.GSTR3BStatusPopulated}
+	_ = mockStore.CreateGSTR3BFiling(nil, tenantID, filing)
+
+	body := domain.GSTR3BFileRequest{FilingID: filing.ID, SignType: "EVC", FiledBy: uuid.New()}
+	rec := postJSONWithUser(t, h.GSTR3BFile, "/v1/gst/gstr3b/file", body, tenantID, uuid.New())
+	assert.Equal(t, http.StatusConflict, rec.Code)
+}
+
+func TestGSTR3BFile_NotFound(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	body := domain.GSTR3BFileRequest{FilingID: uuid.New(), SignType: "EVC", FiledBy: uuid.New()}
+	rec := postJSONWithUser(t, h.GSTR3BFile, "/v1/gst/gstr3b/file", body, uuid.New(), uuid.New())
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestGSTR3BFile_InvalidBody(t *testing.T) {
+	h, _, cleanup := setupHandlers(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/gst/gstr3b/file", bytes.NewReader([]byte("bad")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR3BFile(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }

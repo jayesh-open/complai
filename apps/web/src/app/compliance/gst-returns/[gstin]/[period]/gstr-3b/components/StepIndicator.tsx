@@ -12,7 +12,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
   const stepIndex = STEPS.findIndex((s) => s.id === currentStep);
 
   return (
-    <div className="bg-app-card border border-app-border rounded-card p-4 sticky top-0 z-10">
+    <div data-testid="step-indicator" className="bg-app-card border border-app-border rounded-card p-4 sticky top-0 z-10">
       <div className="flex items-center gap-1">
         {STEPS.map((step, i) => {
           const isActive = step.id === currentStep;

@@ -28,6 +28,27 @@ func NewRouter(p provider.GSTNProvider) chi.Router {
 			r.Post("/submit", h.GSTR1Submit)
 			r.Post("/file", h.GSTR1File)
 			r.Post("/status", h.GSTR1Status)
+			r.Post("/summary", h.GSTR1SummaryHandler)
+		})
+
+		r.Route("/gstr2b", func(r chi.Router) {
+			r.Post("/get", h.GSTR2BGet)
+		})
+
+		r.Route("/gstr2a", func(r chi.Router) {
+			r.Post("/get", h.GSTR2AGet)
+		})
+
+		r.Route("/ims", func(r chi.Router) {
+			r.Post("/get", h.IMSGet)
+			r.Post("/action", h.IMSAction)
+			r.Post("/bulk-action", h.IMSBulkAction)
+		})
+
+		r.Route("/gstr3b", func(r chi.Router) {
+			r.Post("/save", h.GSTR3BSave)
+			r.Post("/submit", h.GSTR3BSubmit)
+			r.Post("/file", h.GSTR3BFile)
 		})
 	})
 

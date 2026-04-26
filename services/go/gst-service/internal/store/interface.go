@@ -26,4 +26,13 @@ type Repository interface {
 	CreateValidationErrors(ctx context.Context, tenantID uuid.UUID, errs []domain.ValidationError) error
 	ListValidationErrors(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID) ([]domain.ValidationError, error)
 	CountValidationErrors(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID) (int, error)
+
+	// GSTR-3B
+	CreateGSTR3BFiling(ctx context.Context, tenantID uuid.UUID, f *domain.GSTR3BFiling) error
+	GetGSTR3BFiling(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID) (*domain.GSTR3BFiling, error)
+	GetGSTR3BFilingByPeriod(ctx context.Context, tenantID uuid.UUID, gstin, period string) (*domain.GSTR3BFiling, error)
+	UpdateGSTR3BStatus(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, status domain.GSTR3BStatus) error
+	UpdateGSTR3BData(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, dataJSON string) error
+	ApproveGSTR3BFiling(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, approvedBy uuid.UUID) error
+	UpdateGSTR3BARN(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, arn string, filedBy uuid.UUID) error
 }

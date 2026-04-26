@@ -424,3 +424,174 @@ func (s *Store) CountValidationErrors(ctx context.Context, tenantID uuid.UUID, f
 
 	return count, tx.Commit(ctx)
 }
+
+// GSTR-3B store methods
+
+func (s *Store) CreateGSTR3BFiling(ctx context.Context, tenantID uuid.UUID, f *domain.GSTR3BFiling) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return fmt.Errorf("set tenant: %w", err)
+	}
+
+	f.ID = uuid.New()
+	f.TenantID = tenantID
+	f.RequestID = uuid.New()
+
+	err = tx.QueryRow(ctx,
+		`INSERT INTO gstr3b_filings (id, tenant_id, gstin, return_period, status, data_json, request_id, created_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 ON CONFLICT (tenant_id, gstin, return_period) DO UPDATE SET
+		 status = EXCLUDED.status, data_json = EXCLUDED.data_json, updated_at = now()
+		 RETURNING id, created_at, updated_at`,
+		f.ID, f.TenantID, f.GSTIN, f.ReturnPeriod, f.Status, f.DataJSON, f.RequestID, f.CreatedBy,
+	).Scan(&f.ID, &f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("insert gstr3b filing: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (s *Store) GetGSTR3BFiling(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID) (*domain.GSTR3BFiling, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return nil, fmt.Errorf("set tenant: %w", err)
+	}
+
+	var f domain.GSTR3BFiling
+	err = tx.QueryRow(ctx,
+		`SELECT id, tenant_id, gstin, return_period, status, data_json,
+		        arn, filed_at, filed_by, approved_by, approved_at, request_id, created_at, updated_at
+		 FROM gstr3b_filings WHERE id = $1`, filingID,
+	).Scan(&f.ID, &f.TenantID, &f.GSTIN, &f.ReturnPeriod, &f.Status, &f.DataJSON,
+		&f.ARN, &f.FiledAt, &f.FiledBy, &f.ApprovedBy, &f.ApprovedAt, &f.RequestID, &f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get gstr3b filing: %w", err)
+	}
+
+	return &f, tx.Commit(ctx)
+}
+
+func (s *Store) GetGSTR3BFilingByPeriod(ctx context.Context, tenantID uuid.UUID, gstin, period string) (*domain.GSTR3BFiling, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return nil, fmt.Errorf("set tenant: %w", err)
+	}
+
+	var f domain.GSTR3BFiling
+	err = tx.QueryRow(ctx,
+		`SELECT id, tenant_id, gstin, return_period, status, data_json,
+		        arn, filed_at, filed_by, approved_by, approved_at, request_id, created_at, updated_at
+		 FROM gstr3b_filings WHERE gstin = $1 AND return_period = $2
+		 ORDER BY created_at DESC LIMIT 1`, gstin, period,
+	).Scan(&f.ID, &f.TenantID, &f.GSTIN, &f.ReturnPeriod, &f.Status, &f.DataJSON,
+		&f.ARN, &f.FiledAt, &f.FiledBy, &f.ApprovedBy, &f.ApprovedAt, &f.RequestID, &f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get gstr3b filing by period: %w", err)
+	}
+
+	return &f, tx.Commit(ctx)
+}
+
+func (s *Store) UpdateGSTR3BStatus(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, status domain.GSTR3BStatus) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return fmt.Errorf("set tenant: %w", err)
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE gstr3b_filings SET status = $1, updated_at = now() WHERE id = $2`,
+		status, filingID)
+	if err != nil {
+		return fmt.Errorf("update gstr3b status: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (s *Store) UpdateGSTR3BData(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, dataJSON string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return fmt.Errorf("set tenant: %w", err)
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE gstr3b_filings SET data_json = $1, updated_at = now() WHERE id = $2`,
+		dataJSON, filingID)
+	if err != nil {
+		return fmt.Errorf("update gstr3b data: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (s *Store) ApproveGSTR3BFiling(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, approvedBy uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return fmt.Errorf("set tenant: %w", err)
+	}
+
+	now := time.Now().UTC()
+	_, err = tx.Exec(ctx,
+		`UPDATE gstr3b_filings SET status = $1, approved_by = $2, approved_at = $3, updated_at = now()
+		 WHERE id = $4`,
+		domain.GSTR3BStatusApproved, approvedBy, now, filingID)
+	if err != nil {
+		return fmt.Errorf("approve gstr3b filing: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (s *Store) UpdateGSTR3BARN(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID, arn string, filedBy uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return fmt.Errorf("set tenant: %w", err)
+	}
+
+	now := time.Now().UTC()
+	_, err = tx.Exec(ctx,
+		`UPDATE gstr3b_filings SET status = $1, arn = $2, filed_at = $3, filed_by = $4, updated_at = now()
+		 WHERE id = $5`,
+		domain.GSTR3BStatusFiled, arn, now, filedBy, filingID)
+	if err != nil {
+		return fmt.Errorf("update gstr3b ARN: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}

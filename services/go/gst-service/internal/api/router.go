@@ -24,5 +24,12 @@ func NewRouter(h *Handlers) chi.Router {
 		r.Get("/errors", h.ListErrors)
 	})
 
+	r.Route("/v1/gst/gstr3b", func(r chi.Router) {
+		r.Post("/auto-fill", h.GSTR3BAutoFill)
+		r.Get("/summary", h.GSTR3BSummary)
+		r.Post("/approve", h.GSTR3BApprove)
+		r.Post("/file", h.GSTR3BFile)
+	})
+
 	return r
 }

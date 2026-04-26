@@ -13,6 +13,7 @@ use (
 	services/go/kyc-gateway-service
 	services/go/master-data-service
 	services/go/notification-service
+	services/go/recon-service
 	services/go/rules-engine-service
 	services/go/tenant-service
 	services/go/user-role-service

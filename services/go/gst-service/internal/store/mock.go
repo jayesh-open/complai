@@ -14,16 +14,18 @@ import (
 var _ Repository = (*MockStore)(nil)
 
 type MockStore struct {
-	mu       sync.RWMutex
-	filings  map[uuid.UUID]*domain.GSTR1Filing
-	entries  []domain.SalesRegisterEntry
-	sections []domain.GSTR1Section
-	valErrs  []domain.ValidationError
+	mu            sync.RWMutex
+	filings       map[uuid.UUID]*domain.GSTR1Filing
+	entries       []domain.SalesRegisterEntry
+	sections      []domain.GSTR1Section
+	valErrs       []domain.ValidationError
+	gstr3bFilings map[uuid.UUID]*domain.GSTR3BFiling
 }
 
 func NewMockStore() *MockStore {
 	return &MockStore{
-		filings: make(map[uuid.UUID]*domain.GSTR1Filing),
+		filings:       make(map[uuid.UUID]*domain.GSTR1Filing),
+		gstr3bFilings: make(map[uuid.UUID]*domain.GSTR3BFiling),
 	}
 }
 
@@ -235,4 +237,105 @@ func (m *MockStore) CountValidationErrors(_ context.Context, _ uuid.UUID, filing
 		}
 	}
 	return count, nil
+}
+
+// GSTR-3B mock store methods
+
+func (m *MockStore) CreateGSTR3BFiling(_ context.Context, tenantID uuid.UUID, f *domain.GSTR3BFiling) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f.ID = uuid.New()
+	f.TenantID = tenantID
+	f.RequestID = uuid.New()
+	f.CreatedAt = time.Now().UTC()
+	f.UpdatedAt = f.CreatedAt
+
+	cp := *f
+	m.gstr3bFilings[f.ID] = &cp
+	return nil
+}
+
+func (m *MockStore) GetGSTR3BFiling(_ context.Context, _ uuid.UUID, filingID uuid.UUID) (*domain.GSTR3BFiling, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	f, ok := m.gstr3bFilings[filingID]
+	if !ok {
+		return nil, fmt.Errorf("gstr3b filing not found")
+	}
+	cp := *f
+	return &cp, nil
+}
+
+func (m *MockStore) GetGSTR3BFilingByPeriod(_ context.Context, _ uuid.UUID, gstin, period string) (*domain.GSTR3BFiling, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, f := range m.gstr3bFilings {
+		if f.GSTIN == gstin && f.ReturnPeriod == period {
+			cp := *f
+			return &cp, nil
+		}
+	}
+	return nil, fmt.Errorf("gstr3b filing not found")
+}
+
+func (m *MockStore) UpdateGSTR3BStatus(_ context.Context, _ uuid.UUID, filingID uuid.UUID, status domain.GSTR3BStatus) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f, ok := m.gstr3bFilings[filingID]
+	if !ok {
+		return fmt.Errorf("gstr3b filing not found")
+	}
+	f.Status = status
+	f.UpdatedAt = time.Now().UTC()
+	return nil
+}
+
+func (m *MockStore) UpdateGSTR3BData(_ context.Context, _ uuid.UUID, filingID uuid.UUID, dataJSON string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f, ok := m.gstr3bFilings[filingID]
+	if !ok {
+		return fmt.Errorf("gstr3b filing not found")
+	}
+	f.DataJSON = dataJSON
+	f.UpdatedAt = time.Now().UTC()
+	return nil
+}
+
+func (m *MockStore) ApproveGSTR3BFiling(_ context.Context, _ uuid.UUID, filingID uuid.UUID, approvedBy uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f, ok := m.gstr3bFilings[filingID]
+	if !ok {
+		return fmt.Errorf("gstr3b filing not found")
+	}
+	f.Status = domain.GSTR3BStatusApproved
+	now := time.Now().UTC()
+	f.ApprovedBy = &approvedBy
+	f.ApprovedAt = &now
+	f.UpdatedAt = now
+	return nil
+}
+
+func (m *MockStore) UpdateGSTR3BARN(_ context.Context, _ uuid.UUID, filingID uuid.UUID, arn string, filedBy uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f, ok := m.gstr3bFilings[filingID]
+	if !ok {
+		return fmt.Errorf("gstr3b filing not found")
+	}
+	f.Status = domain.GSTR3BStatusFiled
+	f.ARN = arn
+	now := time.Now().UTC()
+	f.FiledAt = &now
+	f.FiledBy = &filedBy
+	f.UpdatedAt = now
+	return nil
 }

@@ -136,3 +136,194 @@ type MockFiling struct {
 	FiledAt   *time.Time
 	Token     string
 }
+
+// GSTR-2B types
+type GSTR2BGetRequest struct {
+	GSTIN     string `json:"gstin"`
+	RetPeriod string `json:"ret_period"`
+	RequestID string `json:"request_id"`
+}
+
+type GSTR2BInvoice struct {
+	SupplierGSTIN string  `json:"supplier_gstin"`
+	InvoiceNumber string  `json:"invoice_number"`
+	InvoiceDate   string  `json:"invoice_date"`
+	InvoiceType   string  `json:"invoice_type"`
+	TaxableValue  float64 `json:"taxable_value"`
+	CGSTAmount    float64 `json:"cgst_amount"`
+	SGSTAmount    float64 `json:"sgst_amount"`
+	IGSTAmount    float64 `json:"igst_amount"`
+	TotalValue    float64 `json:"total_value"`
+	PlaceOfSupply string  `json:"place_of_supply"`
+	ReverseCharge bool    `json:"reverse_charge"`
+	HSN           string  `json:"hsn"`
+	ITC           string  `json:"itc"`        // eligible, ineligible
+	IMSAction     string  `json:"ims_action"` // ACCEPT, REJECT, PENDING, ""
+}
+
+type GSTR2BGetResponse struct {
+	GSTIN       string          `json:"gstin"`
+	RetPeriod   string          `json:"ret_period"`
+	Invoices    []GSTR2BInvoice `json:"invoices"`
+	TotalCount  int             `json:"total_count"`
+	GeneratedOn string          `json:"generated_on"`
+	Status      string          `json:"status"`
+	RequestID   string          `json:"request_id"`
+}
+
+// GSTR-2A types
+type GSTR2AGetRequest struct {
+	GSTIN     string `json:"gstin"`
+	RetPeriod string `json:"ret_period"`
+	Section   string `json:"section"` // B2B, B2BA, CDN, CDNA, ISD, ISDA, IMPG, IMPGSEZ, TDS, TCS
+	RequestID string `json:"request_id"`
+}
+
+type GSTR2AGetResponse struct {
+	GSTIN     string          `json:"gstin"`
+	RetPeriod string          `json:"ret_period"`
+	Section   string          `json:"section"`
+	Invoices  []GSTR2BInvoice `json:"invoices"`
+	Status    string          `json:"status"`
+	RequestID string          `json:"request_id"`
+}
+
+// IMS types
+type IMSGetRequest struct {
+	GSTIN     string `json:"gstin"`
+	RetPeriod string `json:"ret_period"`
+	RequestID string `json:"request_id"`
+}
+
+type IMSInvoice struct {
+	InvoiceID     string  `json:"invoice_id"`
+	SupplierGSTIN string  `json:"supplier_gstin"`
+	InvoiceNumber string  `json:"invoice_number"`
+	InvoiceDate   string  `json:"invoice_date"`
+	TaxableValue  float64 `json:"taxable_value"`
+	TotalValue    float64 `json:"total_value"`
+	CGSTAmount    float64 `json:"cgst_amount"`
+	SGSTAmount    float64 `json:"sgst_amount"`
+	IGSTAmount    float64 `json:"igst_amount"`
+	Action        string  `json:"action"` // ACCEPT, REJECT, PENDING
+	ActionAt      string  `json:"action_at,omitempty"`
+	ActionBy      string  `json:"action_by,omitempty"`
+}
+
+type IMSGetResponse struct {
+	GSTIN      string       `json:"gstin"`
+	RetPeriod  string       `json:"ret_period"`
+	Invoices   []IMSInvoice `json:"invoices"`
+	TotalCount int          `json:"total_count"`
+	Summary    IMSSummary   `json:"summary"`
+	Status     string       `json:"status"`
+	RequestID  string       `json:"request_id"`
+}
+
+type IMSSummary struct {
+	Accepted      int     `json:"accepted"`
+	Rejected      int     `json:"rejected"`
+	Pending       int     `json:"pending"`
+	AcceptedValue float64 `json:"accepted_value"`
+	RejectedValue float64 `json:"rejected_value"`
+	PendingValue  float64 `json:"pending_value"`
+}
+
+type IMSActionRequest struct {
+	GSTIN     string `json:"gstin"`
+	RetPeriod string `json:"ret_period"`
+	InvoiceID string `json:"invoice_id"`
+	Action    string `json:"action"` // ACCEPT, REJECT, PENDING
+	Reason    string `json:"reason,omitempty"`
+	RequestID string `json:"request_id"`
+}
+
+type IMSActionResponse struct {
+	InvoiceID string `json:"invoice_id"`
+	Action    string `json:"action"`
+	Status    string `json:"status"`
+	RequestID string `json:"request_id"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type IMSBulkActionRequest struct {
+	GSTIN      string   `json:"gstin"`
+	RetPeriod  string   `json:"ret_period"`
+	InvoiceIDs []string `json:"invoice_ids"`
+	Action     string   `json:"action"`
+	RequestID  string   `json:"request_id"`
+}
+
+type IMSBulkActionResponse struct {
+	OperationID   string `json:"operation_id"`
+	TotalInvoices int    `json:"total_invoices"`
+	Status        string `json:"status"`
+	RequestID     string `json:"request_id"`
+}
+
+// GSTR-3B types
+type GSTR3BSaveRequest struct {
+	GSTIN     string      `json:"gstin"`
+	RetPeriod string      `json:"ret_period"`
+	Data      interface{} `json:"data"`
+	RequestID string      `json:"request_id"`
+}
+
+type GSTR3BSaveResponse struct {
+	Status    string `json:"status"`
+	RequestID string `json:"request_id"`
+	Message   string `json:"message"`
+}
+
+type GSTR3BSubmitRequest struct {
+	GSTIN     string `json:"gstin"`
+	RetPeriod string `json:"ret_period"`
+	RequestID string `json:"request_id"`
+}
+
+type GSTR3BSubmitResponse struct {
+	Status    string `json:"status"`
+	RequestID string `json:"request_id"`
+	Message   string `json:"message"`
+}
+
+type GSTR3BFileRequest struct {
+	GSTIN     string `json:"gstin"`
+	RetPeriod string `json:"ret_period"`
+	SignType  string `json:"sign_type"`
+	EVOTP     string `json:"ev_otp,omitempty"`
+	PAN       string `json:"pan"`
+	RequestID string `json:"request_id"`
+}
+
+type GSTR3BFileResponse struct {
+	Status    string    `json:"status"`
+	ARN       string    `json:"arn"`
+	RequestID string    `json:"request_id"`
+	Message   string    `json:"message"`
+	FiledAt   time.Time `json:"filed_at"`
+}
+
+type GSTR1SummaryRequest struct {
+	GSTIN     string `json:"gstin"`
+	RetPeriod string `json:"ret_period"`
+	RequestID string `json:"request_id"`
+}
+
+type GSTR1SummaryResponse struct {
+	GSTIN     string                 `json:"gstin"`
+	RetPeriod string                 `json:"ret_period"`
+	Summary   map[string]interface{} `json:"summary"`
+	Status    string                 `json:"status"`
+	RequestID string                 `json:"request_id"`
+}
+
+// Mock filing for GSTR-3B
+type MockGSTR3BFiling struct {
+	GSTIN     string
+	RetPeriod string
+	Status    FilingStatus
+	Data      interface{}
+	ARN       string
+	FiledAt   *time.Time
+}

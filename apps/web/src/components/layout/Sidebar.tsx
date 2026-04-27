@@ -40,7 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "COMPLIANCE",
     items: [
       { label: "GST Returns", href: "/compliance/gst", icon: FileSpreadsheet },
-      { label: "E-Invoicing", href: "/compliance/e-invoice", icon: FileCheck2 },
+      { label: "E-Invoicing", href: "/compliance/e-invoicing", icon: FileCheck2 },
       { label: "E-Way Bill", href: "/compliance/e-way-bill", icon: Truck },
       { label: "ITC Reconciliation", href: "/compliance/itc-recon", icon: GitCompareArrows },
       { label: "Vendor Compliance", href: "/compliance/vendor-compliance", icon: Gauge },

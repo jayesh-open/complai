@@ -52,7 +52,8 @@ MIGRATE_ORDER := \
 	services/go/gst-service \
 	services/go/vendor-compliance-service \
 	services/go/recon-service \
-	services/go/einvoice-service
+	services/go/einvoice-service \
+	services/go/ewb-service
 
 migrate-all: ## Run migrations for all services in dependency order (stops on failure)
 	@failed=0; \

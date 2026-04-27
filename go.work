@@ -7,6 +7,8 @@ use (
 	services/go/aura-gateway-service
 	services/go/document-service
 	services/go/einvoice-service
+	services/go/ewb-gateway-service
+	services/go/ewb-service
 	services/go/gst-service
 	services/go/gstn-gateway-service
 	services/go/health-probe-service

@@ -157,7 +157,20 @@ Part 7 complete (Reconciliation engine + GSTR-3B + GSTR-2B/IMS). Next = Part 8.
   - [x] Storybook: build clean, 16/16 story tests pass, axe-core 0 a11y violations
   - [x] StepIndicator: data-testid added for E2E
 
-### Deferred Part 5 hardening tests (→ Part 14)
+### Deferred hardening (→ Part 14)
+
+#### Go Module Verification Under GOWORK=off (recurring issue, Parts 5 and 7)
+- [ ] Add `make verify-go-modules` target that runs `GOWORK=off go test ./...` across `packages/shared-kernel-go` and every directory in `services/go/`. This catches go.sum drift that workspace mode (GOWORK=on, default) silently masks. Without this, tests pass on dev machines but fail in Docker containers (which run as standalone modules).
+- [ ] Make this part of `make verify` (broader verification target).
+- [ ] Add as pre-commit hook in `.githooks/pre-commit`.
+- [ ] CI: run on every PR.
+- Discovered: Parts 5 and 7 — verification reported "all green" while multiple services had failing tests under GOWORK=off after the workspace cache was bypassed.
+
+#### Gateway Response Envelope Cleanup (discovered in Part 6)
+- [ ] Standardize gateway response envelope across all gateway services (apex, aura, bridge, hrms, gstn, kyc).
+- [ ] Eliminate double-wrap from httputil.JSON() over GatewayResponse{Data, Meta}. Currently produces `{"data": {"data": ..., "meta": ...}}` which every consumer must handle. Either remove outer wrap, smart-wrap (detect data field), or standardize the doubled shape and document it as the contract.
+
+#### Part 5 hardening tests
 - [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count
 - [ ] Failure recovery: GSTN gateway returns 5xx mid-file → filing status = 'failed', retryable
 - [ ] Filing Confirmation Modal Playwright: test DSC path, wrong confirm word rejected, modal a11y audit

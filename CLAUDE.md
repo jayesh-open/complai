@@ -100,6 +100,8 @@ Complai is one of four sibling apps plus an external HRMS:
 - Terraform files generated as scaffolding only — not executed locally
 - No AWS CLI or Terraform installed on dev machine
 - All 11 service databases auto-provisioned via `scripts/postgres-init.sh`; apply migrations with `make migrate-all`
+- **GOWORK=off pitfall:** Go workspace mode (default) masks go.sum drift. Tests pass locally but fail in Docker (which builds each service as a standalone module). Always verify with `GOWORK=off go test ./...` per service before shipping. See BUILD_PLAN.md "Deferred hardening" for the `make verify-go-modules` target (Part 14).
+- **Gateway double-wrap:** httputil.JSON wraps all responses in `{"data": ...}`. Gateway services also return `{"data": ..., "meta": ...}`, producing `{"data": {"data": ...}}`. Consumers must unwrap twice. Standardization deferred to Part 14.
 
 ## Current build state
 - [x] Part 0.5: Repo init + memory scaffolding

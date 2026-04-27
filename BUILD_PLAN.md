@@ -219,6 +219,14 @@ Part 8 complete (e-Invoicing + E-Way Bill). Next = Part 9.
 - [ ] Standardize gateway response envelope across all gateway services (apex, aura, bridge, hrms, gstn, kyc).
 - [ ] Eliminate double-wrap from httputil.JSON() over GatewayResponse{Data, Meta}. Currently produces `{"data": {"data": ..., "meta": ...}}` which every consumer must handle. Either remove outer wrap, smart-wrap (detect data field), or standardize the doubled shape and document it as the contract.
 
+#### Part 8 coverage uplift (discovered in Part 8e verification)
+- [ ] einvoice-service handler coverage: 65.1% → target 80%+
+- [ ] ewb-service handler coverage: 63.9% → target 80%+
+- [ ] ewb-gateway-service handler coverage: 76.9% → target 80%+
+- Areas likely undertested: saga retry paths, QR generation failure modes, concurrent state transitions, idempotency edge cases.
+- Critical compliance paths (24h cancel, distance validity, state machine) are tested and green — this is coverage breadth, not safety-critical gaps.
+- Add tests in Part 14 hardening before production.
+
 #### Part 5 hardening tests
 - [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count
 - [ ] Failure recovery: GSTN gateway returns 5xx mid-file → filing status = 'failed', retryable

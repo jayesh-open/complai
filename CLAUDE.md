@@ -102,6 +102,7 @@ Complai is one of four sibling apps plus an external HRMS:
 - All 11 service databases auto-provisioned via `scripts/postgres-init.sh`; apply migrations with `make migrate-all`
 - **GOWORK=off pitfall:** Go workspace mode (default) masks go.sum drift. Tests pass locally but fail in Docker (which builds each service as a standalone module). Always verify with `GOWORK=off go test ./...` per service before shipping. See BUILD_PLAN.md "Deferred hardening" for the `make verify-go-modules` target (Part 14).
 - **Gateway double-wrap:** httputil.JSON wraps all responses in `{"data": ...}`. Gateway services also return `{"data": ..., "meta": ...}`, producing `{"data": {"data": ...}}`. Consumers must unwrap twice. Standardization deferred to Part 14.
+- **Part 8 coverage gap:** einvoice-service (65.1%), ewb-service (63.9%), ewb-gateway (76.9%) handler coverage are below the 80% target. Critical compliance paths (24h cancel, distance validity, state machine) are fully tested — the gap is in saga retries, failure modes, concurrent transitions, and idempotency edges. Tracked in BUILD_PLAN.md deferred hardening for Part 14.
 
 ## Current build state
 - [x] Part 0.5: Repo init + memory scaffolding

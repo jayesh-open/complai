@@ -40,6 +40,7 @@ export function SelectInvoiceStep({
         {invoices.map((inv) => (
           <button
             key={inv.id}
+            data-testid={`invoice-card-${inv.id}`}
             onClick={() => onSelect(inv)}
             className={cn(
               "flex items-center justify-between p-4 rounded-xl text-left",

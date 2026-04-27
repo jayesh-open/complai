@@ -83,6 +83,7 @@ export default function EInvoiceDetailPage() {
             </button>
             {canCancel && (
               <button
+                data-testid="cancel-irn-button"
                 onClick={() => setCancelOpen(true)}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold",

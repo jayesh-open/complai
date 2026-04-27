@@ -22,7 +22,7 @@ export function VehicleUpdateTimeline({ entries, className }: VehicleUpdateTimel
   if (entries.length === 0) return null;
 
   return (
-    <div className={cn("space-y-0", className)}>
+    <div data-testid="vehicle-timeline" className={cn("space-y-0", className)}>
       {entries.map((entry, i) => (
         <div key={`${entry.vehicleNo}-${i}`} className="flex gap-3">
           <div className="flex flex-col items-center">

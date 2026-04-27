@@ -1,9 +1,9 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 ## Current part
-Part 7 complete (Reconciliation engine + GSTR-3B + GSTR-2B/IMS). Next = Part 8.
+Part 8 complete (e-Invoicing + E-Way Bill). Next = Part 9.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -156,6 +156,55 @@ Part 7 complete (Reconciliation engine + GSTR-3B + GSTR-2B/IMS). Next = Part 8.
   - [x] go vet + go build clean on all affected modules
   - [x] Storybook: build clean, 16/16 story tests pass, axe-core 0 a11y violations
   - [x] StepIndicator: data-testid added for E2E
+
+- [x] Part 8: e-Invoicing + E-Way Bill
+  - [x] irp-gateway-service: Mock Adaequare IRP APIs — Generate IRN, Cancel IRN, Get by IRN/Doc (port 8098)
+    - [x] Request/response mapping to IRP v1.05 schema, double-wrap gateway envelope
+    - [x] Idempotency via X-Idempotency-Key header
+    - [x] Unit test coverage: API 94.4%, 15 tests
+  - [x] einvoice-service: E-Invoice domain logic — generate, cancel (24h window), list, summary (port 8099, einvoice_db)
+    - [x] 24h cancellation enforcement: fixedClock-based test, 12h within window → 200, 25h expired → 422, exact 24h boundary → 422
+    - [x] CancellationWindowOpen helper with clock interface for deterministic tests
+    - [x] ValidityDaysForDistance: 0-200km→1, 201-400→2, 401-600→3, 1500→8 (shared with EWB)
+    - [x] IRP gateway integration: generate → store → return signed invoice + QR
+    - [x] Unit test coverage: API handlers 65.1%, 18 tests
+  - [x] ewb-gateway-service: Mock Adaequare EWB APIs — Generate, Cancel, Update Vehicle, Extend, Consolidate, Get (port 8100)
+    - [x] Unit test coverage: API 76.9%, 12 tests
+  - [x] ewb-service: E-Way Bill domain logic — full lifecycle (port 8101, ewb_db)
+    - [x] State machine: PENDING→ACTIVE→{VEHICLE_UPDATED,EXTENDED,CANCELLED,CONSOLIDATED}
+    - [x] CanTransitionTo: 22 transition tests, terminal states (CANCELLED, CONSOLIDATED) block further changes
+    - [x] 24h cancellation window: same fixedClock pattern as einvoice, 422 on expired
+    - [x] Vehicle update: multi-update history tracked, cancelled EWBs reject updates (422)
+    - [x] Extend validity: blocked on cancelled EWBs
+    - [x] Consolidate: min 2 EWBs, all must be ACTIVE, atomic status update
+    - [x] Validity calculation: regular (200km/day) + ODC (20km/day), 17 test cases
+    - [x] Unit test coverage: API handlers 63.9%, 30 tests
+  - [x] E-Invoicing UI (apps/web/src/app/compliance/e-invoicing/)
+    - [x] List page: 30 mock records, KPIs (Total/Generated/Cancelled), status filter (All/Generated/Cancelled), search
+    - [x] Generate page: 3-step flow (select invoice → validate payload → generate IRN), success with QR + signed JSON
+    - [x] Bulk generate page: multi-select invoices, batch progress, InvoiceSelector component
+    - [x] Detail page: IRN info, signed JSON viewer (collapsible), QR code, cancel button (24h window)
+    - [x] Components: IRNStatusPill, EInvoiceKPIs, EInvoiceTable, SelectInvoiceStep, ValidateStep, SignedJsonViewer
+    - [x] All files ≤250 lines (split into components/ subdirectories)
+  - [x] E-Way Bill UI (apps/web/src/app/compliance/e-way-bill/)
+    - [x] List page: 25 mock records, KPIs (Total/Active/Nearing Expiry/Cancelled), 5 status tabs, search
+    - [x] Generate page: 5-step flow (select → form → confirm → generating → success)
+    - [x] Detail page: 3-col layout (summary + items, vehicle history), cancel modal (type CANCEL)
+    - [x] Update Vehicle page: vehicle history timeline, new vehicle form, type-to-confirm
+    - [x] Extend Validity page: current/new validity comparison, additional distance with DistanceValidityCalculator
+    - [x] Consolidate page: multi-select active EWBs (max 15), type CONSOLIDATE to confirm
+    - [x] Components: EwbStatusPill (5 variants), DistanceValidityCalculator, VehicleUpdateTimeline, EwbKPIs, EwbTable, EwbActions, EwbDetailItems
+    - [x] All files ≤250 lines
+  - [x] Storybook: 3 new story files (EwbStatusPill, DistanceValidityCalculator, VehicleUpdateTimeline), 48 total stories, build clean
+  - [x] Playwright E2E: 6 tests across 2 spec files
+    - [x] einvoicing-lifecycle.spec.ts: generate IRN → detail with QR + signed JSON → cancel within 24h; cancelled record → no cancel button
+    - [x] ewb-lifecycle.spec.ts: generate EWB → 600km = 3 days validity → detail → update vehicle; cancel within 24h; extend validity; cancelled record → no action buttons
+  - [x] Postgres RLS: einvoice_db 0 cross-tenant rows, ewb_db 0 cross-tenant rows
+  - [x] Goose migrations: einvoice_db (einvoices, einvoice_line_items, outbox), ewb_db (ewb, ewb_items, ewb_vehicle_updates, ewb_consolidations, ewb_consolidation_items, ewb_outbox)
+  - [x] TypeScript typecheck clean (tsc --noEmit)
+  - [x] go vet + go build clean on all 4 Part 8 services
+  - [x] Storybook axe-core: 11 component suites, 0 a11y violations
+  - [x] 6 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, GSTR-3B
 
 ### Deferred hardening (→ Part 14)
 

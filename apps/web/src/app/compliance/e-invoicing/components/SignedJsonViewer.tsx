@@ -21,6 +21,7 @@ export function SignedJsonViewer({ json, className }: SignedJsonViewerProps) {
 
   return (
     <div
+      data-testid="signed-json-viewer"
       className={cn(
         "rounded-xl border border-[var(--border-default)] overflow-hidden",
         className

@@ -79,6 +79,7 @@ export function ValidateStep({
           Back
         </button>
         <button
+          data-testid="generate-irn-button"
           onClick={onGenerate}
           disabled={!isValid}
           className={cn(

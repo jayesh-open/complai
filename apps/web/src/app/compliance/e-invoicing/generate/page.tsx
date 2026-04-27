@@ -80,7 +80,7 @@ export default function GenerateIRNPage() {
 
   if (step === "success" && sampleResult) {
     return (
-      <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="space-y-6 max-w-2xl mx-auto" data-testid="irn-success">
         <div className="text-center space-y-4 py-8">
           <div className="w-16 h-16 rounded-full bg-[var(--success-muted)] flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-8 h-8 text-[var(--success)]" />
@@ -120,6 +120,7 @@ export default function GenerateIRNPage() {
 
         <div className="flex justify-center gap-3">
           <Link
+            data-testid="view-details-link"
             href={`/compliance/e-invoicing/${sampleResult.gstin}/${sampleResult.irn}`}
             className={cn(
               "px-4 py-2 rounded-lg text-xs font-semibold",

@@ -44,7 +44,7 @@ export default function GenerateEwbPage() {
 
   if (step === "success") {
     return (
-      <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="space-y-6 max-w-2xl mx-auto" data-testid="ewb-success">
         <div className="text-center space-y-4 py-8">
           <div className="w-16 h-16 rounded-full bg-[var(--success-muted)] flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-8 h-8 text-[var(--success)]" />

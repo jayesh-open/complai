@@ -30,6 +30,7 @@ export function EwbActions({ record, onCancel }: EwbActionsProps) {
     <div className="flex flex-wrap items-center gap-2">
       {record.status === "ACTIVE" && (
         <Link
+          data-testid="update-vehicle-link"
           href={`${base}/update-vehicle`}
           className={cn(
             "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium",
@@ -42,6 +43,7 @@ export function EwbActions({ record, onCancel }: EwbActionsProps) {
       )}
       {canExtend(record) && (
         <Link
+          data-testid="extend-validity-link"
           href={`${base}/extend`}
           className={cn(
             "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium",
@@ -54,6 +56,7 @@ export function EwbActions({ record, onCancel }: EwbActionsProps) {
       )}
       {canCancel(record) && (
         <button
+          data-testid="cancel-ewb-button"
           onClick={onCancel}
           className={cn(
             "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium",

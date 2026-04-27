@@ -6,29 +6,43 @@
 set -euo pipefail
 
 DATABASES=(
+  # Parts 1–3: Identity, Tenant, Platform services
   identity_db
   tenant_db
   user_role_db
   master_data_db
   document_db
   audit_db
-  gst_db
-  gstr9_db
-  einvoice_db
-  ewb_db
-  tds_db
-  itr_db
-  vendor_db
-  vendor_compliance_db
-  recon_db
-  ap_db
-  billing_db
-  secretarial_db
   workflow_db
   notification_db
-  reporting_db
   rules_engine_db
   keycloak_db
+
+  # Part 5: GST Returns
+  gst_db
+
+  # Part 6: Vendor Compliance
+  vendor_compliance_db
+
+  # Part 7: Reconciliation
+  recon_db
+
+  # Part 8: e-Invoicing + E-Way Bill
+  einvoice_db
+  ewb_db
+
+  # Part 9: TDS (forward-provisioned)
+  tds_db
+
+  # Part 10: ITR + GSTR-9/9C (forward-provisioned)
+  gstr9_db
+  itr_db
+
+  # Part 14: Reporting (forward-provisioned)
+  reporting_db
+
+  # Future: Secretarial (forward-provisioned)
+  secretarial_db
 )
 
 EXTENSIONS=(

@@ -219,13 +219,28 @@ Part 8 complete (e-Invoicing + E-Way Bill). Next = Part 9.
 - [ ] Standardize gateway response envelope across all gateway services (apex, aura, bridge, hrms, gstn, kyc).
 - [ ] Eliminate double-wrap from httputil.JSON() over GatewayResponse{Data, Meta}. Currently produces `{"data": {"data": ..., "meta": ...}}` which every consumer must handle. Either remove outer wrap, smart-wrap (detect data field), or standardize the doubled shape and document it as the contract.
 
-#### Part 8 coverage uplift (discovered in Part 8e verification)
-- [ ] einvoice-service handler coverage: 65.1% → target 80%+
-- [ ] ewb-service handler coverage: 63.9% → target 80%+
-- [ ] ewb-gateway-service handler coverage: 76.9% → target 80%+
-- Areas likely undertested: saga retry paths, QR generation failure modes, concurrent state transitions, idempotency edge cases.
-- Critical compliance paths (24h cancel, distance validity, state machine) are tested and green — this is coverage breadth, not safety-critical gaps.
-- Add tests in Part 14 hardening before production.
+#### Part 8 coverage uplift (discovered in Part 8e verification, corrected in Part 8.5)
+Per-package breakdown (only `api` packages have tests; gateway, store, domain = 0%):
+- einvoice-service: `internal/api` 65.1%, `internal/gateway` 0%, `internal/store` 0%, `internal/domain` 0%
+- ewb-service: `internal/api` 63.9%, `internal/gateway` 0%, `internal/store` 0%, `internal/domain` 0%
+- ewb-gateway-service: `internal/api` 76.9%, `internal/gateway` 0%, `internal/store` 0%
+- [ ] Add unit tests for gateway packages (HTTP client mocking, retry logic, error mapping)
+- [ ] Add unit tests for store packages (sqlc-generated query verification with testcontainers)
+- [ ] Add unit tests for domain packages (business rule validation, state machine transitions)
+- [ ] Bring aggregate per-service coverage to ≥80%
+- Critical compliance paths (24h cancel, distance validity, state machine) are tested and green in handler tests — the gap is breadth across non-api packages.
+
+#### Coverage reporting hygiene (added Part 8.5)
+- When verifying Go test coverage, always run `go test -cover ./...` and report the per-package breakdown.
+- Never present a single package's coverage (e.g. `internal/api`) as representative of the full service.
+- Aggregate service coverage = weighted average across all packages with source files.
+- If only one package has tests, state that explicitly — do not imply the number represents the service.
+
+#### Database hygiene (completed Part 8.5)
+- [x] Removed orphan databases from postgres-init.sh: `ap_db`, `billing_db`, `vendor_db` (remnants of pre-Part 4.5 scope, never had migrations or services)
+- [x] Dropped orphan databases from running Postgres container
+- [x] Reorganized DATABASES array by build part sequence with comments
+- Forward-provisioned databases kept: `tds_db` (Part 9), `gstr9_db`/`itr_db` (Part 10), `reporting_db` (Part 14), `secretarial_db` (future)
 
 #### Part 5 hardening tests
 - [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count

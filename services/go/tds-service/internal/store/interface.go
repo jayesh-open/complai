@@ -22,4 +22,10 @@ type Repository interface {
 	UpsertAggregate(ctx context.Context, tenantID uuid.UUID, agg *domain.TDSAggregate) error
 
 	GetSummary(ctx context.Context, tenantID uuid.UUID, fy string) (*domain.TDSSummary, error)
+
+	CreateFiling(ctx context.Context, tenantID uuid.UUID, f *domain.Filing) error
+	GetFiling(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.Filing, error)
+	GetFilingByIdempotencyKey(ctx context.Context, tenantID uuid.UUID, key string) (*domain.Filing, error)
+	UpdateFilingStatus(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, status domain.FilingStatus, tokenNumber, ackNumber, errMsg string) error
+	ListFilings(ctx context.Context, tenantID uuid.UUID, fy, quarter string, limit, offset int) ([]domain.Filing, int, error)
 }

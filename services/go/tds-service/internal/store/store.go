@@ -354,3 +354,149 @@ func (s *PgStore) GetSummary(ctx context.Context, tenantID uuid.UUID, fy string)
 	tx.Commit(ctx)
 	return sum, nil
 }
+
+func (s *PgStore) CreateFiling(ctx context.Context, tenantID uuid.UUID, f *domain.Filing) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `INSERT INTO tds_filings
+		(id, tenant_id, form_type, financial_year, quarter, tan, status,
+		 deductee_count, total_tds_amount, fvu_content, idempotency_key, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		f.ID, tenantID, f.FormType, f.FinancialYear, f.Quarter, f.TAN, f.Status,
+		f.DeducteeCount, f.TotalTDSAmount, f.FVUContent, f.IdempotencyKey, f.CreatedAt, f.UpdatedAt)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) GetFiling(ctx context.Context, tenantID, id uuid.UUID) (*domain.Filing, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return nil, err
+	}
+
+	var f domain.Filing
+	err = tx.QueryRow(ctx, `SELECT id, tenant_id, form_type, financial_year, quarter, tan, status,
+		deductee_count, total_tds_amount, fvu_content, token_number, acknowledgement_number,
+		filing_date, error_message, idempotency_key, created_at, updated_at
+		FROM tds_filings WHERE id = $1`, id).Scan(
+		&f.ID, &f.TenantID, &f.FormType, &f.FinancialYear, &f.Quarter, &f.TAN, &f.Status,
+		&f.DeducteeCount, &f.TotalTDSAmount, &f.FVUContent, &f.TokenNumber, &f.AcknowledgementNumber,
+		&f.FilingDate, &f.ErrorMessage, &f.IdempotencyKey, &f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	tx.Commit(ctx)
+	return &f, nil
+}
+
+func (s *PgStore) GetFilingByIdempotencyKey(ctx context.Context, tenantID uuid.UUID, key string) (*domain.Filing, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return nil, err
+	}
+
+	var f domain.Filing
+	err = tx.QueryRow(ctx, `SELECT id, tenant_id, form_type, financial_year, quarter, tan, status,
+		deductee_count, total_tds_amount, fvu_content, token_number, acknowledgement_number,
+		filing_date, error_message, idempotency_key, created_at, updated_at
+		FROM tds_filings WHERE idempotency_key = $1`, key).Scan(
+		&f.ID, &f.TenantID, &f.FormType, &f.FinancialYear, &f.Quarter, &f.TAN, &f.Status,
+		&f.DeducteeCount, &f.TotalTDSAmount, &f.FVUContent, &f.TokenNumber, &f.AcknowledgementNumber,
+		&f.FilingDate, &f.ErrorMessage, &f.IdempotencyKey, &f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	tx.Commit(ctx)
+	return &f, nil
+}
+
+func (s *PgStore) UpdateFilingStatus(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, status domain.FilingStatus, tokenNumber, ackNumber, errMsg string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE tds_filings SET status = $1, token_number = $2,
+		acknowledgement_number = $3, error_message = $4, updated_at = NOW()
+		WHERE id = $5`, status, tokenNumber, ackNumber, errMsg, id)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) ListFilings(ctx context.Context, tenantID uuid.UUID, fy, quarter string, limit, offset int) ([]domain.Filing, int, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return nil, 0, err
+	}
+
+	where := "WHERE 1=1"
+	args := []interface{}{}
+	argN := 1
+	if fy != "" {
+		where += fmt.Sprintf(" AND financial_year = $%d", argN)
+		args = append(args, fy)
+		argN++
+	}
+	if quarter != "" {
+		where += fmt.Sprintf(" AND quarter = $%d", argN)
+		args = append(args, quarter)
+		argN++
+	}
+
+	var total int
+	if err := tx.QueryRow(ctx, "SELECT COUNT(*) FROM tds_filings "+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	args = append(args, limit, offset)
+	q := fmt.Sprintf(`SELECT id, tenant_id, form_type, financial_year, quarter, tan, status,
+		deductee_count, total_tds_amount, fvu_content, token_number, acknowledgement_number,
+		filing_date, error_message, idempotency_key, created_at, updated_at
+		FROM tds_filings %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
+
+	rows, err := tx.Query(ctx, q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var out []domain.Filing
+	for rows.Next() {
+		var f domain.Filing
+		if err := rows.Scan(&f.ID, &f.TenantID, &f.FormType, &f.FinancialYear, &f.Quarter, &f.TAN, &f.Status,
+			&f.DeducteeCount, &f.TotalTDSAmount, &f.FVUContent, &f.TokenNumber, &f.AcknowledgementNumber,
+			&f.FilingDate, &f.ErrorMessage, &f.IdempotencyKey, &f.CreatedAt, &f.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		out = append(out, f)
+	}
+	tx.Commit(ctx)
+	return out, total, nil
+}

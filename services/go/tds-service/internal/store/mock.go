@@ -15,6 +15,7 @@ type MockStore struct {
 	deductees  map[uuid.UUID]*domain.Deductee
 	entries    map[uuid.UUID]*domain.TDSEntry
 	aggregates map[string]*domain.TDSAggregate
+	filings    map[uuid.UUID]*domain.Filing
 }
 
 func NewMockStore() *MockStore {
@@ -22,6 +23,7 @@ func NewMockStore() *MockStore {
 		deductees:  make(map[uuid.UUID]*domain.Deductee),
 		entries:    make(map[uuid.UUID]*domain.TDSEntry),
 		aggregates: make(map[string]*domain.TDSAggregate),
+		filings:    make(map[uuid.UUID]*domain.Filing),
 	}
 }
 
@@ -183,4 +185,78 @@ func (m *MockStore) GetSummary(_ context.Context, tenantID uuid.UUID, fy string)
 	}
 	sum.PendingDeposit = sum.TotalTDSDeducted.Sub(sum.TotalTDSDeposited)
 	return sum, nil
+}
+
+func (m *MockStore) CreateFiling(_ context.Context, _ uuid.UUID, f *domain.Filing) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, existing := range m.filings {
+		if existing.IdempotencyKey == f.IdempotencyKey {
+			return fmt.Errorf("filing with idempotency key %s already exists", f.IdempotencyKey)
+		}
+	}
+	m.filings[f.ID] = f
+	return nil
+}
+
+func (m *MockStore) GetFiling(_ context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.Filing, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	f, ok := m.filings[id]
+	if !ok || f.TenantID != tenantID {
+		return nil, fmt.Errorf("filing not found")
+	}
+	return f, nil
+}
+
+func (m *MockStore) GetFilingByIdempotencyKey(_ context.Context, tenantID uuid.UUID, key string) (*domain.Filing, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, f := range m.filings {
+		if f.IdempotencyKey == key && f.TenantID == tenantID {
+			return f, nil
+		}
+	}
+	return nil, fmt.Errorf("filing not found")
+}
+
+func (m *MockStore) UpdateFilingStatus(_ context.Context, tenantID uuid.UUID, id uuid.UUID, status domain.FilingStatus, tokenNumber, ackNumber, errMsg string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	f, ok := m.filings[id]
+	if !ok || f.TenantID != tenantID {
+		return fmt.Errorf("filing not found")
+	}
+	f.Status = status
+	f.TokenNumber = tokenNumber
+	f.AcknowledgementNumber = ackNumber
+	f.ErrorMessage = errMsg
+	return nil
+}
+
+func (m *MockStore) ListFilings(_ context.Context, tenantID uuid.UUID, fy, quarter string, limit, offset int) ([]domain.Filing, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var all []domain.Filing
+	for _, f := range m.filings {
+		if f.TenantID != tenantID {
+			continue
+		}
+		if fy != "" && f.FinancialYear != fy {
+			continue
+		}
+		if quarter != "" && f.Quarter != quarter {
+			continue
+		}
+		all = append(all, *f)
+	}
+	total := len(all)
+	if offset >= total {
+		return nil, total, nil
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return all[offset:end], total, nil
 }

@@ -19,6 +19,8 @@ use (
 	services/go/notification-service
 	services/go/recon-service
 	services/go/rules-engine-service
+	services/go/tds-gateway-service
+	services/go/tds-service
 	services/go/tenant-service
 	services/go/user-role-service
 	services/go/vendor-compliance-service

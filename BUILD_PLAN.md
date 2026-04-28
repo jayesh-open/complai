@@ -1,9 +1,9 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 ## Current part
-Part 8 complete (e-Invoicing + E-Way Bill). Next = Part 9.
+Part 9 **PAUSED** after subpart 9b. ITA 2025 refactor required before continuing (see "ITA 2025 scope decision" below).
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -205,6 +205,36 @@ Part 8 complete (e-Invoicing + E-Way Bill). Next = Part 9.
   - [x] go vet + go build clean on all 4 Part 8 services
   - [x] Storybook axe-core: 11 component suites, 0 a11y violations
   - [x] 6 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, GSTR-3B
+
+### ITA 2025 scope decision (2026-04-28)
+
+**Scoping decision:** Complai supports Income Tax Act 2025 only. The ITA 2025 (effective 1 Apr 2026) replaces the ITA 1961. Older return filings under ITA 1961 are out of scope.
+
+**Problem:** Parts 9a and 9b were built referencing ITA 1961 sections and slab structures. The TDS calculator (`calculator.go`), form generators (24Q/26Q/27Q), and filing saga all use ITA 1961 section numbers (192, 194C, 194I, 194J, 194Q, 195), slab rates, and form structures. These need to be audited and refactored to ITA 2025.
+
+**Affected code (tds-service):**
+- `internal/domain/models.go` — Section constants (192, 194C, 194I, 194J, 194Q, 195) and related types
+- `internal/domain/calculator.go` — Salary slab rates, section-specific TDS rate logic, no-PAN/lower-cert rules
+- `internal/domain/form24q.go` — Form 24Q generator (salary TDS), standard deduction amounts, assessment year logic
+- `internal/domain/form26q.go` — Form 26Q generator (non-salary sections)
+- `internal/domain/form27q.go` — Form 27Q generator (non-resident s195), DTAA handling
+- `internal/domain/filing.go` — FormType constants (24Q/26Q/27Q)
+- `internal/filing/saga.go` — Filing saga orchestrator
+- `internal/gateway/sandbox.go` — TDS gateway client
+- `internal/api/router.go` — API handlers referencing old section constants
+- All corresponding `_test.go` files — test fixtures with ITA 1961 data
+
+**Also potentially affected:**
+- `rules-engine-service` — TDS applicability rules (6 sections) from Part 3
+- `tds-gateway-service` — Sandbox.co.in provider mock responses
+- Future: Part 10 (ITR) will need ITA 2025 from the start
+
+**Status:** PAUSED. Waiting for:
+1. Independent diagnostic of all ITA 1961 references across the codebase
+2. Authoritative ITA 2025 reference material from CA/ICAI (new section numbers, slab rates, form structures, DTAA treatment)
+3. Refactor scope decision from user
+
+**No code changes until reference material is received and refactor scope is decided.**
 
 ### Deferred hardening (→ Part 14)
 

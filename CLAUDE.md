@@ -28,6 +28,7 @@ Complai is one of four sibling apps plus an external HRMS:
 1. Multi-tenant: tenant_id on every row, Postgres RLS, asserted in every service
 2. Enriched APIs only (Adaequare). No SEK/crypto in our repo.
 3. Two providers: Adaequare (GST/IRP/EWB) + Sandbox.co.in (TDS/ITR/KYC/Tax-Payment)
+4a. **Income Tax Act 2025 only.** Complai targets ITA 2025 (effective 1 Apr 2026). Older returns under ITA 1961 are out of scope. All TDS/TCS sections, slab rates, form structures, and ITR logic must reference ITA 2025 — not the repealed ITA 1961.
 4. Cloud: AWS, ap-south-1 (Mumbai) primary, ap-south-2 (Hyderabad) DR
 5. Backend: Go 1.22 everywhere (domain + gateways); Python 3.12 for AI only
 6. Frontend: TypeScript 5.4 + Next.js 15
@@ -116,7 +117,7 @@ Complai is one of four sibling apps plus an external HRMS:
 - [x] Part 6: Sandbox KYC gateway + Vendor Compliance + Apex Sync
 - [x] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
 - [x] Part 8: e-Invoicing + E-Way Bill
-- [ ] Part 9: Sandbox TDS gateway + TDS module
+- [ ] Part 9: Sandbox TDS gateway + TDS module — **PAUSED** (ITA 2025 refactor pending, see BUILD_PLAN.md)
 - [ ] Part 10: Sandbox ITR + GSTR-9/9C
 - [ ] Part 11: Sibling gateway services (Aura, Bridge, HRMS)
 - [ ] Part 12: AI layer + MaxITC

@@ -1,9 +1,9 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-04-28
+Last updated: 2026-04-29
 
 ## Current part
-Part 9 **PAUSED** after subpart 9b. ITA 2025 refactor required before continuing (see "ITA 2025 scope decision" below).
+Part 9 — ITA 2025 refactor complete (subparts 9a-9b code + gateway). UI (subpart 9c) pending user confirmation.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -206,35 +206,42 @@ Part 9 **PAUSED** after subpart 9b. ITA 2025 refactor required before continuing
   - [x] Storybook axe-core: 11 component suites, 0 a11y violations
   - [x] 6 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, GSTR-3B
 
-### ITA 2025 scope decision (2026-04-28)
+### ITA 2025 refactor (2026-04-29) — RESOLVED
 
-**Scoping decision:** Complai supports Income Tax Act 2025 only. The ITA 2025 (effective 1 Apr 2026) replaces the ITA 1961. Older return filings under ITA 1961 are out of scope.
+**Scoping decision:** Complai supports Income Tax Act 2025 only (effective 1 Apr 2026). ITA 1961 is out of scope.
 
-**Problem:** Parts 9a and 9b were built referencing ITA 1961 sections and slab structures. The TDS calculator (`calculator.go`), form generators (24Q/26Q/27Q), and filing saga all use ITA 1961 section numbers (192, 194C, 194I, 194J, 194Q, 195), slab rates, and form structures. These need to be audited and refactored to ITA 2025.
+**Refactor completed (2026-04-29).** All tds-service and tds-gateway-service code now references ITA 2025:
 
-**Affected code (tds-service):**
-- `internal/domain/models.go` — Section constants (192, 194C, 194I, 194J, 194Q, 195) and related types
-- `internal/domain/calculator.go` — Salary slab rates, section-specific TDS rate logic, no-PAN/lower-cert rules
-- `internal/domain/form24q.go` — Form 24Q generator (salary TDS), standard deduction amounts, assessment year logic
-- `internal/domain/form26q.go` — Form 26Q generator (non-salary sections)
-- `internal/domain/form27q.go` — Form 27Q generator (non-resident s195), DTAA handling
-- `internal/domain/filing.go` — FormType constants (24Q/26Q/27Q)
-- `internal/filing/saga.go` — Filing saga orchestrator
-- `internal/gateway/sandbox.go` — TDS gateway client
-- `internal/api/router.go` — API handlers referencing old section constants
-- All corresponding `_test.go` files — test fixtures with ITA 1961 data
+| ITA 1961 | ITA 2025 | Description |
+|---|---|---|
+| Section 192 | Section 392 | Salary TDS |
+| Sections 194C/194I/194J/194Q | Section 393(1) | Resident non-salary TDS |
+| Section 195 | Section 393(2) | Non-resident TDS |
+| — | Section 393(3) | TCS (not yet implemented) |
+| Form 24Q | Form 138 | Salary TDS return |
+| Form 26Q | Form 140 | Non-salary TDS return |
+| Form 27Q | Form 144 | Non-resident TDS return |
+| Assessment Year | Tax Year | Terminology change |
+| 3-char section codes | 4-digit payment codes (1001-1092) | Primary discriminator |
 
-**Also potentially affected:**
-- `rules-engine-service` — TDS applicability rules (6 sections) from Part 3
-- `tds-gateway-service` — Sandbox.co.in provider mock responses
-- Future: Part 10 (ITR) will need ITA 2025 from the start
+**Payment code system:** 4-digit codes (1001-1092) replace old section numbers as the primary dispatch key. Calculator, FVU generator, aggregates, and store all key on PaymentCode. Section is metadata only.
 
-**Status:** PAUSED. Waiting for:
-1. Independent diagnostic of all ITA 1961 references across the codebase
-2. Authoritative ITA 2025 reference material from CA/ICAI (new section numbers, slab rates, form structures, DTAA treatment)
-3. Refactor scope decision from user
+**Key ITA 2025 rules implemented:**
+- Section 397(2) no-PAN rate: 20% default, 5% exception for codes 1031/1035
+- 4% Health & Education Cess on non-resident TDS (Section 393(2))
+- Per-payment rent threshold: ₹50,000/month (not annual aggregate)
+- Standard deduction ₹75,000 for salary (Section 392)
+- Tax Year = Financial Year (no Assessment Year concept)
 
-**No code changes until reference material is received and refactor scope is decided.**
+**Files refactored:** models.go, calculator.go, filing.go, form138.go (was form24q.go), form140.go (was form26q.go), form144.go (was form27q.go), saga.go, handlers.go, router.go, store.go, mock.go, sandbox.go, migration 003_ita2025.sql, all test files.
+
+**Gateway service:** tds-gateway-service routes, handlers, provider interface, mock provider, and domain models all updated. Routes: /form140/file, /form138/file, /form144/file.
+
+**Test results (GOWORK=off):**
+- tds-service: api 91.4%, domain 95.6%, filing 84.5%, gateway 92.2%, store 24.1%
+- tds-gateway-service: api 100%, provider 100%
+
+**Remaining:** rules-engine-service TDS applicability rules still reference ITA 1961 section numbers (deferred to Part 14 hardening).
 
 ### Deferred hardening (→ Part 14)
 
@@ -372,6 +379,13 @@ Items that require real AWS/cloud access. The DevOps team should execute these w
 - [ ] Enable S3 cross-region replication
 - [ ] Configure Cloudflare / Route 53 health-check failover
 - [ ] Run DR drill: failover → verify filings work → failback
+
+### ITA 2025 coverage gaps (Part 14)
+- [ ] rules-engine-service: update TDS applicability rules from ITA 1961 section numbers to ITA 2025 (392/393 + payment codes)
+- [ ] Payment codes not yet implemented: VDA/crypto (1066), online gaming (1067), e-commerce operator (1064), partner remuneration (1059), lottery/crossword (1052-1056)
+- [ ] Section 393(3) TCS: full implementation (codes 1070-1092), separate Form 141/143
+- [ ] tds-service store package coverage uplift from 24.1% to ≥80% (testcontainers-go)
+- [ ] DTAA rate override validation: verify treaty rates against ITA 2025 Schedule IV mappings
 
 ### Security hardening (Part 14)
 - [ ] Enable AWS GuardDuty + Security Hub

@@ -22,18 +22,18 @@ type SubmitResult struct {
 }
 
 type FilingSagaInput struct {
-	TenantID      uuid.UUID
-	FormType      domain.FormType
-	FinancialYear string
-	Quarter       string
-	TAN           string
-	Employer      *domain.EmployerDetails
-	Deductor      *domain.DeductorDetails
-	CountryCodes  map[string]string
-	DTAAArticles  map[string]string
-	DTAARates     map[string]decimal.Decimal
-	CurrencyCodes map[string]string
-	ExchangeRates map[string]decimal.Decimal
+	TenantID       uuid.UUID
+	FormType       domain.FormType
+	FinancialYear  string
+	Quarter        string
+	TAN            string
+	Employer       *domain.EmployerDetails
+	Deductor       *domain.DeductorDetails
+	CountryCodes   map[string]string
+	DTAAArticles   map[string]string
+	DTAARates      map[string]decimal.Decimal
+	CurrencyCodes  map[string]string
+	ExchangeRates  map[string]decimal.Decimal
 	ForeignAmounts map[string]decimal.Decimal
 }
 
@@ -137,15 +137,15 @@ func (s *FilingSaga) validateDeductees(deductees []domain.Deductee, formType dom
 	var missing int
 	for _, d := range deductees {
 		switch formType {
-		case domain.FormType24Q:
+		case domain.FormType138:
 			if d.PAN == "" {
 				missing++
 			}
-		case domain.FormType26Q:
+		case domain.FormType140:
 			if d.PAN == "" && d.ResidentStatus == domain.Resident {
 				missing++
 			}
-		case domain.FormType27Q:
+		case domain.FormType144:
 			if d.ResidentStatus != domain.NonResident {
 				continue
 			}
@@ -156,18 +156,18 @@ func (s *FilingSaga) validateDeductees(deductees []domain.Deductee, formType dom
 	}
 
 	if missing > 0 {
-		return fmt.Errorf("%d deductee(s) missing PAN for %s filing", missing, formType)
+		return fmt.Errorf("%d deductee(s) missing PAN for Form %s filing", missing, formType)
 	}
 	return nil
 }
 
 func (s *FilingSaga) generateFVU(input FilingSagaInput, deductees []domain.Deductee, entries []domain.TDSEntry) (string, int, decimal.Decimal, error) {
 	switch input.FormType {
-	case domain.FormType24Q:
+	case domain.FormType138:
 		if input.Employer == nil {
-			return "", 0, decimal.Zero, fmt.Errorf("employer details required for 24Q")
+			return "", 0, decimal.Zero, fmt.Errorf("employer details required for Form 138")
 		}
-		payload, err := domain.GenerateForm24Q(domain.Form24QInput{
+		payload, err := domain.GenerateForm138(domain.Form138Input{
 			Employer:      *input.Employer,
 			FinancialYear: input.FinancialYear,
 			Quarter:       input.Quarter,
@@ -177,14 +177,14 @@ func (s *FilingSaga) generateFVU(input FilingSagaInput, deductees []domain.Deduc
 		if err != nil {
 			return "", 0, decimal.Zero, err
 		}
-		fvu := domain.GenerateForm24QFVU(payload)
+		fvu := domain.GenerateForm138FVU(payload)
 		return fvu, len(payload.Employees), payload.TotalTDS, nil
 
-	case domain.FormType26Q:
+	case domain.FormType140:
 		if input.Deductor == nil {
-			return "", 0, decimal.Zero, fmt.Errorf("deductor details required for 26Q")
+			return "", 0, decimal.Zero, fmt.Errorf("deductor details required for Form 140")
 		}
-		payload, err := domain.GenerateForm26Q(domain.Form26QInput{
+		payload, err := domain.GenerateForm140(domain.Form140Input{
 			Deductor:      *input.Deductor,
 			FinancialYear: input.FinancialYear,
 			Quarter:       input.Quarter,
@@ -194,14 +194,14 @@ func (s *FilingSaga) generateFVU(input FilingSagaInput, deductees []domain.Deduc
 		if err != nil {
 			return "", 0, decimal.Zero, err
 		}
-		fvu := domain.GenerateForm26QFVU(payload)
+		fvu := domain.GenerateForm140FVU(payload)
 		return fvu, len(payload.Deductions), payload.TotalTDS, nil
 
-	case domain.FormType27Q:
+	case domain.FormType144:
 		if input.Deductor == nil {
-			return "", 0, decimal.Zero, fmt.Errorf("deductor details required for 27Q")
+			return "", 0, decimal.Zero, fmt.Errorf("deductor details required for Form 144")
 		}
-		payload, err := domain.GenerateForm27Q(domain.Form27QInput{
+		payload, err := domain.GenerateForm144(domain.Form144Input{
 			Deductor:       *input.Deductor,
 			FinancialYear:  input.FinancialYear,
 			Quarter:        input.Quarter,
@@ -217,7 +217,7 @@ func (s *FilingSaga) generateFVU(input FilingSagaInput, deductees []domain.Deduc
 		if err != nil {
 			return "", 0, decimal.Zero, err
 		}
-		fvu := domain.GenerateForm27QFVU(payload)
+		fvu := domain.GenerateForm144FVU(payload)
 		return fvu, len(payload.Remittances), payload.TotalTDS, nil
 
 	default:

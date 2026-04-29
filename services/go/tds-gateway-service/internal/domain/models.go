@@ -25,15 +25,16 @@ type TANVerifyResponse struct {
 }
 
 type ChallanRequest struct {
-	TenantID       string  `json:"tenant_id"`
-	TAN            string  `json:"tan"`
-	Section        string  `json:"section"`
-	Amount         float64 `json:"amount"`
-	Surcharge      float64 `json:"surcharge"`
-	Cess           float64 `json:"cess"`
-	Interest       float64 `json:"interest"`
-	Penalty        float64 `json:"penalty"`
-	AssessmentYear string  `json:"assessment_year"`
+	TenantID    string  `json:"tenant_id"`
+	TAN         string  `json:"tan"`
+	Section     string  `json:"section"`
+	PaymentCode string  `json:"payment_code"`
+	Amount      float64 `json:"amount"`
+	Surcharge   float64 `json:"surcharge"`
+	Cess        float64 `json:"cess"`
+	Interest    float64 `json:"interest"`
+	Penalty     float64 `json:"penalty"`
+	TaxYear     string  `json:"tax_year"`
 }
 
 type ChallanResponse struct {
@@ -44,39 +45,61 @@ type ChallanResponse struct {
 	Status        string  `json:"status"`
 }
 
-type Form26QRequest struct {
+type Form140Request struct {
 	TenantID      string         `json:"tenant_id"`
 	TAN           string         `json:"tan"`
 	FinancialYear string         `json:"financial_year"`
 	Quarter       string         `json:"quarter"`
-	Deductions    []Deduction26Q `json:"deductions"`
+	Deductions    []Deduction140 `json:"deductions"`
 }
 
-type Deduction26Q struct {
+type Deduction140 struct {
 	DeducteePAN   string  `json:"deductee_pan"`
 	DeducteeName  string  `json:"deductee_name"`
-	Section       string  `json:"section"`
+	PaymentCode   string  `json:"payment_code"`
+	SubClause     string  `json:"sub_clause"`
 	PaymentDate   string  `json:"payment_date"`
 	Amount        float64 `json:"amount"`
 	TDSAmount     float64 `json:"tds_amount"`
 	ChallanNumber string  `json:"challan_number"`
 }
 
-type Form24QRequest struct {
-	TenantID      string       `json:"tenant_id"`
-	TAN           string       `json:"tan"`
-	FinancialYear string       `json:"financial_year"`
-	Quarter       string       `json:"quarter"`
-	Employees     []Employee24Q `json:"employees"`
+type Form138Request struct {
+	TenantID      string        `json:"tenant_id"`
+	TAN           string        `json:"tan"`
+	FinancialYear string        `json:"financial_year"`
+	Quarter       string        `json:"quarter"`
+	Employees     []Employee138 `json:"employees"`
 }
 
-type Employee24Q struct {
+type Employee138 struct {
 	PAN          string  `json:"pan"`
 	Name         string  `json:"name"`
 	Designation  string  `json:"designation"`
 	GrossSalary  float64 `json:"gross_salary"`
 	TDSDeducted  float64 `json:"tds_deducted"`
 	TDSDeposited float64 `json:"tds_deposited"`
+}
+
+type Form144Request struct {
+	TenantID      string          `json:"tenant_id"`
+	TAN           string          `json:"tan"`
+	FinancialYear string          `json:"financial_year"`
+	Quarter       string          `json:"quarter"`
+	Remittances   []Remittance144 `json:"remittances"`
+}
+
+type Remittance144 struct {
+	DeducteePAN        string  `json:"deductee_pan"`
+	DeducteeName       string  `json:"deductee_name"`
+	PaymentCode        string  `json:"payment_code"`
+	CountryCode        string  `json:"country_code"`
+	NatureOfRemittance string  `json:"nature_of_remittance"`
+	Amount             float64 `json:"amount"`
+	TDSAmount          float64 `json:"tds_amount"`
+	Surcharge          float64 `json:"surcharge"`
+	Cess               float64 `json:"cess"`
+	ChallanNumber      string  `json:"challan_number"`
 }
 
 type FormFilingResponse struct {

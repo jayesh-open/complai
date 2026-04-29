@@ -95,12 +95,12 @@ func (m *MockProvider) GenerateChallan(_ context.Context, req domain.ChallanRequ
 	return challan, nil
 }
 
-func (m *MockProvider) FileForm26Q(_ context.Context, req domain.Form26QRequest) (*domain.FormFilingResponse, error) {
+func (m *MockProvider) FileForm140(_ context.Context, req domain.Form140Request) (*domain.FormFilingResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	resp := &domain.FormFilingResponse{
-		TokenNumber:           fmt.Sprintf("TKN26Q%s", uuid.New().String()[:8]),
+		TokenNumber:           fmt.Sprintf("TKN140%s", uuid.New().String()[:8]),
 		AcknowledgementNumber: fmt.Sprintf("ACK%s%s", req.Quarter, uuid.New().String()[:6]),
 		FilingDate:            time.Now().Format("2006-01-02"),
 		Status:                "ACCEPTED",
@@ -109,12 +109,26 @@ func (m *MockProvider) FileForm26Q(_ context.Context, req domain.Form26QRequest)
 	return resp, nil
 }
 
-func (m *MockProvider) FileForm24Q(_ context.Context, req domain.Form24QRequest) (*domain.FormFilingResponse, error) {
+func (m *MockProvider) FileForm138(_ context.Context, req domain.Form138Request) (*domain.FormFilingResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	resp := &domain.FormFilingResponse{
-		TokenNumber:           fmt.Sprintf("TKN24Q%s", uuid.New().String()[:8]),
+		TokenNumber:           fmt.Sprintf("TKN138%s", uuid.New().String()[:8]),
+		AcknowledgementNumber: fmt.Sprintf("ACK%s%s", req.Quarter, uuid.New().String()[:6]),
+		FilingDate:            time.Now().Format("2006-01-02"),
+		Status:                "ACCEPTED",
+	}
+	m.filings[resp.TokenNumber] = resp
+	return resp, nil
+}
+
+func (m *MockProvider) FileForm144(_ context.Context, req domain.Form144Request) (*domain.FormFilingResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	resp := &domain.FormFilingResponse{
+		TokenNumber:           fmt.Sprintf("TKN144%s", uuid.New().String()[:8]),
 		AcknowledgementNumber: fmt.Sprintf("ACK%s%s", req.Quarter, uuid.New().String()[:6]),
 		FilingDate:            time.Now().Format("2006-01-02"),
 		Status:                "ACCEPTED",

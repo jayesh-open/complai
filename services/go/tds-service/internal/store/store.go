@@ -162,11 +162,12 @@ func (s *PgStore) CreateEntry(ctx context.Context, tenantID uuid.UUID, e *domain
 	}
 
 	_, err = tx.Exec(ctx, `INSERT INTO tds_entries
-		(id, tenant_id, deductee_id, section, financial_year, quarter, transaction_date,
-		 gross_amount, tds_rate, tds_amount, surcharge, cess, total_tax,
+		(id, tenant_id, deductee_id, section, payment_code, sub_clause, financial_year, tax_year, quarter,
+		 transaction_date, gross_amount, tds_rate, tds_amount, surcharge, cess, total_tax,
 		 nature_of_payment, pan_at_deduction, no_pan_deduction, lower_cert_applied, status)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
-		e.ID, tenantID, e.DeducteeID, e.Section, e.FinancialYear, e.Quarter, e.TransactionDate,
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+		e.ID, tenantID, e.DeducteeID, e.Section, e.PaymentCode, e.SubClause,
+		e.FinancialYear, e.TaxYear, e.Quarter, e.TransactionDate,
 		e.GrossAmount, e.TDSRate, e.TDSAmount, e.Surcharge, e.Cess, e.TotalTax,
 		e.NatureOfPayment, e.PANAtDeduction, e.NoPANDeduction, e.LowerCertApplied, e.Status)
 	if err != nil {
@@ -186,12 +187,14 @@ func (s *PgStore) GetEntry(ctx context.Context, tenantID, id uuid.UUID) (*domain
 	}
 
 	var e domain.TDSEntry
-	err = tx.QueryRow(ctx, `SELECT id, tenant_id, deductee_id, section, financial_year, quarter,
+	err = tx.QueryRow(ctx, `SELECT id, tenant_id, deductee_id, section, payment_code, sub_clause,
+		financial_year, tax_year, quarter,
 		transaction_date, gross_amount, tds_rate, tds_amount, surcharge, cess, total_tax,
 		nature_of_payment, pan_at_deduction, no_pan_deduction, lower_cert_applied, status,
 		created_at, updated_at
 		FROM tds_entries WHERE id = $1`, id).Scan(
-		&e.ID, &e.TenantID, &e.DeducteeID, &e.Section, &e.FinancialYear, &e.Quarter,
+		&e.ID, &e.TenantID, &e.DeducteeID, &e.Section, &e.PaymentCode, &e.SubClause,
+		&e.FinancialYear, &e.TaxYear, &e.Quarter,
 		&e.TransactionDate, &e.GrossAmount, &e.TDSRate, &e.TDSAmount, &e.Surcharge, &e.Cess, &e.TotalTax,
 		&e.NatureOfPayment, &e.PANAtDeduction, &e.NoPANDeduction, &e.LowerCertApplied, &e.Status,
 		&e.CreatedAt, &e.UpdatedAt)
@@ -232,7 +235,8 @@ func (s *PgStore) ListEntries(ctx context.Context, tenantID uuid.UUID, fy, quart
 	}
 
 	args = append(args, limit, offset)
-	q := fmt.Sprintf(`SELECT id, tenant_id, deductee_id, section, financial_year, quarter,
+	q := fmt.Sprintf(`SELECT id, tenant_id, deductee_id, section, payment_code, sub_clause,
+		financial_year, tax_year, quarter,
 		transaction_date, gross_amount, tds_rate, tds_amount, surcharge, cess, total_tax,
 		nature_of_payment, pan_at_deduction, no_pan_deduction, lower_cert_applied, status,
 		created_at, updated_at
@@ -247,7 +251,8 @@ func (s *PgStore) ListEntries(ctx context.Context, tenantID uuid.UUID, fy, quart
 	var out []domain.TDSEntry
 	for rows.Next() {
 		var e domain.TDSEntry
-		if err := rows.Scan(&e.ID, &e.TenantID, &e.DeducteeID, &e.Section, &e.FinancialYear, &e.Quarter,
+		if err := rows.Scan(&e.ID, &e.TenantID, &e.DeducteeID, &e.Section, &e.PaymentCode, &e.SubClause,
+			&e.FinancialYear, &e.TaxYear, &e.Quarter,
 			&e.TransactionDate, &e.GrossAmount, &e.TDSRate, &e.TDSAmount, &e.Surcharge, &e.Cess, &e.TotalTax,
 			&e.NatureOfPayment, &e.PANAtDeduction, &e.NoPANDeduction, &e.LowerCertApplied, &e.Status,
 			&e.CreatedAt, &e.UpdatedAt); err != nil {
@@ -259,7 +264,7 @@ func (s *PgStore) ListEntries(ctx context.Context, tenantID uuid.UUID, fy, quart
 	return out, total, nil
 }
 
-func (s *PgStore) GetAggregate(ctx context.Context, tenantID, deducteeID uuid.UUID, section domain.Section, fy string) (*domain.TDSAggregate, error) {
+func (s *PgStore) GetAggregate(ctx context.Context, tenantID, deducteeID uuid.UUID, code domain.PaymentCode, fy string) (*domain.TDSAggregate, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -270,11 +275,11 @@ func (s *PgStore) GetAggregate(ctx context.Context, tenantID, deducteeID uuid.UU
 	}
 
 	var a domain.TDSAggregate
-	err = tx.QueryRow(ctx, `SELECT id, tenant_id, deductee_id, section, financial_year,
+	err = tx.QueryRow(ctx, `SELECT id, tenant_id, deductee_id, payment_code, financial_year,
 		total_paid, total_tds, transaction_count, updated_at
-		FROM tds_aggregates WHERE deductee_id = $1 AND section = $2 AND financial_year = $3`,
-		deducteeID, section, fy).Scan(
-		&a.ID, &a.TenantID, &a.DeducteeID, &a.Section, &a.FinancialYear,
+		FROM tds_aggregates WHERE deductee_id = $1 AND payment_code = $2 AND financial_year = $3`,
+		deducteeID, code, fy).Scan(
+		&a.ID, &a.TenantID, &a.DeducteeID, &a.PaymentCode, &a.FinancialYear,
 		&a.TotalPaid, &a.TotalTDS, &a.TransactionCount, &a.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -294,12 +299,12 @@ func (s *PgStore) UpsertAggregate(ctx context.Context, tenantID uuid.UUID, agg *
 	}
 
 	_, err = tx.Exec(ctx, `INSERT INTO tds_aggregates
-		(id, tenant_id, deductee_id, section, financial_year, total_paid, total_tds, transaction_count)
+		(id, tenant_id, deductee_id, payment_code, financial_year, total_paid, total_tds, transaction_count)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-		ON CONFLICT (tenant_id, deductee_id, section, financial_year) DO UPDATE SET
+		ON CONFLICT (tenant_id, deductee_id, payment_code, financial_year) DO UPDATE SET
 			total_paid = EXCLUDED.total_paid, total_tds = EXCLUDED.total_tds,
 			transaction_count = EXCLUDED.transaction_count, updated_at = NOW()`,
-		agg.ID, tenantID, agg.DeducteeID, agg.Section, agg.FinancialYear,
+		agg.ID, tenantID, agg.DeducteeID, agg.PaymentCode, agg.FinancialYear,
 		agg.TotalPaid, agg.TotalTDS, agg.TransactionCount)
 	if err != nil {
 		return err
@@ -318,8 +323,8 @@ func (s *PgStore) GetSummary(ctx context.Context, tenantID uuid.UUID, fy string)
 	}
 
 	sum := &domain.TDSSummary{
-		EntriesBySection: make(map[domain.Section]int),
-		EntriesByStatus:  make(map[domain.EntryStatus]int),
+		EntriesByPaymentCode: make(map[domain.PaymentCode]int),
+		EntriesByStatus:      make(map[domain.EntryStatus]int),
 	}
 	tx.QueryRow(ctx, "SELECT COUNT(*) FROM deductees").Scan(&sum.TotalDeductees)
 	tx.QueryRow(ctx, "SELECT COUNT(*), COALESCE(SUM(total_tax),0) FROM tds_entries WHERE financial_year = $1", fy).Scan(&sum.TotalEntries, &sum.TotalTDSDeducted)
@@ -329,13 +334,13 @@ func (s *PgStore) GetSummary(ctx context.Context, tenantID uuid.UUID, fy string)
 	sum.TotalTDSDeposited = deposited
 	sum.PendingDeposit = sum.TotalTDSDeducted.Sub(deposited)
 
-	rows, _ := tx.Query(ctx, "SELECT section, COUNT(*) FROM tds_entries WHERE financial_year = $1 GROUP BY section", fy)
+	rows, _ := tx.Query(ctx, "SELECT payment_code, COUNT(*) FROM tds_entries WHERE financial_year = $1 GROUP BY payment_code", fy)
 	if rows != nil {
 		for rows.Next() {
-			var sec domain.Section
+			var code domain.PaymentCode
 			var cnt int
-			rows.Scan(&sec, &cnt)
-			sum.EntriesBySection[sec] = cnt
+			rows.Scan(&code, &cnt)
+			sum.EntriesByPaymentCode[code] = cnt
 		}
 		rows.Close()
 	}

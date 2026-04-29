@@ -77,9 +77,9 @@ func TestVerifyTAN_InvalidLength(t *testing.T) {
 func TestGenerateChallan(t *testing.T) {
 	p := NewMockProvider()
 	resp, err := p.GenerateChallan(context.Background(), domain.ChallanRequest{
-		TAN: "MUMA12345A", Section: "194C", Amount: 10000,
+		TAN: "MUMA12345A", Section: "393(1)", PaymentCode: "1024", Amount: 10000,
 		Surcharge: 100, Cess: 50, Interest: 0, Penalty: 0,
-		AssessmentYear: "2026-27",
+		TaxYear: "2026-27",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "SUCCESS", resp.Status)
@@ -88,32 +88,45 @@ func TestGenerateChallan(t *testing.T) {
 	assert.InDelta(t, 10150.0, resp.Amount, 0.01)
 }
 
-func TestFileForm26Q(t *testing.T) {
+func TestFileForm140(t *testing.T) {
 	p := NewMockProvider()
-	resp, err := p.FileForm26Q(context.Background(), domain.Form26QRequest{
-		TAN: "MUMA12345A", FinancialYear: "2025-26", Quarter: "Q1",
-		Deductions: []domain.Deduction26Q{
-			{DeducteePAN: "ABCPD1234E", DeducteeName: "Test", Section: "194C", Amount: 50000, TDSAmount: 1000},
+	resp, err := p.FileForm140(context.Background(), domain.Form140Request{
+		TAN: "MUMA12345A", FinancialYear: "2026-27", Quarter: "Q1",
+		Deductions: []domain.Deduction140{
+			{DeducteePAN: "ABCPD1234E", DeducteeName: "Test", PaymentCode: "1024", SubClause: "Sl.1(a)", Amount: 50000, TDSAmount: 1000},
 		},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "ACCEPTED", resp.Status)
 	assert.NotEmpty(t, resp.TokenNumber)
 	assert.NotEmpty(t, resp.AcknowledgementNumber)
-	assert.Contains(t, resp.TokenNumber, "TKN26Q")
+	assert.Contains(t, resp.TokenNumber, "TKN140")
 }
 
-func TestFileForm24Q(t *testing.T) {
+func TestFileForm138(t *testing.T) {
 	p := NewMockProvider()
-	resp, err := p.FileForm24Q(context.Background(), domain.Form24QRequest{
-		TAN: "MUMA12345A", FinancialYear: "2025-26", Quarter: "Q1",
-		Employees: []domain.Employee24Q{
+	resp, err := p.FileForm138(context.Background(), domain.Form138Request{
+		TAN: "MUMA12345A", FinancialYear: "2026-27", Quarter: "Q1",
+		Employees: []domain.Employee138{
 			{PAN: "ABCPD1234E", Name: "Employee1", GrossSalary: 1200000, TDSDeducted: 50000},
 		},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "ACCEPTED", resp.Status)
-	assert.Contains(t, resp.TokenNumber, "TKN24Q")
+	assert.Contains(t, resp.TokenNumber, "TKN138")
+}
+
+func TestFileForm144(t *testing.T) {
+	p := NewMockProvider()
+	resp, err := p.FileForm144(context.Background(), domain.Form144Request{
+		TAN: "MUMA12345A", FinancialYear: "2026-27", Quarter: "Q1",
+		Remittances: []domain.Remittance144{
+			{DeducteePAN: "ABCPD1234E", DeducteeName: "Foreign Co", PaymentCode: "1057", CountryCode: "US", NatureOfRemittance: "Technical services", Amount: 500000, TDSAmount: 50000, Surcharge: 0, Cess: 2000},
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "ACCEPTED", resp.Status)
+	assert.Contains(t, resp.TokenNumber, "TKN144")
 }
 
 func TestConcurrentChallans(t *testing.T) {
@@ -122,7 +135,7 @@ func TestConcurrentChallans(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(n int) {
 			resp, _ := p.GenerateChallan(context.Background(), domain.ChallanRequest{
-				TAN: "MUMA12345A", Section: "194C", Amount: float64(n * 1000),
+				TAN: "MUMA12345A", Section: "393(1)", PaymentCode: "1024", Amount: float64(n * 1000),
 			})
 			done <- resp
 		}(i)

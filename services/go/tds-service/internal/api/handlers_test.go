@@ -115,9 +115,9 @@ func TestGetDeductee_InvalidID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestCalculateTDS_194C_Company(t *testing.T) {
+func TestCalculateTDS_ContractorOther(t *testing.T) {
 	h, _ := setupTest()
-	body := `{"section":"194C","gross_amount":100000,"deductee_type":"COMPANY","has_valid_pan":true}`
+	body := `{"payment_code":"1024","gross_amount":100000,"has_valid_pan":true}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tds/calculate", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", testTenant)
 	w := httptest.NewRecorder()
@@ -132,9 +132,9 @@ func TestCalculateTDS_194C_Company(t *testing.T) {
 	assert.Equal(t, "2000", data["tds_amount"])
 }
 
-func TestCalculateTDS_192_Salary(t *testing.T) {
+func TestCalculateTDS_Salary(t *testing.T) {
 	h, _ := setupTest()
-	body := `{"section":"192","annual_salary":2000000,"has_valid_pan":true}`
+	body := `{"payment_code":"1002","annual_salary":2000000,"has_valid_pan":true}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tds/calculate", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", testTenant)
 	w := httptest.NewRecorder()
@@ -148,9 +148,9 @@ func TestCalculateTDS_192_Salary(t *testing.T) {
 	assert.Equal(t, "16033", data["tds_amount"])
 }
 
-func TestCalculateTDS_InvalidSection(t *testing.T) {
+func TestCalculateTDS_InvalidPaymentCode(t *testing.T) {
 	h, _ := setupTest()
-	body := `{"section":"999","gross_amount":100000}`
+	body := `{"payment_code":"9999","gross_amount":100000}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tds/calculate", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 
@@ -169,7 +169,7 @@ func TestCalculateTDS_InvalidBody(t *testing.T) {
 
 func TestCalculateTDS_WithDTAA(t *testing.T) {
 	h, _ := setupTest()
-	body := `{"section":"195","gross_amount":1000000,"has_valid_pan":true,"dtaa_rate":0.10}`
+	body := `{"payment_code":"1057","gross_amount":1000000,"has_valid_pan":true,"dtaa_rate":0.10}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tds/calculate", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", testTenant)
 	w := httptest.NewRecorder()
@@ -183,12 +183,12 @@ func TestCreateEntry_Success(t *testing.T) {
 	d := seedDeductee(ms)
 
 	body, _ := json.Marshal(map[string]interface{}{
-		"deductee_id":      d.ID.String(),
-		"section":          "194C",
-		"financial_year":   "2025-26",
-		"quarter":          "Q1",
-		"transaction_date": "2025-06-15",
-		"gross_amount":     100000,
+		"deductee_id":       d.ID.String(),
+		"payment_code":      "1024",
+		"financial_year":    "2026-27",
+		"quarter":           "Q1",
+		"transaction_date":  "2026-06-15",
+		"gross_amount":      100000,
 		"nature_of_payment": "Contractor payment",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tds/entries", bytes.NewReader(body))
@@ -209,10 +209,10 @@ func TestCreateEntry_InvalidDeductee(t *testing.T) {
 	h, _ := setupTest()
 	body, _ := json.Marshal(map[string]interface{}{
 		"deductee_id":       uuid.New().String(),
-		"section":           "194C",
-		"financial_year":    "2025-26",
+		"payment_code":      "1024",
+		"financial_year":    "2026-27",
 		"quarter":           "Q1",
-		"transaction_date":  "2025-06-15",
+		"transaction_date":  "2026-06-15",
 		"gross_amount":      100000,
 		"nature_of_payment": "test",
 	})
@@ -224,15 +224,15 @@ func TestCreateEntry_InvalidDeductee(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestCreateEntry_InvalidSection(t *testing.T) {
+func TestCreateEntry_InvalidPaymentCode(t *testing.T) {
 	h, ms := setupTest()
 	d := seedDeductee(ms)
 	body, _ := json.Marshal(map[string]interface{}{
 		"deductee_id":       d.ID.String(),
-		"section":           "999",
-		"financial_year":    "2025-26",
+		"payment_code":      "9999",
+		"financial_year":    "2026-27",
 		"quarter":           "Q1",
-		"transaction_date":  "2025-06-15",
+		"transaction_date":  "2026-06-15",
 		"gross_amount":      100000,
 		"nature_of_payment": "test",
 	})
@@ -249,8 +249,8 @@ func TestCreateEntry_InvalidDate(t *testing.T) {
 	d := seedDeductee(ms)
 	body, _ := json.Marshal(map[string]interface{}{
 		"deductee_id":       d.ID.String(),
-		"section":           "194C",
-		"financial_year":    "2025-26",
+		"payment_code":      "1024",
+		"financial_year":    "2026-27",
 		"quarter":           "Q1",
 		"transaction_date":  "bad-date",
 		"gross_amount":      100000,
@@ -266,7 +266,7 @@ func TestCreateEntry_InvalidDate(t *testing.T) {
 
 func TestListEntries_Empty(t *testing.T) {
 	h, _ := setupTest()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/entries?fy=2025-26", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/entries?fy=2026-27", nil)
 	req.Header.Set("X-Tenant-Id", testTenant)
 	w := httptest.NewRecorder()
 
@@ -291,7 +291,8 @@ func TestGetSummary(t *testing.T) {
 
 	entry := &domain.TDSEntry{
 		ID: uuid.New(), TenantID: tenantID, DeducteeID: d.ID,
-		Section: domain.Section194C, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(100000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(2000),
 		TotalTax: decimal.NewFromInt(2000), Status: domain.StatusPending,
@@ -299,7 +300,7 @@ func TestGetSummary(t *testing.T) {
 	}
 	ms.CreateEntry(nil, tenantID, entry)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/summary?fy=2025-26", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/summary?fy=2026-27", nil)
 	req.Header.Set("X-Tenant-Id", testTenant)
 	w := httptest.NewRecorder()
 
@@ -350,10 +351,10 @@ func TestCreateEntry_MissingTenant(t *testing.T) {
 	h, _ := setupTest()
 	body, _ := json.Marshal(map[string]interface{}{
 		"deductee_id":       uuid.New().String(),
-		"section":           "194C",
-		"financial_year":    "2025-26",
+		"payment_code":      "1024",
+		"financial_year":    "2026-27",
 		"quarter":           "Q1",
-		"transaction_date":  "2025-06-15",
+		"transaction_date":  "2026-06-15",
 		"gross_amount":      100000,
 		"nature_of_payment": "test",
 	})
@@ -368,10 +369,10 @@ func TestCreateEntry_InvalidDeducteeID(t *testing.T) {
 	h, _ := setupTest()
 	body, _ := json.Marshal(map[string]interface{}{
 		"deductee_id":       "not-a-uuid",
-		"section":           "194C",
-		"financial_year":    "2025-26",
+		"payment_code":      "1024",
+		"financial_year":    "2026-27",
 		"quarter":           "Q1",
-		"transaction_date":  "2025-06-15",
+		"transaction_date":  "2026-06-15",
 		"gross_amount":      100000,
 		"nature_of_payment": "test",
 	})
@@ -385,7 +386,7 @@ func TestCreateEntry_InvalidDeducteeID(t *testing.T) {
 
 func TestListEntries_MissingTenant(t *testing.T) {
 	h, _ := setupTest()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/entries?fy=2025-26", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/entries?fy=2026-27", nil)
 	w := httptest.NewRecorder()
 
 	h.ListEntries(w, req)
@@ -413,7 +414,7 @@ func TestGetEntry_InvalidID(t *testing.T) {
 
 func TestGetSummary_MissingTenant(t *testing.T) {
 	h, _ := setupTest()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/summary?fy=2025-26", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/summary?fy=2026-27", nil)
 	w := httptest.NewRecorder()
 
 	h.GetSummary(w, req)
@@ -441,7 +442,7 @@ func TestGetDeductee_MissingTenant(t *testing.T) {
 
 func TestCalculateTDS_WithLowerCert(t *testing.T) {
 	h, _ := setupTest()
-	body := `{"section":"194C","gross_amount":100000,"deductee_type":"COMPANY","has_valid_pan":true,"lower_cert_rate":0.005}`
+	body := `{"payment_code":"1024","gross_amount":100000,"has_valid_pan":true,"lower_cert_rate":0.005}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tds/calculate", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", testTenant)
 	w := httptest.NewRecorder()
@@ -461,7 +462,8 @@ func TestListEntries_WithQuarterFilter(t *testing.T) {
 	d := seedDeductee(ms)
 	entry := &domain.TDSEntry{
 		ID: uuid.New(), TenantID: tenantID, DeducteeID: d.ID,
-		Section: domain.Section194C, FinancialYear: "2025-26", Quarter: "Q2",
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q2",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(100000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(2000),
 		TotalTax: decimal.NewFromInt(2000), Status: domain.StatusPending,
@@ -469,7 +471,7 @@ func TestListEntries_WithQuarterFilter(t *testing.T) {
 	}
 	ms.CreateEntry(nil, tenantID, entry)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/entries?fy=2025-26&quarter=Q2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tds/entries?fy=2026-27&quarter=Q2", nil)
 	req.Header.Set("X-Tenant-Id", testTenant)
 	w := httptest.NewRecorder()
 

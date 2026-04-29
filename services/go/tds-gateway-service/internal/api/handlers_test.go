@@ -79,7 +79,7 @@ func TestVerifyTAN_Handler_MissingTAN(t *testing.T) {
 
 func TestGenerateChallan_Handler_Success(t *testing.T) {
 	h, _ := setup()
-	body := `{"tan":"MUMA12345A","section":"194C","amount":50000,"assessment_year":"2026-27"}`
+	body := `{"tan":"MUMA12345A","section":"393(1)","payment_code":"1024","amount":50000,"tax_year":"2026-27"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/challan/generate", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
 	w := httptest.NewRecorder()
@@ -95,7 +95,7 @@ func TestGenerateChallan_Handler_Success(t *testing.T) {
 
 func TestGenerateChallan_Handler_InvalidAmount(t *testing.T) {
 	h, _ := setup()
-	body := `{"tan":"MUMA12345A","section":"194C","amount":0}`
+	body := `{"tan":"MUMA12345A","payment_code":"1024","amount":0}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/challan/generate", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 
@@ -103,45 +103,66 @@ func TestGenerateChallan_Handler_InvalidAmount(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestFileForm26Q_Handler_Success(t *testing.T) {
+func TestFileForm140_Handler_Success(t *testing.T) {
 	h, _ := setup()
-	body := `{"tan":"MUMA12345A","financial_year":"2025-26","quarter":"Q1","deductions":[{"deductee_pan":"ABCPD1234E","section":"194C","amount":50000,"tds_amount":1000}]}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form26q/file", bytes.NewBufferString(body))
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","deductions":[{"deductee_pan":"ABCPD1234E","payment_code":"1024","sub_clause":"Sl.1(a)","amount":50000,"tds_amount":1000}]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form140/file", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
 	w := httptest.NewRecorder()
 
-	h.FileForm26Q(w, req)
+	h.FileForm140(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestFileForm26Q_Handler_MissingDeductions(t *testing.T) {
+func TestFileForm140_Handler_MissingDeductions(t *testing.T) {
 	h, _ := setup()
-	body := `{"tan":"MUMA12345A","financial_year":"2025-26","quarter":"Q1","deductions":[]}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form26q/file", bytes.NewBufferString(body))
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","deductions":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form140/file", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 
-	h.FileForm26Q(w, req)
+	h.FileForm140(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestFileForm24Q_Handler_Success(t *testing.T) {
+func TestFileForm138_Handler_Success(t *testing.T) {
 	h, _ := setup()
-	body := `{"tan":"MUMA12345A","financial_year":"2025-26","quarter":"Q1","employees":[{"pan":"ABCPD1234E","name":"Emp","gross_salary":1200000,"tds_deducted":50000}]}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form24q/file", bytes.NewBufferString(body))
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","employees":[{"pan":"ABCPD1234E","name":"Emp","gross_salary":1200000,"tds_deducted":50000}]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form138/file", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
 	w := httptest.NewRecorder()
 
-	h.FileForm24Q(w, req)
+	h.FileForm138(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestFileForm24Q_Handler_MissingEmployees(t *testing.T) {
+func TestFileForm138_Handler_MissingEmployees(t *testing.T) {
 	h, _ := setup()
-	body := `{"tan":"MUMA12345A","financial_year":"2025-26","quarter":"Q1","employees":[]}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form24q/file", bytes.NewBufferString(body))
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","employees":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form138/file", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 
-	h.FileForm24Q(w, req)
+	h.FileForm138(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestFileForm144_Handler_Success(t *testing.T) {
+	h, _ := setup()
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","remittances":[{"deductee_pan":"ABCPD1234E","deductee_name":"Foreign Co","payment_code":"1057","country_code":"US","nature_of_remittance":"Technical services","amount":500000,"tds_amount":50000,"surcharge":0,"cess":2000}]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form144/file", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
+	w := httptest.NewRecorder()
+
+	h.FileForm144(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestFileForm144_Handler_MissingRemittances(t *testing.T) {
+	h, _ := setup()
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","remittances":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form144/file", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+
+	h.FileForm144(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
@@ -165,10 +186,13 @@ func (f *failingProvider) VerifyTAN(_ context.Context, _ domain.TANVerifyRequest
 func (f *failingProvider) GenerateChallan(_ context.Context, _ domain.ChallanRequest) (*domain.ChallanResponse, error) {
 	return nil, fmt.Errorf("provider down")
 }
-func (f *failingProvider) FileForm26Q(_ context.Context, _ domain.Form26QRequest) (*domain.FormFilingResponse, error) {
+func (f *failingProvider) FileForm140(_ context.Context, _ domain.Form140Request) (*domain.FormFilingResponse, error) {
 	return nil, fmt.Errorf("provider down")
 }
-func (f *failingProvider) FileForm24Q(_ context.Context, _ domain.Form24QRequest) (*domain.FormFilingResponse, error) {
+func (f *failingProvider) FileForm138(_ context.Context, _ domain.Form138Request) (*domain.FormFilingResponse, error) {
+	return nil, fmt.Errorf("provider down")
+}
+func (f *failingProvider) FileForm144(_ context.Context, _ domain.Form144Request) (*domain.FormFilingResponse, error) {
 	return nil, fmt.Errorf("provider down")
 }
 
@@ -198,7 +222,7 @@ func TestVerifyTAN_Handler_ProviderError(t *testing.T) {
 
 func TestGenerateChallan_Handler_ProviderError(t *testing.T) {
 	h := setupFailing()
-	body := `{"tan":"MUMA12345A","section":"194C","amount":50000,"assessment_year":"2026-27"}`
+	body := `{"tan":"MUMA12345A","section":"393(1)","payment_code":"1024","amount":50000,"tax_year":"2026-27"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/challan/generate", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
 	w := httptest.NewRecorder()
@@ -206,23 +230,33 @@ func TestGenerateChallan_Handler_ProviderError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestFileForm26Q_Handler_ProviderError(t *testing.T) {
+func TestFileForm140_Handler_ProviderError(t *testing.T) {
 	h := setupFailing()
-	body := `{"tan":"MUMA12345A","financial_year":"2025-26","quarter":"Q1","deductions":[{"deductee_pan":"ABCPD1234E","section":"194C","amount":50000,"tds_amount":1000}]}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form26q/file", bytes.NewBufferString(body))
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","deductions":[{"deductee_pan":"ABCPD1234E","payment_code":"1024","amount":50000,"tds_amount":1000}]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form140/file", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
 	w := httptest.NewRecorder()
-	h.FileForm26Q(w, req)
+	h.FileForm140(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestFileForm24Q_Handler_ProviderError(t *testing.T) {
+func TestFileForm138_Handler_ProviderError(t *testing.T) {
 	h := setupFailing()
-	body := `{"tan":"MUMA12345A","financial_year":"2025-26","quarter":"Q1","employees":[{"pan":"ABCPD1234E","name":"Emp","gross_salary":1200000,"tds_deducted":50000}]}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form24q/file", bytes.NewBufferString(body))
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","employees":[{"pan":"ABCPD1234E","name":"Emp","gross_salary":1200000,"tds_deducted":50000}]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form138/file", bytes.NewBufferString(body))
 	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
 	w := httptest.NewRecorder()
-	h.FileForm24Q(w, req)
+	h.FileForm138(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestFileForm144_Handler_ProviderError(t *testing.T) {
+	h := setupFailing()
+	body := `{"tan":"MUMA12345A","financial_year":"2026-27","quarter":"Q1","remittances":[{"deductee_pan":"ABCPD1234E","payment_code":"1057","amount":500000,"tds_amount":50000}]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form144/file", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", "11111111-1111-1111-1111-111111111111")
+	w := httptest.NewRecorder()
+	h.FileForm144(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
@@ -242,19 +276,27 @@ func TestGenerateChallan_Handler_InvalidBody(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestFileForm26Q_Handler_InvalidBody(t *testing.T) {
+func TestFileForm140_Handler_InvalidBody(t *testing.T) {
 	h, _ := setup()
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form26q/file", bytes.NewBufferString("bad"))
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form140/file", bytes.NewBufferString("bad"))
 	w := httptest.NewRecorder()
-	h.FileForm26Q(w, req)
+	h.FileForm140(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestFileForm24Q_Handler_InvalidBody(t *testing.T) {
+func TestFileForm138_Handler_InvalidBody(t *testing.T) {
 	h, _ := setup()
-	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form24q/file", bytes.NewBufferString("bad"))
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form138/file", bytes.NewBufferString("bad"))
 	w := httptest.NewRecorder()
-	h.FileForm24Q(w, req)
+	h.FileForm138(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestFileForm144_Handler_InvalidBody(t *testing.T) {
+	h, _ := setup()
+	req := httptest.NewRequest(http.MethodPost, "/v1/gateway/tds/form144/file", bytes.NewBufferString("bad"))
+	w := httptest.NewRecorder()
+	h.FileForm144(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 

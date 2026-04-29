@@ -151,7 +151,8 @@ func TestMockStore_CreateAndGetEntry(t *testing.T) {
 	ms := NewMockStore()
 	e := &domain.TDSEntry{
 		ID: uuid.New(), TenantID: tenant1, DeducteeID: uuid.New(),
-		Section: domain.Section194C, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(100000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(2000),
 		TotalTax: decimal.NewFromInt(2000), Status: domain.StatusPending,
@@ -174,7 +175,8 @@ func TestMockStore_GetEntry_TenantIsolation(t *testing.T) {
 	ms := NewMockStore()
 	e := &domain.TDSEntry{
 		ID: uuid.New(), TenantID: tenant1, DeducteeID: uuid.New(),
-		Section: domain.Section194C, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(100000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(2000),
 		TotalTax: decimal.NewFromInt(2000), Status: domain.StatusPending,
@@ -188,15 +190,17 @@ func TestMockStore_GetEntry_TenantIsolation(t *testing.T) {
 func TestMockStore_ListEntries_Filters(t *testing.T) {
 	ms := NewMockStore()
 	e1 := &domain.TDSEntry{
-		ID: uuid.New(), TenantID: tenant1, Section: domain.Section194C,
-		FinancialYear: "2025-26", Quarter: "Q1",
+		ID: uuid.New(), TenantID: tenant1,
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(50000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(1000),
 		TotalTax: decimal.NewFromInt(1000), Status: domain.StatusPending,
 	}
 	e2 := &domain.TDSEntry{
-		ID: uuid.New(), TenantID: tenant1, Section: domain.Section194J,
-		FinancialYear: "2025-26", Quarter: "Q2",
+		ID: uuid.New(), TenantID: tenant1,
+		Section: domain.Section393_1, PaymentCode: domain.CodeProfessional,
+		FinancialYear: "2026-27", Quarter: "Q2",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(80000),
 		TDSRate: decimal.NewFromFloat(0.10), TDSAmount: decimal.NewFromInt(8000),
 		TotalTax: decimal.NewFromInt(8000), Status: domain.StatusPending,
@@ -209,7 +213,7 @@ func TestMockStore_ListEntries_Filters(t *testing.T) {
 	assert.Equal(t, 2, total)
 	assert.Len(t, all, 2)
 
-	byFY, total, err := ms.ListEntries(context.Background(), tenant1, "2025-26", "", 10, 0)
+	byFY, total, err := ms.ListEntries(context.Background(), tenant1, "2026-27", "", 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 2, total)
 	assert.Len(t, byFY, 2)
@@ -224,8 +228,9 @@ func TestMockStore_ListEntries_Pagination(t *testing.T) {
 	ms := NewMockStore()
 	for i := 0; i < 5; i++ {
 		e := &domain.TDSEntry{
-			ID: uuid.New(), TenantID: tenant1, Section: domain.Section194C,
-			FinancialYear: "2025-26", Quarter: "Q1",
+			ID: uuid.New(), TenantID: tenant1,
+			Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+			FinancialYear: "2026-27", Quarter: "Q1",
 			TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(10000),
 			TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(200),
 			TotalTax: decimal.NewFromInt(200), Status: domain.StatusPending,
@@ -244,7 +249,7 @@ func TestMockStore_ListEntries_Pagination(t *testing.T) {
 
 func TestMockStore_GetAggregate_Empty(t *testing.T) {
 	ms := NewMockStore()
-	agg, err := ms.GetAggregate(context.Background(), tenant1, uuid.New(), domain.Section194C, "2025-26")
+	agg, err := ms.GetAggregate(context.Background(), tenant1, uuid.New(), domain.CodeContractorOther, "2026-27")
 	require.NoError(t, err)
 	assert.True(t, agg.TotalPaid.IsZero())
 	assert.True(t, agg.TotalTDS.IsZero())
@@ -255,13 +260,13 @@ func TestMockStore_UpsertAndGetAggregate(t *testing.T) {
 	did := uuid.New()
 	agg := &domain.TDSAggregate{
 		ID: uuid.New(), TenantID: tenant1, DeducteeID: did,
-		Section: domain.Section194C, FinancialYear: "2025-26",
+		PaymentCode: domain.CodeContractorOther, FinancialYear: "2026-27",
 		TotalPaid: decimal.NewFromInt(100000), TotalTDS: decimal.NewFromInt(2000),
 		TransactionCount: 1,
 	}
 	require.NoError(t, ms.UpsertAggregate(context.Background(), tenant1, agg))
 
-	got, err := ms.GetAggregate(context.Background(), tenant1, did, domain.Section194C, "2025-26")
+	got, err := ms.GetAggregate(context.Background(), tenant1, did, domain.CodeContractorOther, "2026-27")
 	require.NoError(t, err)
 	assert.True(t, got.TotalPaid.Equal(decimal.NewFromInt(100000)))
 	assert.Equal(t, 1, got.TransactionCount)
@@ -274,7 +279,8 @@ func TestMockStore_GetSummary(t *testing.T) {
 
 	e := &domain.TDSEntry{
 		ID: uuid.New(), TenantID: tenant1, DeducteeID: d.ID,
-		Section: domain.Section194C, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(100000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(2000),
 		TotalTax: decimal.NewFromInt(2000), Status: domain.StatusPending,
@@ -283,28 +289,29 @@ func TestMockStore_GetSummary(t *testing.T) {
 
 	dep := &domain.TDSEntry{
 		ID: uuid.New(), TenantID: tenant1, DeducteeID: d.ID,
-		Section: domain.Section194C, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(50000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(1000),
 		TotalTax: decimal.NewFromInt(1000), Status: domain.StatusDeposited,
 	}
 	ms.CreateEntry(context.Background(), tenant1, dep)
 
-	sum, err := ms.GetSummary(context.Background(), tenant1, "2025-26")
+	sum, err := ms.GetSummary(context.Background(), tenant1, "2026-27")
 	require.NoError(t, err)
 	assert.Equal(t, 1, sum.TotalDeductees)
 	assert.Equal(t, 2, sum.TotalEntries)
 	assert.True(t, sum.TotalTDSDeducted.Equal(decimal.NewFromInt(3000)))
 	assert.True(t, sum.TotalTDSDeposited.Equal(decimal.NewFromInt(1000)))
 	assert.True(t, sum.PendingDeposit.Equal(decimal.NewFromInt(2000)))
-	assert.Equal(t, 2, sum.EntriesBySection[domain.Section194C])
+	assert.Equal(t, 2, sum.EntriesByPaymentCode[domain.CodeContractorOther])
 	assert.Equal(t, 1, sum.EntriesByStatus[domain.StatusPending])
 	assert.Equal(t, 1, sum.EntriesByStatus[domain.StatusDeposited])
 }
 
 func TestMockStore_GetSummary_Empty(t *testing.T) {
 	ms := NewMockStore()
-	sum, err := ms.GetSummary(context.Background(), tenant1, "2025-26")
+	sum, err := ms.GetSummary(context.Background(), tenant1, "2026-27")
 	require.NoError(t, err)
 	assert.Equal(t, 0, sum.TotalEntries)
 	assert.True(t, sum.TotalTDSDeducted.IsZero())
@@ -312,16 +319,17 @@ func TestMockStore_GetSummary_Empty(t *testing.T) {
 
 func TestMockStore_AggKey(t *testing.T) {
 	id := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-	key := aggKey(id, domain.Section194C, "2025-26")
-	assert.Contains(t, key, "194C")
-	assert.Contains(t, key, "2025-26")
+	key := aggKey(id, domain.CodeContractorOther, "2026-27")
+	assert.Contains(t, key, "1024")
+	assert.Contains(t, key, "2026-27")
 }
 
 func TestMockStore_ListEntries_OffsetBeyondTotal(t *testing.T) {
 	ms := NewMockStore()
 	e := &domain.TDSEntry{
-		ID: uuid.New(), TenantID: tenant1, Section: domain.Section194C,
-		FinancialYear: "2025-26", Quarter: "Q1",
+		ID: uuid.New(), TenantID: tenant1,
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(10000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(200),
 		TotalTax: decimal.NewFromInt(200), Status: domain.StatusPending,
@@ -340,22 +348,25 @@ func TestMockStore_GetSummary_CrossTenantFiltering(t *testing.T) {
 	ms.CreateDeductee(context.Background(), tenant2, makeDeductee(tenant2))
 
 	e1 := &domain.TDSEntry{
-		ID: uuid.New(), TenantID: tenant1, Section: domain.Section194C,
-		FinancialYear: "2025-26", Quarter: "Q1",
+		ID: uuid.New(), TenantID: tenant1,
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(100000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(2000),
 		TotalTax: decimal.NewFromInt(2000), Status: domain.StatusPending,
 	}
 	e2 := &domain.TDSEntry{
-		ID: uuid.New(), TenantID: tenant2, Section: domain.Section194J,
-		FinancialYear: "2025-26", Quarter: "Q1",
+		ID: uuid.New(), TenantID: tenant2,
+		Section: domain.Section393_1, PaymentCode: domain.CodeProfessional,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(50000),
 		TDSRate: decimal.NewFromFloat(0.10), TDSAmount: decimal.NewFromInt(5000),
 		TotalTax: decimal.NewFromInt(5000), Status: domain.StatusPending,
 	}
 	eDiffFY := &domain.TDSEntry{
-		ID: uuid.New(), TenantID: tenant1, Section: domain.Section194C,
-		FinancialYear: "2024-25", Quarter: "Q4",
+		ID: uuid.New(), TenantID: tenant1,
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2025-26", TaxYear: "2025-26", Quarter: "Q4",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(30000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(600),
 		TotalTax: decimal.NewFromInt(600), Status: domain.StatusDeposited,
@@ -364,18 +375,19 @@ func TestMockStore_GetSummary_CrossTenantFiltering(t *testing.T) {
 	ms.CreateEntry(context.Background(), tenant2, e2)
 	ms.CreateEntry(context.Background(), tenant1, eDiffFY)
 
-	sum, err := ms.GetSummary(context.Background(), tenant1, "2025-26")
+	sum, err := ms.GetSummary(context.Background(), tenant1, "2026-27")
 	require.NoError(t, err)
 	assert.Equal(t, 1, sum.TotalDeductees, "should only count tenant1 deductees")
-	assert.Equal(t, 1, sum.TotalEntries, "should only count tenant1 entries for FY 2025-26")
+	assert.Equal(t, 1, sum.TotalEntries, "should only count tenant1 entries for FY 2026-27")
 	assert.True(t, sum.TotalTDSDeducted.Equal(decimal.NewFromInt(2000)))
 }
 
 func TestMockStore_ListEntries_TenantIsolation(t *testing.T) {
 	ms := NewMockStore()
 	e := &domain.TDSEntry{
-		ID: uuid.New(), TenantID: tenant1, Section: domain.Section194C,
-		FinancialYear: "2025-26", Quarter: "Q1",
+		ID: uuid.New(), TenantID: tenant1,
+		Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther,
+		FinancialYear: "2026-27", Quarter: "Q1",
 		TransactionDate: time.Now(), GrossAmount: decimal.NewFromInt(10000),
 		TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(200),
 		TotalTax: decimal.NewFromInt(200), Status: domain.StatusPending,

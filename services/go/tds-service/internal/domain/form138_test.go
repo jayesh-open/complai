@@ -12,7 +12,7 @@ import (
 
 var (
 	testTenant = uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	testDate   = time.Date(2025, 6, 15, 0, 0, 0, 0, time.UTC)
+	testDate   = time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
 )
 
 func testEmployer() EmployerDetails {
@@ -48,10 +48,11 @@ func makeSalaryEntries(deductees []Deductee) []TDSEntry {
 		monthlySalary := decimal.NewFromInt(salaries[i]).Div(decimal.NewFromInt(12)).Round(0)
 		tds := decimal.NewFromInt(monthlyTDS[i])
 		for month := 0; month < 3; month++ {
-			date := time.Date(2025, time.Month(4+month), 28, 0, 0, 0, 0, time.UTC)
+			date := time.Date(2026, time.Month(4+month), 28, 0, 0, 0, 0, time.UTC)
 			entries = append(entries, TDSEntry{
 				ID: uuid.New(), TenantID: testTenant, DeducteeID: d.ID,
-				Section: Section192, FinancialYear: "2025-26", Quarter: "Q1",
+				Section: Section392, PaymentCode: CodeSalaryPrivate,
+				FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 				TransactionDate: date, GrossAmount: monthlySalary,
 				TDSRate: tds.Div(monthlySalary).Round(4), TDSAmount: tds,
 				Surcharge: decimal.Zero, Cess: decimal.Zero, TotalTax: tds,
@@ -64,21 +65,21 @@ func makeSalaryEntries(deductees []Deductee) []TDSEntry {
 	return entries
 }
 
-func TestGenerateForm24Q_Success(t *testing.T) {
+func TestGenerateForm138_Success(t *testing.T) {
 	deductees := makeSalaryDeductees()
 	entries := makeSalaryEntries(deductees)
 
-	payload, err := GenerateForm24Q(Form24QInput{
+	payload, err := GenerateForm138(Form138Input{
 		Employer:      testEmployer(),
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		Deductees:     deductees,
 		Entries:       entries,
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, FormType24Q, payload.FormType)
-	assert.Equal(t, "2025-26", payload.FinancialYear)
+	assert.Equal(t, FormType138, payload.FormType)
+	assert.Equal(t, "2026-27", payload.FinancialYear)
 	assert.Equal(t, "Q1", payload.Quarter)
 	assert.Len(t, payload.Employees, 5)
 	assert.True(t, payload.TotalSalary.IsPositive())
@@ -94,13 +95,13 @@ func TestGenerateForm24Q_Success(t *testing.T) {
 	assert.True(t, found["Vikram Singh"])
 }
 
-func TestGenerateForm24Q_AggregatesPerDeductee(t *testing.T) {
+func TestGenerateForm138_AggregatesPerDeductee(t *testing.T) {
 	deductees := makeSalaryDeductees()[:1]
 	entries := makeSalaryEntries(deductees)
 
-	payload, err := GenerateForm24Q(Form24QInput{
+	payload, err := GenerateForm138(Form138Input{
 		Employer:      testEmployer(),
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		Deductees:     deductees,
 		Entries:       entries,
@@ -113,39 +114,40 @@ func TestGenerateForm24Q_AggregatesPerDeductee(t *testing.T) {
 	assert.True(t, emp.TDSDeducted.Equal(decimal.NewFromInt(16033*3)), "should aggregate 3 months of TDS")
 }
 
-func TestGenerateForm24Q_MissingTAN(t *testing.T) {
-	_, err := GenerateForm24Q(Form24QInput{
+func TestGenerateForm138_MissingTAN(t *testing.T) {
+	_, err := GenerateForm138(Form138Input{
 		Employer:      EmployerDetails{},
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "TAN")
 }
 
-func TestGenerateForm24Q_MissingFYQuarter(t *testing.T) {
-	_, err := GenerateForm24Q(Form24QInput{
+func TestGenerateForm138_MissingFYQuarter(t *testing.T) {
+	_, err := GenerateForm138(Form138Input{
 		Employer: testEmployer(),
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "financial_year")
 }
 
-func TestGenerateForm24Q_NoSalaryEntries(t *testing.T) {
+func TestGenerateForm138_NoSalaryEntries(t *testing.T) {
 	deductees := makeSalaryDeductees()
 	entries := []TDSEntry{
 		{
 			ID: uuid.New(), TenantID: testTenant, DeducteeID: deductees[0].ID,
-			Section: Section194C, FinancialYear: "2025-26", Quarter: "Q1",
+			Section: Section393_1, PaymentCode: CodeContractorOther,
+			FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 			TransactionDate: testDate, GrossAmount: decimal.NewFromInt(100000),
 			TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(2000),
 			TotalTax: decimal.NewFromInt(2000), Status: StatusPending,
 		},
 	}
 
-	_, err := GenerateForm24Q(Form24QInput{
+	_, err := GenerateForm138(Form138Input{
 		Employer:      testEmployer(),
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		Deductees:     deductees,
 		Entries:       entries,
@@ -154,18 +156,19 @@ func TestGenerateForm24Q_NoSalaryEntries(t *testing.T) {
 	assert.Contains(t, err.Error(), "no salary entries")
 }
 
-func TestGenerateForm24Q_DeducteeNotFound(t *testing.T) {
+func TestGenerateForm138_DeducteeNotFound(t *testing.T) {
 	orphanEntry := TDSEntry{
 		ID: uuid.New(), TenantID: testTenant, DeducteeID: uuid.New(),
-		Section: Section192, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: Section392, PaymentCode: CodeSalaryPrivate,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: testDate, GrossAmount: decimal.NewFromInt(150000),
 		TDSRate: decimal.NewFromFloat(0.10), TDSAmount: decimal.NewFromInt(15000),
 		TotalTax: decimal.NewFromInt(15000), Status: StatusPending,
 	}
 
-	payload, err := GenerateForm24Q(Form24QInput{
+	payload, err := GenerateForm138(Form138Input{
 		Employer:      testEmployer(),
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		Deductees:     []Deductee{},
 		Entries:       []TDSEntry{orphanEntry},
@@ -175,7 +178,7 @@ func TestGenerateForm24Q_DeducteeNotFound(t *testing.T) {
 	assert.Contains(t, payload.Errors[0], "not found")
 }
 
-func TestGenerateForm24Q_MissingPAN(t *testing.T) {
+func TestGenerateForm138_MissingPAN(t *testing.T) {
 	d := Deductee{
 		ID: uuid.MustParse("aaaa0001-0001-0001-0001-000000000001"),
 		TenantID: testTenant, VendorID: uuid.New(), Name: "No PAN Person",
@@ -183,15 +186,16 @@ func TestGenerateForm24Q_MissingPAN(t *testing.T) {
 	}
 	entry := TDSEntry{
 		ID: uuid.New(), TenantID: testTenant, DeducteeID: d.ID,
-		Section: Section192, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: Section392, PaymentCode: CodeSalaryPrivate,
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: testDate, GrossAmount: decimal.NewFromInt(100000),
 		TDSRate: decimal.NewFromFloat(0.20), TDSAmount: decimal.NewFromInt(20000),
 		TotalTax: decimal.NewFromInt(20000), Status: StatusPending,
 	}
 
-	payload, err := GenerateForm24Q(Form24QInput{
+	payload, err := GenerateForm138(Form138Input{
 		Employer:      testEmployer(),
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		Deductees:     []Deductee{d},
 		Entries:       []TDSEntry{entry},
@@ -201,40 +205,40 @@ func TestGenerateForm24Q_MissingPAN(t *testing.T) {
 	assert.Contains(t, payload.Errors[0], "missing PAN")
 }
 
-func TestGenerateForm24QFVU_Format(t *testing.T) {
+func TestGenerateForm138FVU_Format(t *testing.T) {
 	deductees := makeSalaryDeductees()[:2]
 	entries := makeSalaryEntries(deductees)
 
-	payload, err := GenerateForm24Q(Form24QInput{
+	payload, err := GenerateForm138(Form138Input{
 		Employer:      testEmployer(),
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		Deductees:     deductees,
 		Entries:       entries,
 	})
 	require.NoError(t, err)
 
-	fvu := GenerateForm24QFVU(payload)
-	assert.Contains(t, fvu, "^FH^24Q^")
+	fvu := GenerateForm138FVU(payload)
+	assert.Contains(t, fvu, "^FH^138^")
 	assert.Contains(t, fvu, "MUMA12345A")
-	assert.Contains(t, fvu, "2026")
+	assert.Contains(t, fvu, "2026-27")
 	assert.Contains(t, fvu, "^SD^")
 	assert.Contains(t, fvu, "^BH^")
 }
 
-func TestAssessmentYear(t *testing.T) {
-	assert.Equal(t, "2026", assessmentYear("2025-26"))
-	assert.Equal(t, "2027", assessmentYear("2026-27"))
-	assert.Equal(t, "abc", assessmentYear("abc"))
+func TestTaxYearFromFY(t *testing.T) {
+	assert.Equal(t, "2026-27", TaxYearFromFY("2026-27"))
+	assert.Equal(t, "2027-28", TaxYearFromFY("2027-28"))
+	assert.Equal(t, "abc", TaxYearFromFY("abc"))
 }
 
 func TestFilterBySection(t *testing.T) {
 	entries := []TDSEntry{
-		{Section: Section192}, {Section: Section194C}, {Section: Section192}, {Section: Section195},
+		{Section: Section392}, {Section: Section393_1}, {Section: Section392}, {Section: Section393_2},
 	}
-	assert.Len(t, filterBySection(entries, Section192), 2)
-	assert.Len(t, filterBySection(entries, Section194C), 1)
-	assert.Len(t, filterBySection(entries, Section194J), 0)
+	assert.Len(t, filterBySection(entries, Section392), 2)
+	assert.Len(t, filterBySection(entries, Section393_1), 1)
+	assert.Len(t, filterBySection(entries, Section393_3), 0)
 }
 
 func TestGroupEntriesByDeductee(t *testing.T) {
@@ -248,7 +252,7 @@ func TestGroupEntriesByDeductee(t *testing.T) {
 	assert.Len(t, grouped[id2.String()], 1)
 }
 
-func TestGenerateForm24Q_DepositedEntry(t *testing.T) {
+func TestGenerateForm138_DepositedEntry(t *testing.T) {
 	d := Deductee{
 		ID: uuid.MustParse("aaaa0001-0001-0001-0001-000000000001"),
 		TenantID: testTenant, VendorID: uuid.New(), Name: "Deposited Test",
@@ -257,7 +261,8 @@ func TestGenerateForm24Q_DepositedEntry(t *testing.T) {
 	entries := []TDSEntry{
 		{
 			ID: uuid.New(), TenantID: testTenant, DeducteeID: d.ID,
-			Section: Section192, FinancialYear: "2025-26", Quarter: "Q1",
+			Section: Section392, PaymentCode: CodeSalaryPrivate,
+			FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 			TransactionDate: testDate, GrossAmount: decimal.NewFromInt(200000),
 			TDSRate: decimal.NewFromFloat(0.10), TDSAmount: decimal.NewFromInt(20000),
 			TotalTax: decimal.NewFromInt(20000), Status: StatusDeposited,
@@ -265,9 +270,9 @@ func TestGenerateForm24Q_DepositedEntry(t *testing.T) {
 		},
 	}
 
-	payload, err := GenerateForm24Q(Form24QInput{
+	payload, err := GenerateForm138(Form138Input{
 		Employer:      testEmployer(),
-		FinancialYear: "2025-26",
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		Deductees:     []Deductee{d},
 		Entries:       entries,

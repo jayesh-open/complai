@@ -18,7 +18,7 @@ type Repository interface {
 	GetEntry(ctx context.Context, tenantID, id uuid.UUID) (*domain.TDSEntry, error)
 	ListEntries(ctx context.Context, tenantID uuid.UUID, fy, quarter string, limit, offset int) ([]domain.TDSEntry, int, error)
 
-	GetAggregate(ctx context.Context, tenantID, deducteeID uuid.UUID, section domain.Section, fy string) (*domain.TDSAggregate, error)
+	GetAggregate(ctx context.Context, tenantID, deducteeID uuid.UUID, code domain.PaymentCode, fy string) (*domain.TDSAggregate, error)
 	UpsertAggregate(ctx context.Context, tenantID uuid.UUID, agg *domain.TDSAggregate) error
 
 	GetSummary(ctx context.Context, tenantID uuid.UUID, fy string) (*domain.TDSSummary, error)

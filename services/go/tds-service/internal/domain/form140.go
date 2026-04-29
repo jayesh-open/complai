@@ -27,6 +27,8 @@ type NonSalaryDetail struct {
 	Name            string          `json:"name"`
 	DeducteeType    DeducteeType    `json:"deductee_type"`
 	Section         Section         `json:"section"`
+	PaymentCode     PaymentCode     `json:"payment_code"`
+	SubClause       string          `json:"sub_clause,omitempty"`
 	GrossAmount     decimal.Decimal `json:"gross_amount"`
 	TDSRate         decimal.Decimal `json:"tds_rate"`
 	TDSAmount       decimal.Decimal `json:"tds_amount"`
@@ -42,7 +44,7 @@ type NonSalaryDetail struct {
 	LowerCert       bool            `json:"lower_cert"`
 }
 
-type Form26QPayload struct {
+type Form140Payload struct {
 	FormType      FormType          `json:"form_type"`
 	FinancialYear string            `json:"financial_year"`
 	Quarter       string            `json:"quarter"`
@@ -54,7 +56,7 @@ type Form26QPayload struct {
 	Errors        []string          `json:"errors,omitempty"`
 }
 
-type Form26QInput struct {
+type Form140Input struct {
 	Deductor      DeductorDetails
 	FinancialYear string
 	Quarter       string
@@ -62,14 +64,7 @@ type Form26QInput struct {
 	Entries       []TDSEntry
 }
 
-var nonSalarySections = map[Section]bool{
-	Section194C: true,
-	Section194I: true,
-	Section194J: true,
-	Section194Q: true,
-}
-
-func GenerateForm26Q(input Form26QInput) (*Form26QPayload, error) {
+func GenerateForm140(input Form140Input) (*Form140Payload, error) {
 	if input.Deductor.TAN == "" {
 		return nil, fmt.Errorf("deductor TAN is required")
 	}
@@ -77,14 +72,9 @@ func GenerateForm26Q(input Form26QInput) (*Form26QPayload, error) {
 		return nil, fmt.Errorf("financial_year and quarter are required")
 	}
 
-	var nonSalaryEntries []TDSEntry
-	for _, e := range input.Entries {
-		if nonSalarySections[e.Section] {
-			nonSalaryEntries = append(nonSalaryEntries, e)
-		}
-	}
+	nonSalaryEntries := filterBySection(input.Entries, Section393_1)
 	if len(nonSalaryEntries) == 0 {
-		return nil, fmt.Errorf("no non-salary TDS entries found for %s %s", input.FinancialYear, input.Quarter)
+		return nil, fmt.Errorf("no non-salary TDS entries (s.393(1)) found for %s %s", input.FinancialYear, input.Quarter)
 	}
 
 	deducteeMap := make(map[string]*Deductee)
@@ -92,8 +82,8 @@ func GenerateForm26Q(input Form26QInput) (*Form26QPayload, error) {
 		deducteeMap[input.Deductees[i].ID.String()] = &input.Deductees[i]
 	}
 
-	payload := &Form26QPayload{
-		FormType:      FormType26Q,
+	payload := &Form140Payload{
+		FormType:      FormType140,
 		FinancialYear: input.FinancialYear,
 		Quarter:       input.Quarter,
 		Deductor:      input.Deductor,
@@ -120,6 +110,8 @@ func GenerateForm26Q(input Form26QInput) (*Form26QPayload, error) {
 			Name:            d.Name,
 			DeducteeType:    d.DeducteeType,
 			Section:         entry.Section,
+			PaymentCode:     entry.PaymentCode,
+			SubClause:       entry.SubClause,
 			GrossAmount:     entry.GrossAmount,
 			TDSRate:         entry.TDSRate,
 			TDSAmount:       entry.TDSAmount,
@@ -146,15 +138,15 @@ func GenerateForm26Q(input Form26QInput) (*Form26QPayload, error) {
 	return payload, nil
 }
 
-func GenerateForm26QFVU(payload *Form26QPayload) string {
+func GenerateForm140FVU(payload *Form140Payload) string {
 	var b strings.Builder
 
-	ay := assessmentYear(payload.FinancialYear)
+	ty := TaxYearFromFY(payload.FinancialYear)
 
-	b.WriteString(fmt.Sprintf("^FH^26Q^1^%s^%s^%s^%s^^%s^^%d^^%s^%s^\n",
+	b.WriteString(fmt.Sprintf("^FH^140^1^%s^%s^%s^%s^^%s^^%d^^%s^%s^\n",
 		payload.Deductor.TAN,
 		payload.Deductor.DeductorPAN,
-		ay,
+		ty,
 		payload.Quarter,
 		payload.Deductor.DeductorName,
 		len(payload.Deductions),
@@ -162,7 +154,7 @@ func GenerateForm26QFVU(payload *Form26QPayload) string {
 		payload.Deductor.Pincode,
 	))
 
-	for _, ch := range challanSummary26Q(payload) {
+	for _, ch := range challanSummary140(payload) {
 		b.WriteString(fmt.Sprintf("^BH^%s^%s^%s^%s^%s^\n",
 			ch.ChallanNumber, ch.BSRCode, ch.DepositDate,
 			ch.TotalTDS, ch.DeducteeCount,
@@ -174,11 +166,13 @@ func GenerateForm26QFVU(payload *Form26QPayload) string {
 		if ded.NoPAN {
 			noPANFlag = "Y"
 		}
-		b.WriteString(fmt.Sprintf("^DD^%d^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^\n",
+		b.WriteString(fmt.Sprintf("^DD^%d^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^\n",
 			i+1,
 			ded.PAN,
 			ded.Name,
 			string(ded.Section),
+			string(ded.PaymentCode),
+			ded.SubClause,
 			ded.GrossAmount.StringFixed(2),
 			ded.TDSRate.StringFixed(4),
 			ded.TDSAmount.StringFixed(2),
@@ -192,7 +186,7 @@ func GenerateForm26QFVU(payload *Form26QPayload) string {
 	return b.String()
 }
 
-func challanSummary26Q(payload *Form26QPayload) []challanLine {
+func challanSummary140(payload *Form140Payload) []challanLine {
 	challanMap := make(map[string]*challanLine)
 	for _, ded := range payload.Deductions {
 		key := ded.ChallanNumber

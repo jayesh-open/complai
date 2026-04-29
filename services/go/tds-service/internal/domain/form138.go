@@ -25,6 +25,7 @@ type SalaryDetail struct {
 	DeducteeID       string          `json:"deductee_id"`
 	PAN              string          `json:"pan"`
 	Name             string          `json:"name"`
+	PaymentCode      PaymentCode     `json:"payment_code"`
 	Designation      string          `json:"designation"`
 	GrossSalary      decimal.Decimal `json:"gross_salary"`
 	ExemptAllowances decimal.Decimal `json:"exempt_allowances"`
@@ -42,19 +43,19 @@ type SalaryDetail struct {
 	BSRCode          string          `json:"bsr_code"`
 }
 
-type Form24QPayload struct {
-	FormType      FormType          `json:"form_type"`
-	FinancialYear string            `json:"financial_year"`
-	Quarter       string            `json:"quarter"`
-	Employer      EmployerDetails   `json:"employer"`
-	Employees     []SalaryDetail    `json:"employees"`
-	TotalTDS      decimal.Decimal   `json:"total_tds"`
-	TotalSalary   decimal.Decimal   `json:"total_salary"`
-	CreatedAt     time.Time         `json:"created_at"`
-	Errors        []string          `json:"errors,omitempty"`
+type Form138Payload struct {
+	FormType      FormType        `json:"form_type"`
+	FinancialYear string          `json:"financial_year"`
+	Quarter       string          `json:"quarter"`
+	Employer      EmployerDetails `json:"employer"`
+	Employees     []SalaryDetail  `json:"employees"`
+	TotalTDS      decimal.Decimal `json:"total_tds"`
+	TotalSalary   decimal.Decimal `json:"total_salary"`
+	CreatedAt     time.Time       `json:"created_at"`
+	Errors        []string        `json:"errors,omitempty"`
 }
 
-type Form24QInput struct {
+type Form138Input struct {
 	Employer      EmployerDetails
 	FinancialYear string
 	Quarter       string
@@ -62,7 +63,7 @@ type Form24QInput struct {
 	Entries       []TDSEntry
 }
 
-func GenerateForm24Q(input Form24QInput) (*Form24QPayload, error) {
+func GenerateForm138(input Form138Input) (*Form138Payload, error) {
 	if input.Employer.TAN == "" {
 		return nil, fmt.Errorf("employer TAN is required")
 	}
@@ -70,9 +71,9 @@ func GenerateForm24Q(input Form24QInput) (*Form24QPayload, error) {
 		return nil, fmt.Errorf("financial_year and quarter are required")
 	}
 
-	salaryEntries := filterBySection(input.Entries, Section192)
+	salaryEntries := filterBySection(input.Entries, Section392)
 	if len(salaryEntries) == 0 {
-		return nil, fmt.Errorf("no salary entries (section 192) found for %s %s", input.FinancialYear, input.Quarter)
+		return nil, fmt.Errorf("no salary entries (s.392) found for %s %s", input.FinancialYear, input.Quarter)
 	}
 
 	deducteeMap := make(map[string]*Deductee)
@@ -80,8 +81,8 @@ func GenerateForm24Q(input Form24QInput) (*Form24QPayload, error) {
 		deducteeMap[input.Deductees[i].ID.String()] = &input.Deductees[i]
 	}
 
-	payload := &Form24QPayload{
-		FormType:      FormType24Q,
+	payload := &Form138Payload{
+		FormType:      FormType138,
 		FinancialYear: input.FinancialYear,
 		Quarter:       input.Quarter,
 		Employer:      input.Employer,
@@ -134,6 +135,7 @@ func GenerateForm24Q(input Form24QInput) (*Form24QPayload, error) {
 			DeducteeID:       deducteeID,
 			PAN:              d.PAN,
 			Name:             d.Name,
+			PaymentCode:      latestEntry.PaymentCode,
 			GrossSalary:      grossSalary,
 			ExemptAllowances: decimal.Zero,
 			NetSalary:        netSalary,
@@ -161,15 +163,15 @@ func GenerateForm24Q(input Form24QInput) (*Form24QPayload, error) {
 	return payload, nil
 }
 
-func GenerateForm24QFVU(payload *Form24QPayload) string {
+func GenerateForm138FVU(payload *Form138Payload) string {
 	var b strings.Builder
 
-	ay := assessmentYear(payload.FinancialYear)
+	ty := TaxYearFromFY(payload.FinancialYear)
 
-	b.WriteString(fmt.Sprintf("^FH^24Q^1^%s^%s^%s^%s^^%s^^%d^^%s^%s^\n",
+	b.WriteString(fmt.Sprintf("^FH^138^1^%s^%s^%s^%s^^%s^^%d^^%s^%s^\n",
 		payload.Employer.TAN,
 		payload.Employer.EmployerPAN,
-		ay,
+		ty,
 		payload.Quarter,
 		payload.Employer.EmployerName,
 		len(payload.Employees),
@@ -177,7 +179,7 @@ func GenerateForm24QFVU(payload *Form24QPayload) string {
 		payload.Employer.Pincode,
 	))
 
-	for _, ch := range challanSummary24Q(payload) {
+	for _, ch := range challanSummary138(payload) {
 		b.WriteString(fmt.Sprintf("^BH^%s^%s^%s^%s^%s^\n",
 			ch.ChallanNumber, ch.BSRCode, ch.DepositDate,
 			ch.TotalTDS, ch.DeducteeCount,
@@ -185,10 +187,11 @@ func GenerateForm24QFVU(payload *Form24QPayload) string {
 	}
 
 	for i, emp := range payload.Employees {
-		b.WriteString(fmt.Sprintf("^SD^%d^%s^%s^%s^%s^%s^%s^%s^%s^\n",
+		b.WriteString(fmt.Sprintf("^SD^%d^%s^%s^%s^%s^%s^%s^%s^%s^%s^\n",
 			i+1,
 			emp.PAN,
 			emp.Name,
+			string(emp.PaymentCode),
 			emp.GrossSalary.StringFixed(2),
 			emp.TaxableIncome.StringFixed(2),
 			emp.TDSDeducted.StringFixed(2),
@@ -209,7 +212,7 @@ type challanLine struct {
 	DeducteeCount string
 }
 
-func challanSummary24Q(payload *Form24QPayload) []challanLine {
+func challanSummary138(payload *Form138Payload) []challanLine {
 	challanMap := make(map[string]*challanLine)
 	for _, emp := range payload.Employees {
 		key := emp.ChallanNumber
@@ -236,17 +239,6 @@ func challanSummary24Q(payload *Form24QPayload) []challanLine {
 		lines = append(lines, *v)
 	}
 	return lines
-}
-
-func assessmentYear(fy string) string {
-	if len(fy) < 4 {
-		return fy
-	}
-	parts := strings.Split(fy, "-")
-	if len(parts) == 2 {
-		return "20" + parts[1]
-	}
-	return fy
 }
 
 func filterBySection(entries []TDSEntry, section Section) []TDSEntry {

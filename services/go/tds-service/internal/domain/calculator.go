@@ -3,18 +3,16 @@ package domain
 import "github.com/shopspring/decimal"
 
 var (
-	zero      = decimal.NewFromInt(0)
-	cessRate  = decimal.NewFromFloat(0.04)
-	noPANRate = decimal.NewFromFloat(0.20)
+	zero          = decimal.NewFromInt(0)
+	cessRate      = decimal.NewFromFloat(0.04)
+	noPANRate     = decimal.NewFromFloat(0.20)
+	noPANPurchase = decimal.NewFromFloat(0.05)
 )
 
 type CalcInput struct {
-	Section        Section
+	PaymentCode    PaymentCode
 	GrossAmount    decimal.Decimal
-	DeducteeType   DeducteeType
 	HasValidPAN    bool
-	ResidentStatus ResidentStatus
-	RentType       RentType
 	AggregateForFY decimal.Decimal
 	AnnualSalary   decimal.Decimal
 	DTAARate       *decimal.Decimal
@@ -23,6 +21,8 @@ type CalcInput struct {
 
 type CalcResult struct {
 	Section      Section         `json:"section"`
+	PaymentCode  PaymentCode     `json:"payment_code"`
+	SubClause    string          `json:"sub_clause,omitempty"`
 	Rate         decimal.Decimal `json:"rate"`
 	TDSAmount    decimal.Decimal `json:"tds_amount"`
 	Surcharge    decimal.Decimal `json:"surcharge"`
@@ -35,25 +35,38 @@ type CalcResult struct {
 }
 
 func Calculate(in CalcInput) CalcResult {
-	switch in.Section {
-	case Section192:
+	switch in.PaymentCode {
+	case CodeSalaryState, CodeSalaryPrivate, CodeSalaryCentral:
 		return calcSalary(in)
-	case Section194C:
-		return calcContractor(in)
-	case Section194I:
-		return calcRent(in)
-	case Section194J:
-		return calcProfessional(in)
-	case Section194Q:
+	case CodeEPFWithdrawal:
+		return calcEPF(in)
+	case CodeRentPlant:
+		return calcRent(in, rateRentPlant, "rent — plant/machinery")
+	case CodeRentLand:
+		return calcRent(in, rateRentLand, "rent — land/building")
+	case CodeContractorIndiv:
+		return calcContractor(in, rateContractorIndiv)
+	case CodeContractorOther:
+		return calcContractor(in, rateContractorOther)
+	case CodeTechnical:
+		return calcTechProf(in, rateTechnical, "technical services")
+	case CodeProfessional:
+		return calcTechProf(in, rateProfessional, "professional services")
+	case CodeDirectorRem:
+		return calcDirector(in)
+	case CodePurchaseGoods:
 		return calcPurchase(in)
-	case Section195:
+	case CodeNonResident:
 		return calcNonResident(in)
 	default:
-		return CalcResult{Section: in.Section, Explanation: "unknown section"}
+		return CalcResult{
+			Section:     SectionForCode(in.PaymentCode),
+			PaymentCode: in.PaymentCode,
+			Explanation: "unknown payment code",
+		}
 	}
 }
 
-// FY 2025-26 new tax regime slabs
 var salarySlabs = []struct {
 	UpTo decimal.Decimal
 	Rate decimal.Decimal
@@ -76,9 +89,14 @@ var (
 )
 
 func calcSalary(in CalcInput) CalcResult {
+	section := SectionForCode(in.PaymentCode)
 	taxable := in.AnnualSalary.Sub(stdDeduction)
 	if taxable.LessThanOrEqual(zero) {
-		return CalcResult{Section: Section192, Explanation: "income below standard deduction"}
+		return CalcResult{
+			Section:     section,
+			PaymentCode: in.PaymentCode,
+			Explanation: "income below standard deduction",
+		}
 	}
 
 	tax := zero
@@ -112,92 +130,134 @@ func calcSalary(in CalcInput) CalcResult {
 	}
 
 	return CalcResult{
-		Section:      Section192,
+		Section:      section,
+		PaymentCode:  in.PaymentCode,
 		Rate:         effectiveRate,
 		TDSAmount:    monthlyTDS,
 		Cess:         monthlyCess,
 		TotalTax:     monthlyTDS,
 		ThresholdMet: true,
-		Explanation:  "monthly TDS on projected annual salary (new tax regime FY 2025-26)",
+		Explanation:  "monthly TDS on projected annual salary (new tax regime)",
 	}
 }
 
 var (
-	rate194CIndividual     = decimal.NewFromFloat(0.01)
-	rate194COther          = decimal.NewFromFloat(0.02)
-	threshold194CSingle    = decimal.NewFromInt(30000)
-	threshold194CAggregate = decimal.NewFromInt(100000)
+	rateEPF      = decimal.NewFromFloat(0.10)
+	thresholdEPF = decimal.NewFromInt(50000)
 )
 
-func calcContractor(in CalcInput) CalcResult {
-	newAgg := in.AggregateForFY.Add(in.GrossAmount)
-	if in.GrossAmount.LessThanOrEqual(threshold194CSingle) && newAgg.LessThanOrEqual(threshold194CAggregate) {
-		return CalcResult{Section: Section194C, Explanation: "below threshold (single ≤₹30K and aggregate ≤₹1L)"}
+func calcEPF(in CalcInput) CalcResult {
+	section := SectionForCode(in.PaymentCode)
+	if in.GrossAmount.LessThanOrEqual(thresholdEPF) {
+		return CalcResult{
+			Section:     section,
+			PaymentCode: in.PaymentCode,
+			Explanation: "below threshold ₹50K",
+		}
 	}
-	rate := rate194COther
-	if in.DeducteeType == DeducteeIndividual || in.DeducteeType == DeducteeHUF {
-		rate = rate194CIndividual
-	}
-	return applyRate(in, rate, "contractor payment")
+	return applyRate(in, rateEPF, "EPF withdrawal")
 }
 
 var (
-	rate194ILand  = decimal.NewFromFloat(0.10)
-	rate194IPlant = decimal.NewFromFloat(0.02)
-	threshold194I = decimal.NewFromInt(240000)
+	rateRentPlant = decimal.NewFromFloat(0.02)
+	rateRentLand  = decimal.NewFromFloat(0.10)
+	thresholdRent = decimal.NewFromInt(50000)
 )
 
-func calcRent(in CalcInput) CalcResult {
-	newAgg := in.AggregateForFY.Add(in.GrossAmount)
-	if newAgg.LessThanOrEqual(threshold194I) {
-		return CalcResult{Section: Section194I, Explanation: "below annual threshold ₹2.4L"}
+func calcRent(in CalcInput, baseRate decimal.Decimal, desc string) CalcResult {
+	section := SectionForCode(in.PaymentCode)
+	if in.GrossAmount.LessThanOrEqual(thresholdRent) {
+		return CalcResult{
+			Section:     section,
+			PaymentCode: in.PaymentCode,
+			Explanation: "below per-payment threshold ₹50K",
+		}
 	}
-	rate := rate194ILand
-	if in.RentType == RentPlantMachinery {
-		rate = rate194IPlant
-	}
-	return applyRate(in, rate, "rent payment")
+	return applyRate(in, baseRate, desc)
 }
 
 var (
-	rate194J      = decimal.NewFromFloat(0.10)
-	threshold194J = decimal.NewFromInt(30000)
+	rateContractorIndiv        = decimal.NewFromFloat(0.01)
+	rateContractorOther        = decimal.NewFromFloat(0.02)
+	thresholdContractSingle    = decimal.NewFromInt(30000)
+	thresholdContractAggregate = decimal.NewFromInt(100000)
 )
 
-func calcProfessional(in CalcInput) CalcResult {
+func calcContractor(in CalcInput, baseRate decimal.Decimal) CalcResult {
+	section := SectionForCode(in.PaymentCode)
 	newAgg := in.AggregateForFY.Add(in.GrossAmount)
-	if newAgg.LessThanOrEqual(threshold194J) {
-		return CalcResult{Section: Section194J, Explanation: "below annual threshold ₹30K"}
+	if in.GrossAmount.LessThanOrEqual(thresholdContractSingle) && newAgg.LessThanOrEqual(thresholdContractAggregate) {
+		return CalcResult{
+			Section:     section,
+			PaymentCode: in.PaymentCode,
+			Explanation: "below threshold (single ≤₹30K and aggregate ≤₹1L)",
+		}
 	}
-	return applyRate(in, rate194J, "professional fees")
+	return applyRate(in, baseRate, "contractor payment")
 }
 
 var (
-	rate194Q      = decimal.NewFromFloat(0.001)
-	threshold194Q = decimal.NewFromInt(5000000)
-	noPAN194Q     = decimal.NewFromFloat(0.05)
+	rateTechnical    = decimal.NewFromFloat(0.02)
+	rateProfessional = decimal.NewFromFloat(0.10)
+	thresholdTechProf = decimal.NewFromInt(50000)
+)
+
+func calcTechProf(in CalcInput, baseRate decimal.Decimal, desc string) CalcResult {
+	section := SectionForCode(in.PaymentCode)
+	newAgg := in.AggregateForFY.Add(in.GrossAmount)
+	if newAgg.LessThanOrEqual(thresholdTechProf) {
+		return CalcResult{
+			Section:     section,
+			PaymentCode: in.PaymentCode,
+			Explanation: "below annual threshold ₹50K",
+		}
+	}
+	return applyRate(in, baseRate, desc)
+}
+
+var rateDirector = decimal.NewFromFloat(0.10)
+
+func calcDirector(in CalcInput) CalcResult {
+	return applyRate(in, rateDirector, "director remuneration")
+}
+
+var (
+	ratePurchase      = decimal.NewFromFloat(0.001)
+	thresholdPurchase = decimal.NewFromInt(5000000)
 )
 
 func calcPurchase(in CalcInput) CalcResult {
+	section := SectionForCode(in.PaymentCode)
 	newAgg := in.AggregateForFY.Add(in.GrossAmount)
-	if newAgg.LessThanOrEqual(threshold194Q) {
-		return CalcResult{Section: Section194Q, Explanation: "below annual threshold ₹50L"}
-	}
-	if !in.HasValidPAN {
-		tds := in.GrossAmount.Mul(noPAN194Q).Round(0)
+	if newAgg.LessThanOrEqual(thresholdPurchase) {
 		return CalcResult{
-			Section: Section194Q, Rate: noPAN194Q, TDSAmount: tds,
-			TotalTax: tds, NoPAN: true, ThresholdMet: true,
-			Explanation: "purchase of goods — 5% (no valid PAN)",
+			Section:     section,
+			PaymentCode: in.PaymentCode,
+			Explanation: "below annual threshold ₹50L",
 		}
 	}
-	return applyRate(in, rate194Q, "purchase of goods")
+	if !in.HasValidPAN {
+		tds := in.GrossAmount.Mul(noPANPurchase).Round(0)
+		return CalcResult{
+			Section:      section,
+			PaymentCode:  in.PaymentCode,
+			SubClause:    SubClauseForCode(in.PaymentCode),
+			Rate:         noPANPurchase,
+			TDSAmount:    tds,
+			TotalTax:     tds,
+			NoPAN:        true,
+			ThresholdMet: true,
+			Explanation:  "purchase of goods — 5% (no valid PAN, s.397(2))",
+		}
+	}
+	return applyRate(in, ratePurchase, "purchase of goods")
 }
 
-var rate195Default = decimal.NewFromFloat(0.20)
+var rateNonResidentDefault = decimal.NewFromFloat(0.20)
 
 func calcNonResident(in CalcInput) CalcResult {
-	rate := rate195Default
+	section := SectionForCode(in.PaymentCode)
+	rate := rateNonResidentDefault
 	if in.DTAARate != nil {
 		rate = *in.DTAARate
 	}
@@ -205,13 +265,20 @@ func calcNonResident(in CalcInput) CalcResult {
 	cess := tds.Mul(cessRate).Round(0)
 	total := tds.Add(cess)
 	return CalcResult{
-		Section: Section195, Rate: rate, TDSAmount: tds,
-		Cess: cess, TotalTax: total, ThresholdMet: true,
-		Explanation: "non-resident payment",
+		Section:      section,
+		PaymentCode:  in.PaymentCode,
+		SubClause:    SubClauseForCode(in.PaymentCode),
+		Rate:         rate,
+		TDSAmount:    tds,
+		Cess:         cess,
+		TotalTax:     total,
+		ThresholdMet: true,
+		Explanation:  "non-resident payment (s.393(2))",
 	}
 }
 
 func applyRate(in CalcInput, baseRate decimal.Decimal, desc string) CalcResult {
+	section := SectionForCode(in.PaymentCode)
 	rate := baseRate
 	noPAN := false
 	lowerCert := false
@@ -219,7 +286,7 @@ func applyRate(in CalcInput, baseRate decimal.Decimal, desc string) CalcResult {
 	if !in.HasValidPAN {
 		rate = decMax(baseRate, noPANRate)
 		noPAN = true
-		desc += " — 20% (no valid PAN)"
+		desc += " — 20% (no valid PAN, s.397(2))"
 	} else if in.LowerCertRate != nil {
 		rate = *in.LowerCertRate
 		lowerCert = true
@@ -228,9 +295,16 @@ func applyRate(in CalcInput, baseRate decimal.Decimal, desc string) CalcResult {
 
 	tds := in.GrossAmount.Mul(rate).Round(0)
 	return CalcResult{
-		Section: in.Section, Rate: rate, TDSAmount: tds,
-		TotalTax: tds, NoPAN: noPAN, LowerCert: lowerCert,
-		ThresholdMet: true, Explanation: desc,
+		Section:      section,
+		PaymentCode:  in.PaymentCode,
+		SubClause:    SubClauseForCode(in.PaymentCode),
+		Rate:         rate,
+		TDSAmount:    tds,
+		TotalTax:     tds,
+		NoPAN:        noPAN,
+		LowerCert:    lowerCert,
+		ThresholdMet: true,
+		Explanation:  desc,
 	}
 }
 

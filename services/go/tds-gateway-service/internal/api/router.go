@@ -23,8 +23,9 @@ func NewRouter(h *Handlers) *chi.Mux {
 		r.Post("/pan/verify", h.VerifyPAN)
 		r.Post("/tan/verify", h.VerifyTAN)
 		r.Post("/challan/generate", h.GenerateChallan)
-		r.Post("/form26q/file", h.FileForm26Q)
-		r.Post("/form24q/file", h.FileForm24Q)
+		r.Post("/form140/file", h.FileForm140)
+		r.Post("/form138/file", h.FileForm138)
+		r.Post("/form144/file", h.FileForm144)
 	})
 
 	return r

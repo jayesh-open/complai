@@ -10,6 +10,7 @@ type SandboxTDSProvider interface {
 	VerifyPAN(ctx context.Context, req domain.PANVerifyRequest) (*domain.PANVerifyResponse, error)
 	VerifyTAN(ctx context.Context, req domain.TANVerifyRequest) (*domain.TANVerifyResponse, error)
 	GenerateChallan(ctx context.Context, req domain.ChallanRequest) (*domain.ChallanResponse, error)
-	FileForm26Q(ctx context.Context, req domain.Form26QRequest) (*domain.FormFilingResponse, error)
-	FileForm24Q(ctx context.Context, req domain.Form24QRequest) (*domain.FormFilingResponse, error)
+	FileForm140(ctx context.Context, req domain.Form140Request) (*domain.FormFilingResponse, error)
+	FileForm138(ctx context.Context, req domain.Form138Request) (*domain.FormFilingResponse, error)
+	FileForm144(ctx context.Context, req domain.Form144Request) (*domain.FormFilingResponse, error)
 }

@@ -9,30 +9,31 @@ import (
 )
 
 type NonResidentDetail struct {
-	DeducteeID       string          `json:"deductee_id"`
-	PAN              string          `json:"pan"`
-	Name             string          `json:"name"`
-	CountryCode      string          `json:"country_code"`
-	TaxResidency     string          `json:"tax_residency"`
-	DTAAArticle      string          `json:"dtaa_article"`
-	DTAARate         decimal.Decimal `json:"dtaa_rate"`
-	GrossAmount      decimal.Decimal `json:"gross_amount"`
-	GrossAmountFC    decimal.Decimal `json:"gross_amount_fc"`
-	CurrencyCode     string          `json:"currency_code"`
-	ExchangeRate     decimal.Decimal `json:"exchange_rate"`
-	TDSRate          decimal.Decimal `json:"tds_rate"`
-	TDSAmount        decimal.Decimal `json:"tds_amount"`
-	Surcharge        decimal.Decimal `json:"surcharge"`
-	Cess             decimal.Decimal `json:"cess"`
-	TotalTax         decimal.Decimal `json:"total_tax"`
-	NatureOfRemittance string       `json:"nature_of_remittance"`
-	DateOfPayment    time.Time       `json:"date_of_payment"`
-	DateOfDeduction  time.Time       `json:"date_of_deduction"`
-	ChallanNumber    string          `json:"challan_number"`
-	BSRCode          string          `json:"bsr_code"`
+	DeducteeID         string          `json:"deductee_id"`
+	PAN                string          `json:"pan"`
+	Name               string          `json:"name"`
+	PaymentCode        PaymentCode     `json:"payment_code"`
+	CountryCode        string          `json:"country_code"`
+	TaxResidency       string          `json:"tax_residency"`
+	DTAAArticle        string          `json:"dtaa_article"`
+	DTAARate           decimal.Decimal `json:"dtaa_rate"`
+	GrossAmount        decimal.Decimal `json:"gross_amount"`
+	GrossAmountFC      decimal.Decimal `json:"gross_amount_fc"`
+	CurrencyCode       string          `json:"currency_code"`
+	ExchangeRate       decimal.Decimal `json:"exchange_rate"`
+	TDSRate            decimal.Decimal `json:"tds_rate"`
+	TDSAmount          decimal.Decimal `json:"tds_amount"`
+	Surcharge          decimal.Decimal `json:"surcharge"`
+	Cess               decimal.Decimal `json:"cess"`
+	TotalTax           decimal.Decimal `json:"total_tax"`
+	NatureOfRemittance string          `json:"nature_of_remittance"`
+	DateOfPayment      time.Time       `json:"date_of_payment"`
+	DateOfDeduction    time.Time       `json:"date_of_deduction"`
+	ChallanNumber      string          `json:"challan_number"`
+	BSRCode            string          `json:"bsr_code"`
 }
 
-type Form27QPayload struct {
+type Form144Payload struct {
 	FormType      FormType            `json:"form_type"`
 	FinancialYear string              `json:"financial_year"`
 	Quarter       string              `json:"quarter"`
@@ -44,21 +45,21 @@ type Form27QPayload struct {
 	Errors        []string            `json:"errors,omitempty"`
 }
 
-type Form27QInput struct {
-	Deductor      DeductorDetails
-	FinancialYear string
-	Quarter       string
-	Deductees     []Deductee
-	Entries       []TDSEntry
-	CountryCodes  map[string]string
-	DTAAArticles  map[string]string
-	DTAARates     map[string]decimal.Decimal
-	CurrencyCodes map[string]string
-	ExchangeRates map[string]decimal.Decimal
+type Form144Input struct {
+	Deductor       DeductorDetails
+	FinancialYear  string
+	Quarter        string
+	Deductees      []Deductee
+	Entries        []TDSEntry
+	CountryCodes   map[string]string
+	DTAAArticles   map[string]string
+	DTAARates      map[string]decimal.Decimal
+	CurrencyCodes  map[string]string
+	ExchangeRates  map[string]decimal.Decimal
 	ForeignAmounts map[string]decimal.Decimal
 }
 
-func GenerateForm27Q(input Form27QInput) (*Form27QPayload, error) {
+func GenerateForm144(input Form144Input) (*Form144Payload, error) {
 	if input.Deductor.TAN == "" {
 		return nil, fmt.Errorf("deductor TAN is required")
 	}
@@ -66,9 +67,9 @@ func GenerateForm27Q(input Form27QInput) (*Form27QPayload, error) {
 		return nil, fmt.Errorf("financial_year and quarter are required")
 	}
 
-	s195Entries := filterBySection(input.Entries, Section195)
-	if len(s195Entries) == 0 {
-		return nil, fmt.Errorf("no section 195 entries found for %s %s", input.FinancialYear, input.Quarter)
+	nrEntries := filterBySection(input.Entries, Section393_2)
+	if len(nrEntries) == 0 {
+		return nil, fmt.Errorf("no non-resident entries (s.393(2)) found for %s %s", input.FinancialYear, input.Quarter)
 	}
 
 	deducteeMap := make(map[string]*Deductee)
@@ -76,8 +77,8 @@ func GenerateForm27Q(input Form27QInput) (*Form27QPayload, error) {
 		deducteeMap[input.Deductees[i].ID.String()] = &input.Deductees[i]
 	}
 
-	payload := &Form27QPayload{
-		FormType:      FormType27Q,
+	payload := &Form144Payload{
+		FormType:      FormType144,
 		FinancialYear: input.FinancialYear,
 		Quarter:       input.Quarter,
 		Deductor:      input.Deductor,
@@ -88,7 +89,7 @@ func GenerateForm27Q(input Form27QInput) (*Form27QPayload, error) {
 	totalPaid := decimal.Zero
 	var validationErrors []string
 
-	for _, entry := range s195Entries {
+	for _, entry := range nrEntries {
 		d, ok := deducteeMap[entry.DeducteeID.String()]
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Sprintf("deductee %s not found", entry.DeducteeID))
@@ -111,6 +112,7 @@ func GenerateForm27Q(input Form27QInput) (*Form27QPayload, error) {
 			DeducteeID:         deducteeIDStr,
 			PAN:                d.PAN,
 			Name:               d.Name,
+			PaymentCode:        entry.PaymentCode,
 			CountryCode:        countryCode,
 			TaxResidency:       taxResidency,
 			DTAAArticle:        dtaaArticle,
@@ -142,15 +144,15 @@ func GenerateForm27Q(input Form27QInput) (*Form27QPayload, error) {
 	return payload, nil
 }
 
-func GenerateForm27QFVU(payload *Form27QPayload) string {
+func GenerateForm144FVU(payload *Form144Payload) string {
 	var b strings.Builder
 
-	ay := assessmentYear(payload.FinancialYear)
+	ty := TaxYearFromFY(payload.FinancialYear)
 
-	b.WriteString(fmt.Sprintf("^FH^27Q^1^%s^%s^%s^%s^^%s^^%d^^%s^%s^\n",
+	b.WriteString(fmt.Sprintf("^FH^144^1^%s^%s^%s^%s^^%s^^%d^^%s^%s^\n",
 		payload.Deductor.TAN,
 		payload.Deductor.DeductorPAN,
-		ay,
+		ty,
 		payload.Quarter,
 		payload.Deductor.DeductorName,
 		len(payload.Remittances),
@@ -158,7 +160,7 @@ func GenerateForm27QFVU(payload *Form27QPayload) string {
 		payload.Deductor.Pincode,
 	))
 
-	for _, ch := range challanSummary27Q(payload) {
+	for _, ch := range challanSummary144(payload) {
 		b.WriteString(fmt.Sprintf("^BH^%s^%s^%s^%s^%s^\n",
 			ch.ChallanNumber, ch.BSRCode, ch.DepositDate,
 			ch.TotalTDS, ch.DeducteeCount,
@@ -166,10 +168,11 @@ func GenerateForm27QFVU(payload *Form27QPayload) string {
 	}
 
 	for i, rem := range payload.Remittances {
-		b.WriteString(fmt.Sprintf("^NR^%d^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^\n",
+		b.WriteString(fmt.Sprintf("^NR^%d^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^%s^\n",
 			i+1,
 			rem.PAN,
 			rem.Name,
+			string(rem.PaymentCode),
 			rem.CountryCode,
 			rem.DTAAArticle,
 			rem.DTAARate.StringFixed(4),
@@ -187,7 +190,7 @@ func GenerateForm27QFVU(payload *Form27QPayload) string {
 	return b.String()
 }
 
-func challanSummary27Q(payload *Form27QPayload) []challanLine {
+func challanSummary144(payload *Form144Payload) []challanLine {
 	challanMap := make(map[string]*challanLine)
 	for _, rem := range payload.Remittances {
 		key := rem.ChallanNumber

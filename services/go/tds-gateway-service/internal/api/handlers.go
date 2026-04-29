@@ -65,8 +65,8 @@ func (h *Handlers) GenerateChallan(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.TAN == "" || req.Section == "" || req.Amount <= 0 {
-		writeError(w, http.StatusBadRequest, "tan, section, and positive amount are required")
+	if req.TAN == "" || (req.Section == "" && req.PaymentCode == "") || req.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, "tan, section or payment_code, and positive amount are required")
 		return
 	}
 	req.TenantID = r.Header.Get("X-Tenant-Id")
@@ -80,8 +80,8 @@ func (h *Handlers) GenerateChallan(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func (h *Handlers) FileForm26Q(w http.ResponseWriter, r *http.Request) {
-	var req domain.Form26QRequest
+func (h *Handlers) FileForm140(w http.ResponseWriter, r *http.Request) {
+	var req domain.Form140Request
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -92,17 +92,17 @@ func (h *Handlers) FileForm26Q(w http.ResponseWriter, r *http.Request) {
 	}
 	req.TenantID = r.Header.Get("X-Tenant-Id")
 
-	resp, err := h.provider.FileForm26Q(r.Context(), req)
+	resp, err := h.provider.FileForm140(r.Context(), req)
 	if err != nil {
-		log.Error().Err(err).Msg("Form 26Q filing failed")
+		log.Error().Err(err).Msg("Form 140 filing failed")
 		writeError(w, http.StatusInternalServerError, "filing failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func (h *Handlers) FileForm24Q(w http.ResponseWriter, r *http.Request) {
-	var req domain.Form24QRequest
+func (h *Handlers) FileForm138(w http.ResponseWriter, r *http.Request) {
+	var req domain.Form138Request
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -113,9 +113,30 @@ func (h *Handlers) FileForm24Q(w http.ResponseWriter, r *http.Request) {
 	}
 	req.TenantID = r.Header.Get("X-Tenant-Id")
 
-	resp, err := h.provider.FileForm24Q(r.Context(), req)
+	resp, err := h.provider.FileForm138(r.Context(), req)
 	if err != nil {
-		log.Error().Err(err).Msg("Form 24Q filing failed")
+		log.Error().Err(err).Msg("Form 138 filing failed")
+		writeError(w, http.StatusInternalServerError, "filing failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handlers) FileForm144(w http.ResponseWriter, r *http.Request) {
+	var req domain.Form144Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.TAN == "" || req.FinancialYear == "" || req.Quarter == "" || len(req.Remittances) == 0 {
+		writeError(w, http.StatusBadRequest, "tan, financial_year, quarter, and remittances are required")
+		return
+	}
+	req.TenantID = r.Header.Get("X-Tenant-Id")
+
+	resp, err := h.provider.FileForm144(r.Context(), req)
+	if err != nil {
+		log.Error().Err(err).Msg("Form 144 filing failed")
 		writeError(w, http.StatusInternalServerError, "filing failed")
 		return
 	}

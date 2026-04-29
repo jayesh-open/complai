@@ -17,7 +17,7 @@ import (
 
 var (
 	testTenant = uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	testDate   = time.Date(2025, 5, 20, 0, 0, 0, 0, time.UTC)
+	testDate   = time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
 )
 
 type mockGateway struct {
@@ -61,7 +61,8 @@ func seedSagaData(ms *store.MockStore) {
 	entries := []domain.TDSEntry{
 		{
 			ID: uuid.New(), TenantID: testTenant, DeducteeID: deductees[0].ID,
-			Section: domain.Section194C, FinancialYear: "2025-26", Quarter: "Q1",
+			Section: domain.Section393_1, PaymentCode: domain.CodeContractorOther, SubClause: "Sl.6(i).D(b)",
+			FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 			TransactionDate: testDate, GrossAmount: decimal.NewFromInt(500000),
 			TDSRate: decimal.NewFromFloat(0.02), TDSAmount: decimal.NewFromInt(10000),
 			Surcharge: decimal.Zero, Cess: decimal.Zero, TotalTax: decimal.NewFromInt(10000),
@@ -70,7 +71,8 @@ func seedSagaData(ms *store.MockStore) {
 		},
 		{
 			ID: uuid.New(), TenantID: testTenant, DeducteeID: deductees[1].ID,
-			Section: domain.Section194J, FinancialYear: "2025-26", Quarter: "Q1",
+			Section: domain.Section393_1, PaymentCode: domain.CodeProfessional, SubClause: "Sl.6(iii).D(b)",
+			FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 			TransactionDate: testDate, GrossAmount: decimal.NewFromInt(100000),
 			TDSRate: decimal.NewFromFloat(0.10), TDSAmount: decimal.NewFromInt(10000),
 			Surcharge: decimal.Zero, Cess: decimal.Zero, TotalTax: decimal.NewFromInt(10000),
@@ -79,7 +81,8 @@ func seedSagaData(ms *store.MockStore) {
 		},
 		{
 			ID: uuid.New(), TenantID: testTenant, DeducteeID: deductees[2].ID,
-			Section: domain.Section194I, FinancialYear: "2025-26", Quarter: "Q1",
+			Section: domain.Section393_1, PaymentCode: domain.CodeRentLand, SubClause: "Sl.2(ii).D(b)",
+			FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 			TransactionDate: testDate, GrossAmount: decimal.NewFromInt(300000),
 			TDSRate: decimal.NewFromFloat(0.10), TDSAmount: decimal.NewFromInt(30000),
 			Surcharge: decimal.Zero, Cess: decimal.Zero, TotalTax: decimal.NewFromInt(30000),
@@ -105,8 +108,9 @@ func seedSalaryData(ms *store.MockStore) {
 	for month := 0; month < 3; month++ {
 		e := domain.TDSEntry{
 			ID: uuid.New(), TenantID: testTenant, DeducteeID: d.ID,
-			Section: domain.Section192, FinancialYear: "2025-26", Quarter: "Q1",
-			TransactionDate: time.Date(2025, time.Month(4+month), 28, 0, 0, 0, 0, time.UTC),
+			Section: domain.Section392, PaymentCode: domain.CodeSalaryPrivate,
+			FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
+			TransactionDate: time.Date(2026, time.Month(4+month), 28, 0, 0, 0, 0, time.UTC),
 			GrossAmount: decimal.NewFromInt(166667), TDSRate: decimal.NewFromFloat(0.0962),
 			TDSAmount: decimal.NewFromInt(16033), Surcharge: decimal.Zero,
 			Cess: decimal.Zero, TotalTax: decimal.NewFromInt(16033),
@@ -128,7 +132,8 @@ func seedNonResidentData(ms *store.MockStore) {
 
 	e := domain.TDSEntry{
 		ID: uuid.New(), TenantID: testTenant, DeducteeID: d.ID,
-		Section: domain.Section195, FinancialYear: "2025-26", Quarter: "Q1",
+		Section: domain.Section393_2, PaymentCode: domain.CodeNonResident, SubClause: "Sl.17",
+		FinancialYear: "2026-27", TaxYear: "2026-27", Quarter: "Q1",
 		TransactionDate: testDate, GrossAmount: decimal.NewFromInt(5000000),
 		TDSRate: decimal.NewFromFloat(0.20), TDSAmount: decimal.NewFromInt(1000000),
 		Surcharge: decimal.Zero, Cess: decimal.NewFromInt(40000),
@@ -139,9 +144,7 @@ func seedNonResidentData(ms *store.MockStore) {
 	ms.CreateEntry(context.Background(), testTenant, &e)
 }
 
-// --- Happy path tests ---
-
-func TestFilingSaga_26Q_HappyPath(t *testing.T) {
+func TestFilingSaga_140_HappyPath(t *testing.T) {
 	ms := store.NewMockStore()
 	gw := &mockGateway{}
 	saga := NewFilingSaga(ms, gw)
@@ -150,8 +153,8 @@ func TestFilingSaga_26Q_HappyPath(t *testing.T) {
 
 	result, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType26Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType140,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Deductor: &domain.DeductorDetails{
@@ -166,11 +169,11 @@ func TestFilingSaga_26Q_HappyPath(t *testing.T) {
 	assert.NotEmpty(t, result.AcknowledgementNumber)
 	assert.Equal(t, 3, result.DeducteeCount)
 	assert.NotEmpty(t, result.FVUContent)
-	assert.Contains(t, result.FVUContent, "^FH^26Q^")
+	assert.Contains(t, result.FVUContent, "^FH^140^")
 	assert.Equal(t, int32(1), atomic.LoadInt32(&gw.calls))
 }
 
-func TestFilingSaga_24Q_HappyPath(t *testing.T) {
+func TestFilingSaga_138_HappyPath(t *testing.T) {
 	ms := store.NewMockStore()
 	gw := &mockGateway{}
 	saga := NewFilingSaga(ms, gw)
@@ -179,8 +182,8 @@ func TestFilingSaga_24Q_HappyPath(t *testing.T) {
 
 	result, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType24Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType138,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Employer: &domain.EmployerDetails{
@@ -191,11 +194,11 @@ func TestFilingSaga_24Q_HappyPath(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, domain.FilingFiled, result.Status)
-	assert.Contains(t, result.FVUContent, "^FH^24Q^")
+	assert.Contains(t, result.FVUContent, "^FH^138^")
 	assert.Equal(t, 1, result.DeducteeCount)
 }
 
-func TestFilingSaga_27Q_HappyPath(t *testing.T) {
+func TestFilingSaga_144_HappyPath(t *testing.T) {
 	ms := store.NewMockStore()
 	gw := &mockGateway{}
 	saga := NewFilingSaga(ms, gw)
@@ -205,29 +208,27 @@ func TestFilingSaga_27Q_HappyPath(t *testing.T) {
 	deducteeID := "cccc0001-0001-0001-0001-000000000001"
 	result, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType27Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType144,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Deductor: &domain.DeductorDetails{
 			TAN: "MUMA12345A", DeductorName: "Acme Corp", DeductorPAN: "AABCA1234F",
 			Address: "100 MG Road", Pincode: "400001",
 		},
-		CountryCodes:  map[string]string{deducteeID: "US"},
-		CurrencyCodes: map[string]string{deducteeID: "USD"},
-		ExchangeRates: map[string]decimal.Decimal{deducteeID: decimal.NewFromFloat(83.50)},
+		CountryCodes:   map[string]string{deducteeID: "US"},
+		CurrencyCodes:  map[string]string{deducteeID: "USD"},
+		ExchangeRates:  map[string]decimal.Decimal{deducteeID: decimal.NewFromFloat(83.50)},
 		ForeignAmounts: map[string]decimal.Decimal{deducteeID: decimal.NewFromFloat(59880.24)},
-		DTAAArticles:  map[string]string{deducteeID: "12"},
-		DTAARates:     map[string]decimal.Decimal{deducteeID: decimal.NewFromFloat(0.15)},
+		DTAAArticles:   map[string]string{deducteeID: "12"},
+		DTAARates:      map[string]decimal.Decimal{deducteeID: decimal.NewFromFloat(0.15)},
 	})
 
 	require.NoError(t, err)
 	assert.Equal(t, domain.FilingFiled, result.Status)
-	assert.Contains(t, result.FVUContent, "^FH^27Q^")
+	assert.Contains(t, result.FVUContent, "^FH^144^")
 	assert.Equal(t, 1, result.DeducteeCount)
 }
-
-// --- Failure and recovery tests ---
 
 func TestFilingSaga_GatewayError_SetsRejected(t *testing.T) {
 	ms := store.NewMockStore()
@@ -238,8 +239,8 @@ func TestFilingSaga_GatewayError_SetsRejected(t *testing.T) {
 
 	_, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType26Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType140,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Deductor:      &domain.DeductorDetails{TAN: "MUMA12345A", DeductorName: "Acme Corp", DeductorPAN: "AABCA1234F", Address: "x", Pincode: "400001"},
@@ -248,7 +249,7 @@ func TestFilingSaga_GatewayError_SetsRejected(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "submit")
 
-	filings, _, _ := ms.ListFilings(context.Background(), testTenant, "2025-26", "Q1", 10, 0)
+	filings, _, _ := ms.ListFilings(context.Background(), testTenant, "2026-27", "Q1", 10, 0)
 	require.Len(t, filings, 1)
 	assert.Equal(t, domain.FilingRejected, filings[0].Status)
 	assert.Contains(t, filings[0].ErrorMessage, "gateway unavailable")
@@ -263,8 +264,8 @@ func TestFilingSaga_GatewayRecovery(t *testing.T) {
 
 	input := FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType26Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType140,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Deductor:      &domain.DeductorDetails{TAN: "MUMA12345A", DeductorName: "Acme Corp", DeductorPAN: "AABCA1234F", Address: "x", Pincode: "400001"},
@@ -279,8 +280,6 @@ func TestFilingSaga_GatewayRecovery(t *testing.T) {
 	assert.NotEmpty(t, result.TokenNumber)
 }
 
-// --- Idempotency tests ---
-
 func TestFilingSaga_Idempotency_DuplicateReturnsSame(t *testing.T) {
 	ms := store.NewMockStore()
 	gw := &mockGateway{}
@@ -290,8 +289,8 @@ func TestFilingSaga_Idempotency_DuplicateReturnsSame(t *testing.T) {
 
 	input := FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType26Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType140,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Deductor:      &domain.DeductorDetails{TAN: "MUMA12345A", DeductorName: "Acme Corp", DeductorPAN: "AABCA1234F", Address: "x", Pincode: "400001"},
@@ -318,22 +317,20 @@ func TestFilingSaga_Idempotency_DifferentQuarters(t *testing.T) {
 	deductor := &domain.DeductorDetails{TAN: "MUMA12345A", DeductorName: "Acme Corp", DeductorPAN: "AABCA1234F", Address: "x", Pincode: "400001"}
 
 	r1, err := saga.Execute(context.Background(), FilingSagaInput{
-		TenantID: testTenant, FormType: domain.FormType26Q,
-		FinancialYear: "2025-26", Quarter: "Q1", TAN: "MUMA12345A", Deductor: deductor,
+		TenantID: testTenant, FormType: domain.FormType140,
+		FinancialYear: "2026-27", Quarter: "Q1", TAN: "MUMA12345A", Deductor: deductor,
 	})
 	require.NoError(t, err)
 
 	r2, err := saga.Execute(context.Background(), FilingSagaInput{
-		TenantID: testTenant, FormType: domain.FormType26Q,
-		FinancialYear: "2025-26", Quarter: "Q1", TAN: "MUMA12345A", Deductor: deductor,
+		TenantID: testTenant, FormType: domain.FormType140,
+		FinancialYear: "2026-27", Quarter: "Q1", TAN: "MUMA12345A", Deductor: deductor,
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, r1.ID, r2.ID, "same key should return same filing")
 	assert.Equal(t, int32(1), atomic.LoadInt32(&gw.calls))
 }
-
-// --- Validation failure tests ---
 
 func TestFilingSaga_NoDeductees(t *testing.T) {
 	ms := store.NewMockStore()
@@ -342,8 +339,8 @@ func TestFilingSaga_NoDeductees(t *testing.T) {
 
 	_, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType26Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType140,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Deductor:      &domain.DeductorDetails{TAN: "MUMA12345A", DeductorName: "Acme Corp", DeductorPAN: "AABCA1234F", Address: "x", Pincode: "400001"},
@@ -353,7 +350,7 @@ func TestFilingSaga_NoDeductees(t *testing.T) {
 	assert.Contains(t, err.Error(), "no deductees")
 }
 
-func TestFilingSaga_MissingPAN_24Q(t *testing.T) {
+func TestFilingSaga_MissingPAN_138(t *testing.T) {
 	ms := store.NewMockStore()
 	gw := &mockGateway{}
 	saga := NewFilingSaga(ms, gw)
@@ -368,8 +365,8 @@ func TestFilingSaga_MissingPAN_24Q(t *testing.T) {
 
 	_, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType24Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType138,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 		Employer:      &domain.EmployerDetails{TAN: "MUMA12345A", EmployerName: "Acme Corp", EmployerPAN: "AABCA1234F", Address: "x", Pincode: "400001"},
@@ -387,8 +384,8 @@ func TestFilingSaga_MissingEmployerDetails(t *testing.T) {
 
 	_, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType24Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType138,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 	})
@@ -405,8 +402,8 @@ func TestFilingSaga_MissingDeductorDetails(t *testing.T) {
 
 	_, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType26Q,
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType140,
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 	})
@@ -430,8 +427,8 @@ func TestFilingSaga_UnsupportedFormType(t *testing.T) {
 
 	_, err := saga.Execute(context.Background(), FilingSagaInput{
 		TenantID:      testTenant,
-		FormType:      domain.FormType("99Q"),
-		FinancialYear: "2025-26",
+		FormType:      domain.FormType("999"),
+		FinancialYear: "2026-27",
 		Quarter:       "Q1",
 		TAN:           "MUMA12345A",
 	})
@@ -449,8 +446,8 @@ func TestFilingSaga_SubmittedStatus(t *testing.T) {
 	saga2 := NewFilingSaga(ms, submittedGW)
 
 	result, err := saga2.Execute(context.Background(), FilingSagaInput{
-		TenantID: testTenant, FormType: domain.FormType26Q,
-		FinancialYear: "2025-26", Quarter: "Q1", TAN: "MUMA12345A",
+		TenantID: testTenant, FormType: domain.FormType140,
+		FinancialYear: "2026-27", Quarter: "Q1", TAN: "MUMA12345A",
 		Deductor: &domain.DeductorDetails{TAN: "MUMA12345A", DeductorName: "Acme Corp", DeductorPAN: "AABCA1234F", Address: "x", Pincode: "400001"},
 	})
 

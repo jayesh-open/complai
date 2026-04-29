@@ -9,14 +9,14 @@ import (
 type FormType string
 
 const (
-	FormType24Q FormType = "24Q"
-	FormType26Q FormType = "26Q"
-	FormType27Q FormType = "27Q"
+	FormType138 FormType = "138"
+	FormType140 FormType = "140"
+	FormType144 FormType = "144"
 )
 
 func ValidFormType(f FormType) bool {
 	switch f {
-	case FormType24Q, FormType26Q, FormType27Q:
+	case FormType138, FormType140, FormType144:
 		return true
 	}
 	return false

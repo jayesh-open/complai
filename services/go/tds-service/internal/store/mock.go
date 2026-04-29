@@ -27,8 +27,8 @@ func NewMockStore() *MockStore {
 	}
 }
 
-func aggKey(deducteeID uuid.UUID, section domain.Section, fy string) string {
-	return fmt.Sprintf("%s:%s:%s", deducteeID, section, fy)
+func aggKey(deducteeID uuid.UUID, code domain.PaymentCode, fy string) string {
+	return fmt.Sprintf("%s:%s:%s", deducteeID, code, fy)
 }
 
 func (m *MockStore) CreateDeductee(_ context.Context, _ uuid.UUID, d *domain.Deductee) error {
@@ -139,10 +139,10 @@ func (m *MockStore) ListEntries(_ context.Context, tenantID uuid.UUID, fy, quart
 	return all[offset:end], total, nil
 }
 
-func (m *MockStore) GetAggregate(_ context.Context, _ uuid.UUID, deducteeID uuid.UUID, section domain.Section, fy string) (*domain.TDSAggregate, error) {
+func (m *MockStore) GetAggregate(_ context.Context, _ uuid.UUID, deducteeID uuid.UUID, code domain.PaymentCode, fy string) (*domain.TDSAggregate, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	a, ok := m.aggregates[aggKey(deducteeID, section, fy)]
+	a, ok := m.aggregates[aggKey(deducteeID, code, fy)]
 	if !ok {
 		return &domain.TDSAggregate{TotalPaid: decimal.Zero, TotalTDS: decimal.Zero}, nil
 	}
@@ -152,7 +152,7 @@ func (m *MockStore) GetAggregate(_ context.Context, _ uuid.UUID, deducteeID uuid
 func (m *MockStore) UpsertAggregate(_ context.Context, _ uuid.UUID, agg *domain.TDSAggregate) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.aggregates[aggKey(agg.DeducteeID, agg.Section, agg.FinancialYear)] = agg
+	m.aggregates[aggKey(agg.DeducteeID, agg.PaymentCode, agg.FinancialYear)] = agg
 	return nil
 }
 
@@ -160,11 +160,11 @@ func (m *MockStore) GetSummary(_ context.Context, tenantID uuid.UUID, fy string)
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	sum := &domain.TDSSummary{
-		EntriesBySection: make(map[domain.Section]int),
-		EntriesByStatus:  make(map[domain.EntryStatus]int),
-		TotalTDSDeducted: decimal.Zero,
-		TotalTDSDeposited: decimal.Zero,
-		PendingDeposit:    decimal.Zero,
+		EntriesByPaymentCode: make(map[domain.PaymentCode]int),
+		EntriesByStatus:      make(map[domain.EntryStatus]int),
+		TotalTDSDeducted:     decimal.Zero,
+		TotalTDSDeposited:    decimal.Zero,
+		PendingDeposit:       decimal.Zero,
 	}
 	for _, d := range m.deductees {
 		if d.TenantID == tenantID {
@@ -177,7 +177,7 @@ func (m *MockStore) GetSummary(_ context.Context, tenantID uuid.UUID, fy string)
 		}
 		sum.TotalEntries++
 		sum.TotalTDSDeducted = sum.TotalTDSDeducted.Add(e.TotalTax)
-		sum.EntriesBySection[e.Section]++
+		sum.EntriesByPaymentCode[e.PaymentCode]++
 		sum.EntriesByStatus[e.Status]++
 		if e.Status == domain.StatusDeposited {
 			sum.TotalTDSDeposited = sum.TotalTDSDeposited.Add(e.TotalTax)

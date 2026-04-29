@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/complai/complai/packages/shared-kernel-go/db"
 	"github.com/complai/complai/services/go/tds-service/internal/api"
 	pgstore "github.com/complai/complai/services/go/tds-service/internal/store"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -67,19 +68,19 @@ func main() {
 
 func runMigrations() {
 	dbURL := envOr("DATABASE_URL", "postgres://complai:complai_dev@localhost:5432/tds_db?sslmode=disable")
-	dir := envOr("MIGRATIONS_DIR", "migrations")
-	db, err := goose.OpenDBWithDriver("pgx", dbURL)
+	sqlDB, err := sql.Open("pgx", dbURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to open db for migrations")
 	}
-	defer db.Close()
+	defer sqlDB.Close()
 
-	if err := goose.Up(db, dir); err != nil {
-		if !strings.Contains(err.Error(), "no migrations") {
-			log.Fatal().Err(err).Msg("migration failed")
-		}
+	if err := goose.SetDialect("postgres"); err != nil {
+		log.Fatal().Err(err).Msg("failed to set goose dialect")
 	}
-	log.Info().Msg("migrations complete")
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		log.Fatal().Err(err).Msg("migration failed")
+	}
+	log.Info().Msg("tds-service migrations complete")
 }
 
 func envOr(key, fallback string) string {

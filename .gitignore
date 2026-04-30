@@ -85,3 +85,8 @@ storybook-static/
 # LocalStack
 .localstack/
 volume/
+
+# Next.js auto-generated
+apps/web/next-env.d.ts
+apps/web/tsconfig.tsbuildinfo
+

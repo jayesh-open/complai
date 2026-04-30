@@ -335,6 +335,13 @@ func TestValidSection(t *testing.T) {
 	assert.False(t, ValidSection(""))
 }
 
+func TestRejectITA1961Sections(t *testing.T) {
+	ita1961 := []string{"192", "194C", "194J", "194A", "194H", "194I", "195", "194Q"}
+	for _, s := range ita1961 {
+		assert.False(t, ValidSection(Section(s)), "ITA 1961 section %q must be rejected", s)
+	}
+}
+
 func TestSectionForCode(t *testing.T) {
 	assert.Equal(t, Section392, SectionForCode(CodeSalaryPrivate))
 	assert.Equal(t, Section393_1, SectionForCode(CodeContractorOther))

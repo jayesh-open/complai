@@ -1,9 +1,12 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 ## Current part
-Part 9 — ITA 2025 refactor complete (subparts 9a-9b code + gateway). UI (subpart 9c) pending user confirmation.
+Part 10 — Sandbox ITR + GSTR-9/9C (not started).
+
+## Recently completed
+Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/144 filing wizards, certificates (Form 130/131), challan tracking, 3 Playwright E2E specs, all verifications green.
 
 ## Completed
 - [x] Part 0.5: Repo init, CLAUDE.md, BUILD_PLAN.md, input docs, ADR template
@@ -205,6 +208,25 @@ Part 9 — ITA 2025 refactor complete (subparts 9a-9b code + gateway). UI (subpa
   - [x] go vet + go build clean on all 4 Part 8 services
   - [x] Storybook axe-core: 11 component suites, 0 a11y violations
   - [x] 6 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, GSTR-3B
+
+### Part 9 final verification (2026-04-30) — COMPLETE
+
+  - [x] Docker: 10/10 containers healthy
+  - [x] Goose migrations: tds_db at version 3 (tds_entries, deductees, tds_filings, tds_aggregates + RLS)
+  - [x] GOWORK=off: 23/23 services PASS
+  - [x] Coverage: tds-service (api 91.4%, domain 95.6%, filing 84.5%, gateway 92.2%, store 24.1%), tds-gateway-service (api 100%, provider 100%)
+  - [x] Performance: 1000 TDS calculations in 269µs (benchmark + assertion test)
+  - [x] ITA 1961 rejection: TestRejectITA1961Sections — 8 legacy section codes rejected
+  - [x] DTAA enforcement: 12/12 non-resident + DTAA tests pass
+  - [x] Tax Year terminology: zero "Assessment Year" references in codebase
+  - [x] Postgres RLS: 0 cross-tenant rows on all 4 TDS tables (deductees, tds_entries, tds_filings, tds_aggregates)
+  - [x] tsc --noEmit: clean
+  - [x] go vet + go build: 23/23 clean
+  - [x] Storybook: 32 story bundles built clean
+  - [x] Playwright E2E (3 tests, 2 spec files):
+    - [x] tds-calculation.spec.ts: contractor ₹50K → section 393(1), code 1024, 2% rate, ₹1,000 TDS, save entry
+    - [x] tds-form144-filing.spec.ts: DTAA blocks Form 144 submit; Form 138 salary wizard reaches ARN acknowledgement
+  - [x] 7 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, GSTR-3B, TDS
 
 ### ITA 2025 refactor (2026-04-29) — RESOLVED
 

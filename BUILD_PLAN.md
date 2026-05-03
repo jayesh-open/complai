@@ -1,11 +1,12 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-04-30
+Last updated: 2026-05-03
 
 ## Current part
-Part 10 — Sandbox ITR + GSTR-9/9C (in progress).
+Part 11 — Sibling gateway services (Aura, Bridge, HRMS) (not started).
 
 ## Recently completed
+Part 10c — GSTR-9/9C backends. gstr9-service (annual return aggregation, GSTR-9C reconciliation engine, mismatch resolution, certification). gstn-gateway-service extended with 7 GSTR-9/9C endpoints (save/submit/file/status). Mock + real provider stubs. 115+ gstr9-service tests, 80+ new gstn-gateway tests. All handlers ≥80% individually.
 Part 10b — AIS reconciliation engine, employee bulk filing flow, ITR-4/5/6/7 form generators + eligibility checkers. Migration 002_bulk_filing.sql, 6 bulk API endpoints, coverage targets met.
 Part 10a — itr-service + itr-gateway-service backends. ITA 2025 tax computation engine, ITR-1/2/3 eligibility, TDS reconciliation, 5-head income calculators, mock Sandbox.co.in ITR APIs.
 Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/144 filing wizards, certificates (Form 130/131), challan tracking, 3 Playwright E2E specs, all verifications green.

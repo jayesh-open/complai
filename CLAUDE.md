@@ -118,7 +118,7 @@ Complai is one of four sibling apps plus an external HRMS:
 - [x] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
 - [x] Part 8: e-Invoicing + E-Way Bill
 - [x] Part 9: Sandbox TDS gateway + TDS module (ITA 2025, 4-digit payment codes, Form 138/140/144 filing wizards, certificates, challans, 3 Playwright E2E specs)
-- [ ] Part 10: Sandbox ITR + GSTR-9/9C (10a+10b backends done, 10c GSTR-9/9C pending)
+- [x] Part 10: Sandbox ITR + GSTR-9/9C (10a ITR backends, 10b AIS recon + bulk filing + ITR-4/5/6/7, 10c GSTR-9/9C service + gateway endpoints)
 - [ ] Part 11: Sibling gateway services (Aura, Bridge, HRMS)
 - [ ] Part 12: AI layer + MaxITC
 - [ ] Part 13: Real Bank Open sibling sync + GL-Stream + Compliance Cloud

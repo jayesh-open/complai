@@ -655,3 +655,442 @@ func TestGSTR1Save_AfterSubmitted(t *testing.T) {
 	h.GSTR1Save(rec, postJSON(t, "/", saveReq2, tenantID))
 	assert.Equal(t, http.StatusBadGateway, rec.Code)
 }
+
+// ---------------------------------------------------------------------------
+// Tests: GSTR-9 Handlers
+// ---------------------------------------------------------------------------
+
+const handlerTestGSTIN = "27AABCU9603R1ZM"
+const handlerTestFY = "2025-26"
+
+func gstr9Save(t *testing.T, h *Handlers, tenantID string) string {
+	t.Helper()
+	req := domain.GSTR9SaveRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Data: map[string]interface{}{"tables": "data"}, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Save(rec, postJSON(t, "/v1/gateway/adaequare/gstr9/save", req, tenantID))
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp domain.GSTR9SaveResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &resp)
+	return resp.Reference
+}
+
+func TestGSTR9Save_Success(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9Save(t, h, tenantID)
+	assert.Contains(t, ref, "GSTR9-")
+}
+
+func TestGSTR9Save_MissingTenant(t *testing.T) {
+	h := newTestHandlers()
+	body, _ := json.Marshal(domain.GSTR9SaveRequest{GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.GSTR9Save(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9Save_InvalidBody(t *testing.T) {
+	h := newTestHandlers()
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("bad")))
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR9Save(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9Save_InvalidGSTIN(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	req := domain.GSTR9SaveRequest{
+		GSTIN: "SHORT", FinancialYear: handlerTestFY,
+		Data: map[string]interface{}{}, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Save(rec, postJSON(t, "/", req, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+func TestGSTR9Save_InvalidFY(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	req := domain.GSTR9SaveRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: "BADFY",
+		Data: map[string]interface{}{}, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Save(rec, postJSON(t, "/", req, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+func TestGSTR9Submit_Success(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9Save(t, h, tenantID)
+
+	submitReq := domain.GSTR9SubmitRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Submit(rec, postJSON(t, "/", submitReq, tenantID))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var resp domain.GSTR9SubmitResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &resp)
+	assert.Equal(t, "success", resp.Status)
+}
+
+func TestGSTR9Submit_MissingTenant(t *testing.T) {
+	h := newTestHandlers()
+	body, _ := json.Marshal(domain.GSTR9SubmitRequest{Reference: "X"})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.GSTR9Submit(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9Submit_InvalidBody(t *testing.T) {
+	h := newTestHandlers()
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("bad")))
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR9Submit(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9Submit_NotFound(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	submitReq := domain.GSTR9SubmitRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: "NONEXIST", RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Submit(rec, postJSON(t, "/", submitReq, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+func TestGSTR9File_Success(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9Save(t, h, tenantID)
+
+	submitReq := domain.GSTR9SubmitRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Submit(rec, postJSON(t, "/", submitReq, tenantID))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	fileReq := domain.GSTR9FileRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, SignType: "DSC", PAN: "AABCU9603R",
+		RequestID: uuid.New().String(),
+	}
+	rec = httptest.NewRecorder()
+	h.GSTR9File(rec, postJSON(t, "/", fileReq, tenantID))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var resp domain.GSTR9FileResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &resp)
+	assert.Equal(t, "success", resp.Status)
+	assert.Contains(t, resp.ARN, "AR27")
+}
+
+func TestGSTR9File_MissingTenant(t *testing.T) {
+	h := newTestHandlers()
+	body, _ := json.Marshal(domain.GSTR9FileRequest{Reference: "X"})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.GSTR9File(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9File_InvalidBody(t *testing.T) {
+	h := newTestHandlers()
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("bad")))
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR9File(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9File_NotSubmitted(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9Save(t, h, tenantID)
+
+	fileReq := domain.GSTR9FileRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, SignType: "DSC", PAN: "X",
+		RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9File(rec, postJSON(t, "/", fileReq, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+func TestGSTR9Status_Success(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9Save(t, h, tenantID)
+
+	statusReq := domain.GSTR9StatusRequest{
+		Reference: ref, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Status(rec, postJSON(t, "/", statusReq, tenantID))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var resp domain.GSTR9StatusResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &resp)
+	assert.Equal(t, "saved", resp.Status)
+}
+
+func TestGSTR9Status_MissingTenant(t *testing.T) {
+	h := newTestHandlers()
+	body, _ := json.Marshal(domain.GSTR9StatusRequest{Reference: "X"})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.GSTR9Status(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9Status_InvalidBody(t *testing.T) {
+	h := newTestHandlers()
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("bad")))
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR9Status(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9Status_NotFound(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	statusReq := domain.GSTR9StatusRequest{
+		Reference: "NONEXIST", RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Status(rec, postJSON(t, "/", statusReq, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+// ---------------------------------------------------------------------------
+// Tests: GSTR-9C Handlers
+// ---------------------------------------------------------------------------
+
+func gstr9cSave(t *testing.T, h *Handlers, tenantID string) string {
+	t.Helper()
+	req := domain.GSTR9CSaveRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Data: map[string]interface{}{"recon": "data"}, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9CSave(rec, postJSON(t, "/v1/gateway/adaequare/gstr9c/save", req, tenantID))
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp domain.GSTR9CSaveResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &resp)
+	return resp.Reference
+}
+
+func TestGSTR9CSave_Success(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9cSave(t, h, tenantID)
+	assert.Contains(t, ref, "GSTR9C-")
+}
+
+func TestGSTR9CSave_MissingTenant(t *testing.T) {
+	h := newTestHandlers()
+	body, _ := json.Marshal(domain.GSTR9CSaveRequest{GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.GSTR9CSave(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9CSave_InvalidBody(t *testing.T) {
+	h := newTestHandlers()
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("bad")))
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR9CSave(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9CSave_InvalidGSTIN(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	req := domain.GSTR9CSaveRequest{
+		GSTIN: "BAD", FinancialYear: handlerTestFY,
+		Data: map[string]interface{}{}, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9CSave(rec, postJSON(t, "/", req, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+func TestGSTR9CFile_Success(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9cSave(t, h, tenantID)
+
+	fileReq := domain.GSTR9CFileRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, PAN: "AABCU9603R",
+		RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9CFile(rec, postJSON(t, "/", fileReq, tenantID))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var resp domain.GSTR9CFileResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &resp)
+	assert.Equal(t, "success", resp.Status)
+	assert.Contains(t, resp.ARN, "AC27")
+}
+
+func TestGSTR9CFile_MissingTenant(t *testing.T) {
+	h := newTestHandlers()
+	body, _ := json.Marshal(domain.GSTR9CFileRequest{Reference: "X"})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.GSTR9CFile(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9CFile_InvalidBody(t *testing.T) {
+	h := newTestHandlers()
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("bad")))
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR9CFile(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9CFile_NotFound(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	fileReq := domain.GSTR9CFileRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: "NONEXIST", PAN: "X", RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9CFile(rec, postJSON(t, "/", fileReq, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+func TestGSTR9CStatus_Success(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	ref := gstr9cSave(t, h, tenantID)
+
+	statusReq := domain.GSTR9CStatusRequest{
+		Reference: ref, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9CStatus(rec, postJSON(t, "/", statusReq, tenantID))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var resp domain.GSTR9CStatusResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &resp)
+	assert.Equal(t, "saved", resp.Status)
+}
+
+func TestGSTR9CStatus_MissingTenant(t *testing.T) {
+	h := newTestHandlers()
+	body, _ := json.Marshal(domain.GSTR9CStatusRequest{Reference: "X"})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.GSTR9CStatus(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9CStatus_InvalidBody(t *testing.T) {
+	h := newTestHandlers()
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("bad")))
+	req.Header.Set("X-Tenant-Id", uuid.New().String())
+	rec := httptest.NewRecorder()
+	h.GSTR9CStatus(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGSTR9CStatus_NotFound(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+	statusReq := domain.GSTR9CStatusRequest{
+		Reference: "NONEXIST", RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9CStatus(rec, postJSON(t, "/", statusReq, tenantID))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+}
+
+func TestGSTR9_FullLifecycle_ViaHandlers(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+
+	ref := gstr9Save(t, h, tenantID)
+
+	submitReq := domain.GSTR9SubmitRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9Submit(rec, postJSON(t, "/", submitReq, tenantID))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	fileReq := domain.GSTR9FileRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, SignType: "EVC", EVOTP: "654321", PAN: "AABCU9603R",
+		RequestID: uuid.New().String(),
+	}
+	rec = httptest.NewRecorder()
+	h.GSTR9File(rec, postJSON(t, "/", fileReq, tenantID))
+	require.Equal(t, http.StatusOK, rec.Code)
+	var fileResp domain.GSTR9FileResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &fileResp)
+	assert.NotEmpty(t, fileResp.ARN)
+
+	statusReq := domain.GSTR9StatusRequest{
+		Reference: ref, RequestID: uuid.New().String(),
+	}
+	rec = httptest.NewRecorder()
+	h.GSTR9Status(rec, postJSON(t, "/", statusReq, tenantID))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var statusResp domain.GSTR9StatusResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &statusResp)
+	assert.Equal(t, "filed", statusResp.Status)
+	assert.Equal(t, fileResp.ARN, statusResp.ARN)
+}
+
+func TestGSTR9C_FullLifecycle_ViaHandlers(t *testing.T) {
+	h := newTestHandlers()
+	tenantID := uuid.New().String()
+
+	ref := gstr9cSave(t, h, tenantID)
+
+	fileReq := domain.GSTR9CFileRequest{
+		GSTIN: handlerTestGSTIN, FinancialYear: handlerTestFY,
+		Reference: ref, PAN: "AABCU9603R",
+		RequestID: uuid.New().String(),
+	}
+	rec := httptest.NewRecorder()
+	h.GSTR9CFile(rec, postJSON(t, "/", fileReq, tenantID))
+	require.Equal(t, http.StatusOK, rec.Code)
+	var fileResp domain.GSTR9CFileResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &fileResp)
+	assert.NotEmpty(t, fileResp.ARN)
+
+	statusReq := domain.GSTR9CStatusRequest{
+		Reference: ref, RequestID: uuid.New().String(),
+	}
+	rec = httptest.NewRecorder()
+	h.GSTR9CStatus(rec, postJSON(t, "/", statusReq, tenantID))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var statusResp domain.GSTR9CStatusResponse
+	parseGatewayResponse(t, rec.Body.Bytes(), &statusResp)
+	assert.Equal(t, "filed", statusResp.Status)
+	assert.Equal(t, fileResp.ARN, statusResp.ARN)
+}

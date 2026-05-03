@@ -50,6 +50,19 @@ func NewRouter(p provider.GSTNProvider) chi.Router {
 			r.Post("/submit", h.GSTR3BSubmit)
 			r.Post("/file", h.GSTR3BFile)
 		})
+
+		r.Route("/gstr9", func(r chi.Router) {
+			r.Post("/save", h.GSTR9Save)
+			r.Post("/submit", h.GSTR9Submit)
+			r.Post("/file", h.GSTR9File)
+			r.Post("/status", h.GSTR9Status)
+		})
+
+		r.Route("/gstr9c", func(r chi.Router) {
+			r.Post("/save", h.GSTR9CSave)
+			r.Post("/file", h.GSTR9CFile)
+			r.Post("/status", h.GSTR9CStatus)
+		})
 	})
 
 	return r

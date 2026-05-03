@@ -327,3 +327,135 @@ type MockGSTR3BFiling struct {
 	ARN       string
 	FiledAt   *time.Time
 }
+
+// GSTR-9 types
+
+type GSTR9SaveRequest struct {
+	GSTIN         string      `json:"gstin"`
+	FinancialYear string      `json:"financial_year"` // YYYY-YY e.g. 2025-26
+	Data          interface{} `json:"data"`
+	RequestID     string      `json:"request_id"`
+}
+
+type GSTR9SaveResponse struct {
+	Status    string    `json:"status"`
+	Reference string    `json:"reference"`
+	RequestID string    `json:"request_id"`
+	Message   string    `json:"message"`
+	SavedAt   time.Time `json:"saved_at"`
+}
+
+type GSTR9SubmitRequest struct {
+	GSTIN         string `json:"gstin"`
+	FinancialYear string `json:"financial_year"`
+	Reference     string `json:"reference"`
+	RequestID     string `json:"request_id"`
+}
+
+type GSTR9SubmitResponse struct {
+	Status    string `json:"status"`
+	Reference string `json:"reference"`
+	RequestID string `json:"request_id"`
+	Message   string `json:"message"`
+}
+
+type GSTR9FileRequest struct {
+	GSTIN         string `json:"gstin"`
+	FinancialYear string `json:"financial_year"`
+	Reference     string `json:"reference"`
+	SignType      string `json:"sign_type"` // DSC or EVC
+	EVOTP         string `json:"ev_otp,omitempty"`
+	PAN           string `json:"pan"`
+	RequestID     string `json:"request_id"`
+}
+
+type GSTR9FileResponse struct {
+	Status    string    `json:"status"`
+	ARN       string    `json:"arn"`
+	RequestID string    `json:"request_id"`
+	Message   string    `json:"message"`
+	FiledAt   time.Time `json:"filed_at"`
+}
+
+type GSTR9StatusRequest struct {
+	Reference string `json:"reference"`
+	RequestID string `json:"request_id"`
+}
+
+type GSTR9StatusResponse struct {
+	Reference string     `json:"reference"`
+	Status    string     `json:"status"`
+	ARN       string     `json:"arn,omitempty"`
+	FiledAt   *time.Time `json:"filed_at,omitempty"`
+	RequestID string     `json:"request_id"`
+}
+
+// GSTR-9C types
+
+type GSTR9CSaveRequest struct {
+	GSTIN         string      `json:"gstin"`
+	FinancialYear string      `json:"financial_year"`
+	Data          interface{} `json:"data"`
+	RequestID     string      `json:"request_id"`
+}
+
+type GSTR9CSaveResponse struct {
+	Status    string    `json:"status"`
+	Reference string    `json:"reference"`
+	RequestID string    `json:"request_id"`
+	Message   string    `json:"message"`
+	SavedAt   time.Time `json:"saved_at"`
+}
+
+type GSTR9CFileRequest struct {
+	GSTIN         string `json:"gstin"`
+	FinancialYear string `json:"financial_year"`
+	Reference     string `json:"reference"`
+	PAN           string `json:"pan"`
+	RequestID     string `json:"request_id"`
+}
+
+type GSTR9CFileResponse struct {
+	Status    string    `json:"status"`
+	ARN       string    `json:"arn"`
+	RequestID string    `json:"request_id"`
+	Message   string    `json:"message"`
+	FiledAt   time.Time `json:"filed_at"`
+}
+
+type GSTR9CStatusRequest struct {
+	Reference string `json:"reference"`
+	RequestID string `json:"request_id"`
+}
+
+type GSTR9CStatusResponse struct {
+	Reference string     `json:"reference"`
+	Status    string     `json:"status"`
+	ARN       string     `json:"arn,omitempty"`
+	FiledAt   *time.Time `json:"filed_at,omitempty"`
+	RequestID string     `json:"request_id"`
+}
+
+// Mock filing for GSTR-9 annual return
+type MockGSTR9Filing struct {
+	GSTIN         string
+	FinancialYear string
+	Status        FilingStatus
+	Reference     string
+	Data          interface{}
+	ARN           string
+	FiledAt       *time.Time
+	SavedAt       time.Time
+}
+
+// Mock filing for GSTR-9C reconciliation
+type MockGSTR9CFiling struct {
+	GSTIN         string
+	FinancialYear string
+	Status        FilingStatus
+	Reference     string
+	Data          interface{}
+	ARN           string
+	FiledAt       *time.Time
+	SavedAt       time.Time
+}

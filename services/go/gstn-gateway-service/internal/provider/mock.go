@@ -18,6 +18,8 @@ type MockProvider struct {
 	filings         map[string]*domain.MockFiling         // key: gstin:ret_period
 	gstr3bFilings   map[string]*domain.MockGSTR3BFiling   // key: gstin:ret_period
 	gstr2bInvoices  map[string][]domain.GSTR2BInvoice     // key: gstin:ret_period
+	gstr9Filings    map[string]*domain.MockGSTR9Filing     // key: reference
+	gstr9cFilings   map[string]*domain.MockGSTR9CFiling    // key: reference
 	requests        map[string]interface{}                 // idempotency: request_id → response
 }
 
@@ -26,6 +28,8 @@ func NewMockProvider() *MockProvider {
 		filings:        make(map[string]*domain.MockFiling),
 		gstr3bFilings:  make(map[string]*domain.MockGSTR3BFiling),
 		gstr2bInvoices: make(map[string][]domain.GSTR2BInvoice),
+		gstr9Filings:   make(map[string]*domain.MockGSTR9Filing),
+		gstr9cFilings:  make(map[string]*domain.MockGSTR9CFiling),
 		requests:       make(map[string]interface{}),
 	}
 }
@@ -273,6 +277,8 @@ func (m *MockProvider) ResetState() {
 	m.filings = make(map[string]*domain.MockFiling)
 	m.gstr3bFilings = make(map[string]*domain.MockGSTR3BFiling)
 	m.gstr2bInvoices = make(map[string][]domain.GSTR2BInvoice)
+	m.gstr9Filings = make(map[string]*domain.MockGSTR9Filing)
+	m.gstr9cFilings = make(map[string]*domain.MockGSTR9CFiling)
 	m.requests = make(map[string]interface{})
 }
 
@@ -687,6 +693,299 @@ func (m *MockProvider) GSTR1Summary(_ context.Context, req *domain.GSTR1SummaryR
 		RetPeriod: req.RetPeriod,
 		Summary:   summary,
 		Status:    string(f.Status),
+		RequestID: req.RequestID,
+	}, nil
+}
+
+func gstr9Ref(gstin, fy string) string {
+	return fmt.Sprintf("GSTR9-%s-%s-%s", fy, gstin[:2], uuid.New().String()[:6])
+}
+
+func gstr9cRef(gstin, fy string) string {
+	return fmt.Sprintf("GSTR9C-%s-%s-%s", fy, gstin[:2], uuid.New().String()[:6])
+}
+
+func (m *MockProvider) gstr9ByGSTINAndFY(gstin, fy string) *domain.MockGSTR9Filing {
+	for _, f := range m.gstr9Filings {
+		if f.GSTIN == gstin && f.FinancialYear == fy {
+			return f
+		}
+	}
+	return nil
+}
+
+func (m *MockProvider) gstr9cByGSTINAndFY(gstin, fy string) *domain.MockGSTR9CFiling {
+	for _, f := range m.gstr9cFilings {
+		if f.GSTIN == gstin && f.FinancialYear == fy {
+			return f
+		}
+	}
+	return nil
+}
+
+func (m *MockProvider) GSTR9Save(_ context.Context, req *domain.GSTR9SaveRequest) (*domain.GSTR9SaveResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if resp, ok := m.requests[req.RequestID]; ok {
+		return resp.(*domain.GSTR9SaveResponse), nil
+	}
+
+	if len(req.GSTIN) < 15 {
+		return nil, fmt.Errorf("invalid GSTIN format")
+	}
+	if len(req.FinancialYear) != 7 || req.FinancialYear[4] != '-' {
+		return nil, fmt.Errorf("invalid financial_year format (expected YYYY-YY)")
+	}
+
+	existing := m.gstr9ByGSTINAndFY(req.GSTIN, req.FinancialYear)
+	if existing != nil {
+		if existing.Status == domain.StatusSubmitted || existing.Status == domain.StatusFiled {
+			return nil, fmt.Errorf("cannot save: GSTR-9 is %s", existing.Status)
+		}
+		now := time.Now().UTC()
+		if !existing.SavedAt.IsZero() && now.Sub(existing.SavedAt) > 24*time.Hour {
+			return nil, fmt.Errorf("24-hour edit window expired; re-initiate the return")
+		}
+		existing.Data = req.Data
+		existing.SavedAt = now
+		resp := &domain.GSTR9SaveResponse{
+			Status:    "success",
+			Reference: existing.Reference,
+			RequestID: req.RequestID,
+			Message:   "GSTR-9 draft updated",
+			SavedAt:   now,
+		}
+		m.requests[req.RequestID] = resp
+		return resp, nil
+	}
+
+	now := time.Now().UTC()
+	ref := gstr9Ref(req.GSTIN, req.FinancialYear)
+	f := &domain.MockGSTR9Filing{
+		GSTIN:         req.GSTIN,
+		FinancialYear: req.FinancialYear,
+		Status:        domain.StatusSaved,
+		Reference:     ref,
+		Data:          req.Data,
+		SavedAt:       now,
+	}
+	m.gstr9Filings[ref] = f
+
+	resp := &domain.GSTR9SaveResponse{
+		Status:    "success",
+		Reference: ref,
+		RequestID: req.RequestID,
+		Message:   "GSTR-9 draft saved",
+		SavedAt:   now,
+	}
+	m.requests[req.RequestID] = resp
+	return resp, nil
+}
+
+func (m *MockProvider) GSTR9Submit(_ context.Context, req *domain.GSTR9SubmitRequest) (*domain.GSTR9SubmitResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if resp, ok := m.requests[req.RequestID]; ok {
+		return resp.(*domain.GSTR9SubmitResponse), nil
+	}
+
+	f, ok := m.gstr9Filings[req.Reference]
+	if !ok {
+		return nil, fmt.Errorf("no GSTR-9 draft found for reference %s", req.Reference)
+	}
+	if f.Status == domain.StatusFiled {
+		return nil, fmt.Errorf("GSTR-9 already filed")
+	}
+	if f.Status == domain.StatusSubmitted {
+		return nil, fmt.Errorf("GSTR-9 already submitted")
+	}
+	if f.Data == nil {
+		return nil, fmt.Errorf("no GSTR-9 data saved")
+	}
+
+	f.Status = domain.StatusSubmitted
+
+	resp := &domain.GSTR9SubmitResponse{
+		Status:    "success",
+		Reference: req.Reference,
+		RequestID: req.RequestID,
+		Message:   "GSTR-9 submitted. Locked for filing.",
+	}
+	m.requests[req.RequestID] = resp
+	return resp, nil
+}
+
+func (m *MockProvider) GSTR9File(_ context.Context, req *domain.GSTR9FileRequest) (*domain.GSTR9FileResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if resp, ok := m.requests[req.RequestID]; ok {
+		return resp.(*domain.GSTR9FileResponse), nil
+	}
+
+	f, ok := m.gstr9Filings[req.Reference]
+	if !ok {
+		return nil, fmt.Errorf("no GSTR-9 found for reference %s", req.Reference)
+	}
+	if f.Status == domain.StatusFiled {
+		return nil, fmt.Errorf("GSTR-9 already filed")
+	}
+	if f.Status != domain.StatusSubmitted {
+		return nil, fmt.Errorf("must submit GSTR-9 before filing (current status: %s)", f.Status)
+	}
+
+	if req.SignType != "DSC" && req.SignType != "EVC" {
+		return nil, fmt.Errorf("invalid sign_type: %s (must be DSC or EVC)", req.SignType)
+	}
+	if req.SignType == "EVC" && req.EVOTP == "" {
+		return nil, fmt.Errorf("EVC OTP required for EVC signing")
+	}
+
+	now := time.Now().UTC()
+	f.Status = domain.StatusFiled
+	f.ARN = fmt.Sprintf("AR%s%s%s", req.GSTIN[:2], req.FinancialYear[:4], uuid.New().String()[:8])
+	f.FiledAt = &now
+
+	resp := &domain.GSTR9FileResponse{
+		Status:    "success",
+		ARN:       f.ARN,
+		RequestID: req.RequestID,
+		Message:   "GSTR-9 filed successfully",
+		FiledAt:   now,
+	}
+	m.requests[req.RequestID] = resp
+	return resp, nil
+}
+
+func (m *MockProvider) GSTR9Status(_ context.Context, req *domain.GSTR9StatusRequest) (*domain.GSTR9StatusResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	f, ok := m.gstr9Filings[req.Reference]
+	if !ok {
+		return nil, fmt.Errorf("no GSTR-9 found for reference %s", req.Reference)
+	}
+
+	return &domain.GSTR9StatusResponse{
+		Reference: req.Reference,
+		Status:    string(f.Status),
+		ARN:       f.ARN,
+		FiledAt:   f.FiledAt,
+		RequestID: req.RequestID,
+	}, nil
+}
+
+func (m *MockProvider) GSTR9CSave(_ context.Context, req *domain.GSTR9CSaveRequest) (*domain.GSTR9CSaveResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if resp, ok := m.requests[req.RequestID]; ok {
+		return resp.(*domain.GSTR9CSaveResponse), nil
+	}
+
+	if len(req.GSTIN) < 15 {
+		return nil, fmt.Errorf("invalid GSTIN format")
+	}
+	if len(req.FinancialYear) != 7 || req.FinancialYear[4] != '-' {
+		return nil, fmt.Errorf("invalid financial_year format (expected YYYY-YY)")
+	}
+
+	existing := m.gstr9cByGSTINAndFY(req.GSTIN, req.FinancialYear)
+	if existing != nil {
+		if existing.Status == domain.StatusFiled {
+			return nil, fmt.Errorf("cannot save: GSTR-9C is already filed")
+		}
+		now := time.Now().UTC()
+		if !existing.SavedAt.IsZero() && now.Sub(existing.SavedAt) > 24*time.Hour {
+			return nil, fmt.Errorf("24-hour edit window expired; re-initiate the reconciliation")
+		}
+		existing.Data = req.Data
+		existing.SavedAt = now
+		resp := &domain.GSTR9CSaveResponse{
+			Status:    "success",
+			Reference: existing.Reference,
+			RequestID: req.RequestID,
+			Message:   "GSTR-9C draft updated",
+			SavedAt:   now,
+		}
+		m.requests[req.RequestID] = resp
+		return resp, nil
+	}
+
+	now := time.Now().UTC()
+	ref := gstr9cRef(req.GSTIN, req.FinancialYear)
+	f := &domain.MockGSTR9CFiling{
+		GSTIN:         req.GSTIN,
+		FinancialYear: req.FinancialYear,
+		Status:        domain.StatusSaved,
+		Reference:     ref,
+		Data:          req.Data,
+		SavedAt:       now,
+	}
+	m.gstr9cFilings[ref] = f
+
+	resp := &domain.GSTR9CSaveResponse{
+		Status:    "success",
+		Reference: ref,
+		RequestID: req.RequestID,
+		Message:   "GSTR-9C draft saved",
+		SavedAt:   now,
+	}
+	m.requests[req.RequestID] = resp
+	return resp, nil
+}
+
+func (m *MockProvider) GSTR9CFile(_ context.Context, req *domain.GSTR9CFileRequest) (*domain.GSTR9CFileResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if resp, ok := m.requests[req.RequestID]; ok {
+		return resp.(*domain.GSTR9CFileResponse), nil
+	}
+
+	f, ok := m.gstr9cFilings[req.Reference]
+	if !ok {
+		return nil, fmt.Errorf("no GSTR-9C found for reference %s", req.Reference)
+	}
+	if f.Status == domain.StatusFiled {
+		return nil, fmt.Errorf("GSTR-9C already filed")
+	}
+	if f.Data == nil {
+		return nil, fmt.Errorf("no GSTR-9C data saved")
+	}
+
+	now := time.Now().UTC()
+	f.Status = domain.StatusFiled
+	f.ARN = fmt.Sprintf("AC%s%s%s", req.GSTIN[:2], req.FinancialYear[:4], uuid.New().String()[:8])
+	f.FiledAt = &now
+
+	resp := &domain.GSTR9CFileResponse{
+		Status:    "success",
+		ARN:       f.ARN,
+		RequestID: req.RequestID,
+		Message:   "GSTR-9C filed successfully with DSC",
+		FiledAt:   now,
+	}
+	m.requests[req.RequestID] = resp
+	return resp, nil
+}
+
+func (m *MockProvider) GSTR9CStatus(_ context.Context, req *domain.GSTR9CStatusRequest) (*domain.GSTR9CStatusResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	f, ok := m.gstr9cFilings[req.Reference]
+	if !ok {
+		return nil, fmt.Errorf("no GSTR-9C found for reference %s", req.Reference)
+	}
+
+	return &domain.GSTR9CStatusResponse{
+		Reference: req.Reference,
+		Status:    string(f.Status),
+		ARN:       f.ARN,
+		FiledAt:   f.FiledAt,
 		RequestID: req.RequestID,
 	}, nil
 }

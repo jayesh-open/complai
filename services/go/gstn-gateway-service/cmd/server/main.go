@@ -28,7 +28,9 @@ func main() {
 		log.Info().Msg("using mock GSTN provider")
 		p = provider.NewMockProvider()
 	case "adaequare":
-		log.Fatal().Msg("adaequare provider not yet implemented — set GSTN_PROVIDER=mock")
+		baseURL := envOr("ADAEQUARE_BASE_URL", "https://gsp.adaequare.com")
+		log.Warn().Msg("adaequare provider: stub only — all calls return ErrNotImplemented")
+		p = provider.NewAdaequareProvider(baseURL)
 	default:
 		log.Fatal().Str("provider", providerMode).Msg("unknown GSTN_PROVIDER")
 	}

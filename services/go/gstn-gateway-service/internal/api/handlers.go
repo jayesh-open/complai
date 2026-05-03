@@ -554,6 +554,244 @@ func (h *Handlers) GSTR1SummaryHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handlers) GSTR9Save(w http.ResponseWriter, r *http.Request) {
+	tenantID, idempotencyKey, err := extractHeaders(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var req domain.GSTR9SaveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.RequestID == "" {
+		req.RequestID = idempotencyKey
+	}
+
+	start := time.Now()
+	resp, err := h.provider.GSTR9Save(r.Context(), &req)
+	if err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID).Msg("gstr9 save failed")
+		httputil.JSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, domain.GatewayResponse{
+		Data: resp,
+		Meta: domain.ResponseMeta{
+			RequestID:      req.RequestID,
+			LatencyMs:      int(time.Since(start).Milliseconds()),
+			ProviderStatus: resp.Status,
+		},
+	})
+}
+
+func (h *Handlers) GSTR9Submit(w http.ResponseWriter, r *http.Request) {
+	tenantID, idempotencyKey, err := extractHeaders(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var req domain.GSTR9SubmitRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.RequestID == "" {
+		req.RequestID = idempotencyKey
+	}
+
+	start := time.Now()
+	resp, err := h.provider.GSTR9Submit(r.Context(), &req)
+	if err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID).Msg("gstr9 submit failed")
+		httputil.JSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, domain.GatewayResponse{
+		Data: resp,
+		Meta: domain.ResponseMeta{
+			RequestID:      req.RequestID,
+			LatencyMs:      int(time.Since(start).Milliseconds()),
+			ProviderStatus: resp.Status,
+		},
+	})
+}
+
+func (h *Handlers) GSTR9File(w http.ResponseWriter, r *http.Request) {
+	tenantID, idempotencyKey, err := extractHeaders(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var req domain.GSTR9FileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.RequestID == "" {
+		req.RequestID = idempotencyKey
+	}
+
+	start := time.Now()
+	resp, err := h.provider.GSTR9File(r.Context(), &req)
+	if err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID).Msg("gstr9 file failed")
+		httputil.JSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, domain.GatewayResponse{
+		Data: resp,
+		Meta: domain.ResponseMeta{
+			RequestID:      req.RequestID,
+			LatencyMs:      int(time.Since(start).Milliseconds()),
+			ProviderStatus: resp.Status,
+		},
+	})
+}
+
+func (h *Handlers) GSTR9Status(w http.ResponseWriter, r *http.Request) {
+	tenantID, _, err := extractHeaders(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var req domain.GSTR9StatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.RequestID == "" {
+		req.RequestID = uuid.New().String()
+	}
+
+	start := time.Now()
+	resp, err := h.provider.GSTR9Status(r.Context(), &req)
+	if err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID).Msg("gstr9 status failed")
+		httputil.JSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, domain.GatewayResponse{
+		Data: resp,
+		Meta: domain.ResponseMeta{
+			RequestID:      req.RequestID,
+			LatencyMs:      int(time.Since(start).Milliseconds()),
+			ProviderStatus: resp.Status,
+		},
+	})
+}
+
+func (h *Handlers) GSTR9CSave(w http.ResponseWriter, r *http.Request) {
+	tenantID, idempotencyKey, err := extractHeaders(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var req domain.GSTR9CSaveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.RequestID == "" {
+		req.RequestID = idempotencyKey
+	}
+
+	start := time.Now()
+	resp, err := h.provider.GSTR9CSave(r.Context(), &req)
+	if err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID).Msg("gstr9c save failed")
+		httputil.JSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, domain.GatewayResponse{
+		Data: resp,
+		Meta: domain.ResponseMeta{
+			RequestID:      req.RequestID,
+			LatencyMs:      int(time.Since(start).Milliseconds()),
+			ProviderStatus: resp.Status,
+		},
+	})
+}
+
+func (h *Handlers) GSTR9CFile(w http.ResponseWriter, r *http.Request) {
+	tenantID, idempotencyKey, err := extractHeaders(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var req domain.GSTR9CFileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.RequestID == "" {
+		req.RequestID = idempotencyKey
+	}
+
+	start := time.Now()
+	resp, err := h.provider.GSTR9CFile(r.Context(), &req)
+	if err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID).Msg("gstr9c file failed")
+		httputil.JSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, domain.GatewayResponse{
+		Data: resp,
+		Meta: domain.ResponseMeta{
+			RequestID:      req.RequestID,
+			LatencyMs:      int(time.Since(start).Milliseconds()),
+			ProviderStatus: resp.Status,
+		},
+	})
+}
+
+func (h *Handlers) GSTR9CStatus(w http.ResponseWriter, r *http.Request) {
+	tenantID, _, err := extractHeaders(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var req domain.GSTR9CStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.RequestID == "" {
+		req.RequestID = uuid.New().String()
+	}
+
+	start := time.Now()
+	resp, err := h.provider.GSTR9CStatus(r.Context(), &req)
+	if err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID).Msg("gstr9c status failed")
+		httputil.JSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, domain.GatewayResponse{
+		Data: resp,
+		Meta: domain.ResponseMeta{
+			RequestID:      req.RequestID,
+			LatencyMs:      int(time.Since(start).Milliseconds()),
+			ProviderStatus: resp.Status,
+		},
+	})
+}
+
 func extractHeaders(r *http.Request) (tenantID, idempotencyKey string, err error) {
 	tenantID = r.Header.Get("X-Tenant-Id")
 	if tenantID == "" {

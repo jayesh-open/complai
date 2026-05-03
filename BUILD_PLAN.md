@@ -6,6 +6,7 @@ Last updated: 2026-04-30
 Part 10 — Sandbox ITR + GSTR-9/9C (in progress).
 
 ## Recently completed
+Part 10b — AIS reconciliation engine, employee bulk filing flow, ITR-4/5/6/7 form generators + eligibility checkers. Migration 002_bulk_filing.sql, 6 bulk API endpoints, coverage targets met.
 Part 10a — itr-service + itr-gateway-service backends. ITA 2025 tax computation engine, ITR-1/2/3 eligibility, TDS reconciliation, 5-head income calculators, mock Sandbox.co.in ITR APIs.
 Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/144 filing wizards, certificates (Form 130/131), challan tracking, 3 Playwright E2E specs, all verifications green.
 
@@ -252,6 +253,35 @@ Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/14
   - [x] Makefile MIGRATE_ORDER updated with itr-service
   - [x] GOWORK=off: 25/25 services build clean
   - [x] go vet: clean across both services
+
+### Part 10b — AIS reconciliation + bulk filing + ITR-4/5/6/7 (2026-05-03) — COMPLETE
+
+  - [x] 10b-1: AIS reconciliation engine
+    - [x] ReconcileAIS() compares Form 130/TDS data against AIS (Form 168)
+    - [x] 6 mismatch categories: salary, TDS, interest, dividend, securities, property
+    - [x] 3 severity levels: INFO/WARN/ERROR with configurable submission blocking
+    - [x] API endpoint: POST /reconcile-ais
+    - [x] 20 unit tests covering all categories and severity counting
+  - [x] 10b-2: Employee bulk filing flow
+    - [x] BulkFilingBatch/BulkFilingEmployee/MagicLinkToken domain types
+    - [x] Status tracking: PENDING→PROCESSING→COMPLETED/FAILED (batches), PENDING_REVIEW→APPROVED/REJECTED/SUBMITTED/E_VERIFIED/MISMATCH (employees)
+    - [x] ProcessEmployeeForBulkFiling(): per-employee salary computation + tax calculator + AIS reconciliation
+    - [x] DetermineFormType(): business→ITR-3, capgains→ITR-2, else ITR-1 eligibility check
+    - [x] Magic link tokens: 32-byte crypto/rand, 7-day TTL, 1000-employee batch limit
+    - [x] Migration 002_bulk_filing.sql: 3 new tables (bulk_filing_batches, bulk_filing_employees, magic_link_tokens) + RLS, severity column on ais_reconciliations, bulk_batch_id FK on itr_filings
+    - [x] 6 API endpoints: create/get/list batches, add/list employees, process batch
+    - [x] PgStore + MockStore implementations for all 8 new repository methods
+  - [x] 10b-3: ITR-4/5/6/7 form generators
+    - [x] ITR-4 (Sugam): presumptive taxation Section 44AD/44ADA/44AE, individuals/HUFs/firms, ≤₹50L, LTCG ≤₹1.25L
+    - [x] ITR-5: firms, LLPs, AOPs, BOIs with partner details
+    - [x] ITR-6: companies with Schedule MAT, buyback loss, deemed dividend Section 2(22)(f)
+    - [x] ITR-7: trusts/charities under Section 139(4A)/(4B)/(4C)/(4D), anonymous donations
+    - [x] All 4 eligibility checkers with comprehensive test coverage (11+7+4+8 = 30 test cases)
+    - [x] API endpoints: /eligibility/itr4 through /eligibility/itr7
+    - [x] CreateFiling now accepts ITR-1 through ITR-7 form types
+  - [x] Coverage: domain 96.6%, api 82.5%, store 43.9%
+  - [x] GOWORK=off: 25/25 services build clean
+  - [x] Migration 002_bulk_filing.sql verified via make migrate-all
 
 ### ITA 2025 refactor (2026-04-29) — RESOLVED
 

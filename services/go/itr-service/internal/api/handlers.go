@@ -140,8 +140,12 @@ func (h *Handlers) CreateFiling(w http.ResponseWriter, r *http.Request) {
 	}
 
 	formType := domain.ITRFormType(req.FormType)
-	if formType != domain.FormITR1 && formType != domain.FormITR2 && formType != domain.FormITR3 {
-		writeError(w, http.StatusBadRequest, "form_type must be ITR-1, ITR-2, or ITR-3")
+	validForms := map[domain.ITRFormType]bool{
+		domain.FormITR1: true, domain.FormITR2: true, domain.FormITR3: true,
+		domain.FormITR4: true, domain.FormITR5: true, domain.FormITR6: true, domain.FormITR7: true,
+	}
+	if !validForms[formType] {
+		writeError(w, http.StatusBadRequest, "form_type must be ITR-1 through ITR-7")
 		return
 	}
 
@@ -557,6 +561,42 @@ func (h *Handlers) CheckITR3Eligibility(w http.ResponseWriter, r *http.Request) 
 	q := r.URL.Query()
 	assesseeType := domain.AssesseeType(q.Get("assessee_type"))
 	result := domain.CheckITR3Eligibility(assesseeType)
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *Handlers) CheckITR4Eligibility(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	assesseeType := domain.AssesseeType(q.Get("assessee_type"))
+	residency := domain.ResidencyStatus(q.Get("residency"))
+	totalIncome := decFromQuery(q.Get("total_income"))
+	hasPresumptive := q.Get("has_presumptive") == "true"
+	hasForeignAssets := q.Get("has_foreign_assets") == "true"
+	isDirector := q.Get("is_director") == "true"
+	ltcg112A := decFromQuery(q.Get("ltcg_112a"))
+	result := domain.CheckITR4Eligibility(assesseeType, residency, totalIncome, hasPresumptive, hasForeignAssets, isDirector, ltcg112A)
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *Handlers) CheckITR5Eligibility(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	assesseeType := domain.AssesseeType(q.Get("assessee_type"))
+	result := domain.CheckITR5Eligibility(assesseeType)
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *Handlers) CheckITR6Eligibility(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	assesseeType := domain.AssesseeType(q.Get("assessee_type"))
+	claimsITR7 := q.Get("claims_itr7_exemption") == "true"
+	result := domain.CheckITR6Eligibility(assesseeType, claimsITR7)
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *Handlers) CheckITR7Eligibility(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	assesseeType := domain.AssesseeType(q.Get("assessee_type"))
+	filingSection := q.Get("filing_section")
+	result := domain.CheckITR7Eligibility(assesseeType, filingSection)
 	writeJSON(w, http.StatusOK, result)
 }
 

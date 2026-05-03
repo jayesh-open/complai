@@ -721,3 +721,81 @@ func TestReconcileAIS_InvalidBody(t *testing.T) {
 	router.ServeHTTP(w, req)
 	assert.Equal(t, 400, w.Code)
 }
+
+func TestCheckITR4Eligibility_API(t *testing.T) {
+	_, router := setupRouter()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/itr/eligibility/itr4?assessee_type=INDIVIDUAL&residency=RESIDENT&total_income=3000000&has_presumptive=true", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, true, data["eligible"])
+}
+
+func TestCheckITR4Eligibility_API_NRI(t *testing.T) {
+	_, router := setupRouter()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/itr/eligibility/itr4?assessee_type=INDIVIDUAL&residency=NON_RESIDENT&has_presumptive=true", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, false, data["eligible"])
+}
+
+func TestCheckITR5Eligibility_API(t *testing.T) {
+	_, router := setupRouter()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/itr/eligibility/itr5?assessee_type=FIRM", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, true, data["eligible"])
+}
+
+func TestCheckITR6Eligibility_API(t *testing.T) {
+	_, router := setupRouter()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/itr/eligibility/itr6?assessee_type=COMPANY", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, true, data["eligible"])
+}
+
+func TestCheckITR7Eligibility_API(t *testing.T) {
+	_, router := setupRouter()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/itr/eligibility/itr7?assessee_type=TRUST&filing_section=139(4A)", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, true, data["eligible"])
+}
+
+func TestCheckITR7Eligibility_API_BadSection(t *testing.T) {
+	_, router := setupRouter()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/itr/eligibility/itr7?assessee_type=TRUST&filing_section=139(1)", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, false, data["eligible"])
+}

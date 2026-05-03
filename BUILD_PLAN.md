@@ -507,3 +507,13 @@ These pre-date the per-handler standard. Aggregate coverage was passing in their
 Action in Part 14: add per-handler tests for the 12 handlers above. Target ≥80% on each.
 
 Note: these handlers have been exercised by Playwright E2E tests in Parts 5, 7, and 8 final-verification commits, which provides some real-world confidence even without unit-level coverage. Risk profile: not "production broken" but "future regressions silent."
+### Storybook story policy clarification (May 3, 2026, 10d-1)
+
+After 10d-1, we clarified the rule for which components must have Storybook stories:
+
+- **Reusable domain components** (in `apps/web/src/app/compliance/<module>/components/`): MUST have stories — these contribute to the design system and need a11y/visual regression coverage.
+- **Route-internal step components** (in `apps/web/src/app/compliance/<module>/<route>/components/`, e.g., wizard step components like SelectStep / ConfigureStep / ConfirmStep): stories are OPTIONAL — these are page-internal scaffolding tightly coupled to route state, not design system contributions.
+
+Rationale: stories enforce a design system standard. Route-internal scaffolding doesn't benefit from that standard and adds friction without adding value.
+
+Going forward, Claude Code should default to creating stories for components in the `components/` subdirectory adjacent to module root, but may skip stories for components in route-specific subdirectories.

@@ -33,4 +33,14 @@ type Repository interface {
 
 	CreateAISReconciliation(ctx context.Context, tenantID uuid.UUID, r *domain.AISReconciliation) error
 	ListAISReconciliations(ctx context.Context, tenantID uuid.UUID, filingID uuid.UUID) ([]domain.AISReconciliation, error)
+
+	CreateBulkBatch(ctx context.Context, tenantID uuid.UUID, b *domain.BulkFilingBatch) error
+	GetBulkBatch(ctx context.Context, tenantID, id uuid.UUID) (*domain.BulkFilingBatch, error)
+	UpdateBulkBatchStatus(ctx context.Context, tenantID, id uuid.UUID, status domain.BulkBatchStatus, processed, ready, mismatches int) error
+	ListBulkBatches(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]domain.BulkFilingBatch, int, error)
+
+	CreateBulkEmployee(ctx context.Context, tenantID uuid.UUID, e *domain.BulkFilingEmployee) error
+	GetBulkEmployee(ctx context.Context, tenantID, id uuid.UUID) (*domain.BulkFilingEmployee, error)
+	ListBulkEmployees(ctx context.Context, tenantID uuid.UUID, batchID uuid.UUID, limit, offset int) ([]domain.BulkFilingEmployee, int, error)
+	UpdateBulkEmployeeStatus(ctx context.Context, tenantID, id uuid.UUID, status domain.EmployeeFilingStatus) error
 }

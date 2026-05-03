@@ -18,6 +18,8 @@ type MockStore struct {
 	taxComputations  map[uuid.UUID]*domain.TaxComputation
 	tdsCredits       map[uuid.UUID][]domain.TDSCredit
 	aisReconciliations map[uuid.UUID][]domain.AISReconciliation
+	bulkBatches      map[uuid.UUID]*domain.BulkFilingBatch
+	bulkEmployees    map[uuid.UUID]*domain.BulkFilingEmployee
 }
 
 func NewMockStore() *MockStore {
@@ -29,6 +31,8 @@ func NewMockStore() *MockStore {
 		taxComputations:    make(map[uuid.UUID]*domain.TaxComputation),
 		tdsCredits:         make(map[uuid.UUID][]domain.TDSCredit),
 		aisReconciliations: make(map[uuid.UUID][]domain.AISReconciliation),
+		bulkBatches:        make(map[uuid.UUID]*domain.BulkFilingBatch),
+		bulkEmployees:      make(map[uuid.UUID]*domain.BulkFilingEmployee),
 	}
 }
 
@@ -218,4 +222,103 @@ func (m *MockStore) ListAISReconciliations(_ context.Context, _ uuid.UUID, filin
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.aisReconciliations[filingID], nil
+}
+
+func (m *MockStore) CreateBulkBatch(_ context.Context, _ uuid.UUID, b *domain.BulkFilingBatch) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.bulkBatches[b.ID] = b
+	return nil
+}
+
+func (m *MockStore) GetBulkBatch(_ context.Context, tenantID, id uuid.UUID) (*domain.BulkFilingBatch, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	b, ok := m.bulkBatches[id]
+	if !ok || b.TenantID != tenantID {
+		return nil, fmt.Errorf("batch not found")
+	}
+	return b, nil
+}
+
+func (m *MockStore) UpdateBulkBatchStatus(_ context.Context, tenantID, id uuid.UUID, status domain.BulkBatchStatus, processed, ready, mismatches int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	b, ok := m.bulkBatches[id]
+	if !ok || b.TenantID != tenantID {
+		return fmt.Errorf("batch not found")
+	}
+	b.Status = status
+	b.Processed = processed
+	b.Ready = ready
+	b.WithMismatches = mismatches
+	return nil
+}
+
+func (m *MockStore) ListBulkBatches(_ context.Context, tenantID uuid.UUID, limit, offset int) ([]domain.BulkFilingBatch, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var all []domain.BulkFilingBatch
+	for _, b := range m.bulkBatches {
+		if b.TenantID == tenantID {
+			all = append(all, *b)
+		}
+	}
+	total := len(all)
+	if offset >= total {
+		return nil, total, nil
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return all[offset:end], total, nil
+}
+
+func (m *MockStore) CreateBulkEmployee(_ context.Context, _ uuid.UUID, e *domain.BulkFilingEmployee) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.bulkEmployees[e.ID] = e
+	return nil
+}
+
+func (m *MockStore) GetBulkEmployee(_ context.Context, tenantID, id uuid.UUID) (*domain.BulkFilingEmployee, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	e, ok := m.bulkEmployees[id]
+	if !ok || e.TenantID != tenantID {
+		return nil, fmt.Errorf("employee not found")
+	}
+	return e, nil
+}
+
+func (m *MockStore) ListBulkEmployees(_ context.Context, tenantID uuid.UUID, batchID uuid.UUID, limit, offset int) ([]domain.BulkFilingEmployee, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var all []domain.BulkFilingEmployee
+	for _, e := range m.bulkEmployees {
+		if e.TenantID == tenantID && e.BatchID == batchID {
+			all = append(all, *e)
+		}
+	}
+	total := len(all)
+	if offset >= total {
+		return nil, total, nil
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return all[offset:end], total, nil
+}
+
+func (m *MockStore) UpdateBulkEmployeeStatus(_ context.Context, tenantID, id uuid.UUID, status domain.EmployeeFilingStatus) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	e, ok := m.bulkEmployees[id]
+	if !ok || e.TenantID != tenantID {
+		return fmt.Errorf("employee not found")
+	}
+	e.Status = status
+	return nil
 }

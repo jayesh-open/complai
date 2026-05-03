@@ -292,6 +292,144 @@ func TestMockStore_GetTaxpayerByPAN_NotFound(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestMockStore_BulkBatchCRUD(t *testing.T) {
+	s := NewMockStore()
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	b := &domain.BulkFilingBatch{
+		ID:           uuid.New(),
+		TenantID:     tenantID,
+		TaxYear:      "2026-27",
+		EmployerTAN:  "DELX12345A",
+		EmployerName: "Acme Corp",
+		Status:       domain.BatchPending,
+	}
+	require.NoError(t, s.CreateBulkBatch(ctx, tenantID, b))
+
+	got, err := s.GetBulkBatch(ctx, tenantID, b.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "DELX12345A", got.EmployerTAN)
+	assert.Equal(t, domain.BatchPending, got.Status)
+
+	require.NoError(t, s.UpdateBulkBatchStatus(ctx, tenantID, b.ID, domain.BatchCompleted, 10, 8, 2))
+	got2, _ := s.GetBulkBatch(ctx, tenantID, b.ID)
+	assert.Equal(t, domain.BatchCompleted, got2.Status)
+	assert.Equal(t, 10, got2.Processed)
+	assert.Equal(t, 8, got2.Ready)
+	assert.Equal(t, 2, got2.WithMismatches)
+
+	list, total, err := s.ListBulkBatches(ctx, tenantID, 50, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, list, 1)
+
+	_, err = s.GetBulkBatch(ctx, uuid.New(), b.ID)
+	assert.Error(t, err, "wrong tenant")
+}
+
+func TestMockStore_BulkBatchStatus_NotFound(t *testing.T) {
+	s := NewMockStore()
+	ctx := context.Background()
+	err := s.UpdateBulkBatchStatus(ctx, uuid.New(), uuid.New(), domain.BatchCompleted, 0, 0, 0)
+	assert.Error(t, err)
+}
+
+func TestMockStore_BulkEmployeeCRUD(t *testing.T) {
+	s := NewMockStore()
+	ctx := context.Background()
+	tenantID := uuid.New()
+	batchID := uuid.New()
+
+	e := &domain.BulkFilingEmployee{
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		BatchID:     batchID,
+		PAN:         "EMPAB1234F",
+		Name:        "John",
+		Email:       "john@test.com",
+		GrossSalary: decimal.NewFromInt(800000),
+		TDSDeducted: decimal.NewFromInt(50000),
+		FormType:    domain.FormITR1,
+		Status:      domain.EmpPendingReview,
+	}
+	require.NoError(t, s.CreateBulkEmployee(ctx, tenantID, e))
+
+	got, err := s.GetBulkEmployee(ctx, tenantID, e.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "EMPAB1234F", got.PAN)
+
+	require.NoError(t, s.UpdateBulkEmployeeStatus(ctx, tenantID, e.ID, domain.EmpApproved))
+	got2, _ := s.GetBulkEmployee(ctx, tenantID, e.ID)
+	assert.Equal(t, domain.EmpApproved, got2.Status)
+
+	list, total, err := s.ListBulkEmployees(ctx, tenantID, batchID, 50, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, list, 1)
+
+	_, err = s.GetBulkEmployee(ctx, uuid.New(), e.ID)
+	assert.Error(t, err, "wrong tenant")
+}
+
+func TestMockStore_BulkEmployeeStatus_NotFound(t *testing.T) {
+	s := NewMockStore()
+	ctx := context.Background()
+	err := s.UpdateBulkEmployeeStatus(ctx, uuid.New(), uuid.New(), domain.EmpApproved)
+	assert.Error(t, err)
+}
+
+func TestMockStore_ListBulkBatches_Pagination(t *testing.T) {
+	s := NewMockStore()
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	for i := 0; i < 3; i++ {
+		b := &domain.BulkFilingBatch{
+			ID:           uuid.New(),
+			TenantID:     tenantID,
+			TaxYear:      "2026-27",
+			EmployerTAN:  "TAN" + string(rune('A'+i)),
+			EmployerName: "Company",
+			Status:       domain.BatchPending,
+		}
+		require.NoError(t, s.CreateBulkBatch(ctx, tenantID, b))
+	}
+
+	list, total, _ := s.ListBulkBatches(ctx, tenantID, 2, 0)
+	assert.Equal(t, 3, total)
+	assert.Len(t, list, 2)
+
+	list2, _, _ := s.ListBulkBatches(ctx, tenantID, 50, 10)
+	assert.Nil(t, list2)
+}
+
+func TestMockStore_ListBulkEmployees_Pagination(t *testing.T) {
+	s := NewMockStore()
+	ctx := context.Background()
+	tenantID := uuid.New()
+	batchID := uuid.New()
+
+	for i := 0; i < 3; i++ {
+		e := &domain.BulkFilingEmployee{
+			ID:       uuid.New(),
+			TenantID: tenantID,
+			BatchID:  batchID,
+			PAN:      "PAN" + string(rune('A'+i)) + "12345F",
+			Name:     "Emp",
+			Status:   domain.EmpPendingReview,
+		}
+		require.NoError(t, s.CreateBulkEmployee(ctx, tenantID, e))
+	}
+
+	list, total, _ := s.ListBulkEmployees(ctx, tenantID, batchID, 2, 0)
+	assert.Equal(t, 3, total)
+	assert.Len(t, list, 2)
+
+	list2, _, _ := s.ListBulkEmployees(ctx, tenantID, batchID, 50, 10)
+	assert.Nil(t, list2)
+}
+
 func TestMockStore_ListFilings_FilterByTaxYear(t *testing.T) {
 	s := NewMockStore()
 	ctx := context.Background()

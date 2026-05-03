@@ -20,6 +20,10 @@ const (
 	FormITR1 ITRFormType = "ITR-1"
 	FormITR2 ITRFormType = "ITR-2"
 	FormITR3 ITRFormType = "ITR-3"
+	FormITR4 ITRFormType = "ITR-4"
+	FormITR5 ITRFormType = "ITR-5"
+	FormITR6 ITRFormType = "ITR-6"
+	FormITR7 ITRFormType = "ITR-7"
 )
 
 type FilingStatus string
@@ -58,6 +62,12 @@ type AssesseeType string
 const (
 	AssesseeIndividual AssesseeType = "INDIVIDUAL"
 	AssesseeHUF        AssesseeType = "HUF"
+	AssesseeFirm       AssesseeType = "FIRM"
+	AssesseeLLP        AssesseeType = "LLP"
+	AssesseeAOP        AssesseeType = "AOP"
+	AssesseeBOI        AssesseeType = "BOI"
+	AssesseeCompany    AssesseeType = "COMPANY"
+	AssesseeTrust      AssesseeType = "TRUST"
 )
 
 type CapitalGainType string

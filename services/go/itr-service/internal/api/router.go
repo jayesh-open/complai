@@ -47,6 +47,13 @@ func NewRouter(h *Handlers) *chi.Mux {
 		r.Get("/eligibility/itr1", h.CheckITR1Eligibility)
 		r.Get("/eligibility/itr2", h.CheckITR2Eligibility)
 		r.Get("/eligibility/itr3", h.CheckITR3Eligibility)
+
+		r.Post("/bulk/batches", h.CreateBulkBatch)
+		r.Get("/bulk/batches", h.ListBulkBatches)
+		r.Get("/bulk/batches/{batchId}", h.GetBulkBatch)
+		r.Post("/bulk/batches/{batchId}/employees", h.AddBulkEmployee)
+		r.Get("/bulk/batches/{batchId}/employees", h.ListBulkEmployees)
+		r.Post("/bulk/batches/{batchId}/process", h.ProcessBulkBatch)
 	})
 
 	return r

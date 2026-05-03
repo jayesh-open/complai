@@ -42,6 +42,7 @@ func NewRouter(h *Handlers) *chi.Mux {
 		r.Get("/filings/{id}/tds-credits", h.ListTDSCredits)
 
 		r.Post("/reconcile-tds", h.ReconcileTDS)
+		r.Post("/reconcile-ais", h.ReconcileAIS)
 
 		r.Get("/eligibility/itr1", h.CheckITR1Eligibility)
 		r.Get("/eligibility/itr2", h.CheckITR2Eligibility)

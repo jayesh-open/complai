@@ -509,6 +509,24 @@ func (h *Handlers) ReconcileTDS(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (h *Handlers) ReconcileAIS(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AIS            domain.AISSourceData `json:"ais"`
+		Books          domain.BookData      `json:"books"`
+		BlockOnErrors  bool                 `json:"block_on_errors"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.AIS.PAN == "" {
+		writeError(w, http.StatusBadRequest, "ais.pan is required")
+		return
+	}
+	result := domain.ReconcileAIS(req.AIS, req.Books, req.BlockOnErrors)
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (h *Handlers) CheckITR1Eligibility(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	assesseeType := domain.AssesseeType(q.Get("assessee_type"))

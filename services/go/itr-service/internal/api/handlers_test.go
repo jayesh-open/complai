@@ -670,3 +670,54 @@ func TestGetFiling_MissingTenant(t *testing.T) {
 	router.ServeHTTP(w, req)
 	assert.Equal(t, 400, w.Code)
 }
+
+func TestReconcileAIS_Success(t *testing.T) {
+	_, router := setupRouter()
+	body := `{"ais":{"pan":"ABCDE1234F","tax_year":"2026-27","salary_income":1200000,"interest_income":50000},"books":{"salary_income":1200000,"interest_income":50000},"block_on_errors":true}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/itr/reconcile-ais", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, false, data["has_errors"])
+	assert.Equal(t, false, data["submission_blocked"])
+}
+
+func TestReconcileAIS_WithMismatches(t *testing.T) {
+	_, router := setupRouter()
+	body := `{"ais":{"pan":"ABCDE1234F","tax_year":"2026-27","salary_income":1200000,"interest_income":50000},"books":{"salary_income":1100000},"block_on_errors":true}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/itr/reconcile-ais", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, true, data["has_errors"])
+	assert.Equal(t, true, data["submission_blocked"])
+}
+
+func TestReconcileAIS_MissingPAN(t *testing.T) {
+	_, router := setupRouter()
+	body := `{"ais":{},"books":{}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/itr/reconcile-ais", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 400, w.Code)
+}
+
+func TestReconcileAIS_InvalidBody(t *testing.T) {
+	_, router := setupRouter()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/itr/reconcile-ais", bytes.NewBufferString("bad"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, 400, w.Code)
+}

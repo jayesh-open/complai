@@ -54,7 +54,8 @@ MIGRATE_ORDER := \
 	services/go/recon-service \
 	services/go/einvoice-service \
 	services/go/ewb-service \
-	services/go/tds-service
+	services/go/tds-service \
+	services/go/itr-service
 
 migrate-all: ## Run migrations for all services in dependency order (stops on failure)
 	@failed=0; \

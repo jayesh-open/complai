@@ -490,3 +490,20 @@ Items that require real AWS/cloud access. The DevOps team should execute these w
 - All dev uses LocalStack — same code runs on real AWS via env var swap
 - Terraform files are scaffolding for DevOps team — never run locally
 - All 11 service databases auto-provisioned via `scripts/postgres-init.sh`; migrations applied via `make migrate-all` (dependency-ordered, stops on failure)
+
+### Part 14 Hardening — gstn-gateway-service legacy handler coverage
+
+Discovered May 3, 2026 during 10c-4 verification. The "all handlers ≥80%" coverage standard was introduced in 10c-3.5 and applied to gstr9-service. When we ran per-handler coverage on gstn-gateway-service for the first time during 10c-4, we found 12 pre-existing handlers below 80%, including 9 at 0% coverage:
+
+- GSTR2BGet, GSTR2AGet — 0% (Part 7)
+- IMSGet, IMSAction, IMSBulkAction — 0% (Part 7)
+- GSTR3BSave, GSTR3BSubmit, GSTR3BFile — 0% (Part 7)
+- GSTR1SummaryHandler — 0% (Part 5/7)
+- Authenticate — 57.1% (Part 5)
+- GSTR1Get, GSTR1Status — 76.5% each (Part 5)
+
+These pre-date the per-handler standard. Aggregate coverage was passing in their respective parts because new handlers in those parts had high coverage and dragged the average up. The 7 new GSTR9/9C handlers added in 10c-4 are at 94.1% each — clean.
+
+Action in Part 14: add per-handler tests for the 12 handlers above. Target ≥80% on each.
+
+Note: these handlers have been exercised by Playwright E2E tests in Parts 5, 7, and 8 final-verification commits, which provides some real-world confidence even without unit-level coverage. Risk profile: not "production broken" but "future regressions silent."

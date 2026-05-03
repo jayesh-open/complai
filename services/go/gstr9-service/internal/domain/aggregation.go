@@ -41,11 +41,13 @@ func CheckThreshold(turnover decimal.Decimal) ThresholdResult {
 }
 
 type MonthlyData struct {
-	ReturnPeriod string
-	Outward      TaxBreakdown
-	Inward       TaxBreakdown
-	ITC          ITCBreakdown
-	TaxPaid      TaxBreakdown
+	ReturnPeriod   string
+	Outward        TaxBreakdown
+	Inward         TaxBreakdown
+	ITC            ITCBreakdown
+	TaxPaid        TaxBreakdown
+	LateITCReclaim ITCBreakdown
+	Rule37Reclaim  ITCBreakdown
 }
 
 type TaxBreakdown struct {

@@ -23,9 +23,17 @@ var GSTR9Tables = []TableDef{
 	{3, "6D", "ITC availed — all other"},
 	{3, "6E", "ITC reversed"},
 	{3, "6F", "Net ITC available"},
+	{3, "6H", "ITC reclaimed — Rule 37/37A"},
+	{3, "8C", "ITC on inward supplies — prior FY reclaim"},
 	{4, "9", "Tax paid (cash + ITC)"},
-	{5, "10-14", "Prior-year amendments"},
-	{6, "15-19", "HSN-wise summary of outward + inward"},
+	{5, "10", "Supplies / tax declared through amendments (+)"},
+	{5, "11", "Supplies / tax reduced through amendments (-)"},
+	{5, "12", "ITC reversed on amendments"},
+	{5, "13", "ITC reclaimed on amendments"},
+	{5, "14", "Differential tax paid on account of declaration errors"},
+	{6, "17", "HSN-wise summary of outward supplies"},
+	{6, "18", "HSN-wise summary of inward supplies"},
+	{6, "19", "Late fee payable and paid"},
 }
 
 func ReturnPeriodsForFY(fy string) []string {
@@ -41,7 +49,7 @@ func ReturnPeriodsForFY(fy string) []string {
 	for _, m := range months {
 		parts = append(parts, startYear+m)
 	}
-	endYear := fy[5:]
+	endYear := fy[:2] + fy[5:]
 	for _, m := range []string{"01", "02", "03"} {
 		parts = append(parts, endYear+m)
 	}

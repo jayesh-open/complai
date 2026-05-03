@@ -9,7 +9,7 @@ import (
 
 func Aggregate(filingID, tenantID uuid.UUID, months []MonthlyData) []GSTR9TableData {
 	var totalOutward, totalInward, totalTaxPaid TaxBreakdown
-	var totalITC ITCBreakdown
+	var totalITC, totalLateITC, totalRule37 ITCBreakdown
 	var b2bOut, b2cOut, exportsWP, exportsSEZ, nonGST TaxBreakdown
 	var impGoods, impSvc, inwardRCM, inwardISD, otherInward TaxBreakdown
 
@@ -18,6 +18,8 @@ func Aggregate(filingID, tenantID uuid.UUID, months []MonthlyData) []GSTR9TableD
 		totalInward = totalInward.Add(m.Inward)
 		totalITC = totalITC.Add(m.ITC)
 		totalTaxPaid = totalTaxPaid.Add(m.TaxPaid)
+		totalLateITC = totalLateITC.Add(m.LateITCReclaim)
+		totalRule37 = totalRule37.Add(m.Rule37Reclaim)
 	}
 
 	b2bOut = splitOutward(totalOutward, decimal.NewFromFloat(0.6))
@@ -50,6 +52,13 @@ func Aggregate(filingID, tenantID uuid.UUID, months []MonthlyData) []GSTR9TableD
 		}
 	}
 
+	netITC := ITCBreakdown{
+		CGST: totalITC.CGST.Add(totalRule37.CGST),
+		SGST: totalITC.SGST.Add(totalRule37.SGST),
+		IGST: totalITC.IGST.Add(totalRule37.IGST),
+		Cess: totalITC.Cess.Add(totalRule37.Cess),
+	}
+
 	tables := []GSTR9TableData{
 		mkRow(1, "4A", "B2B supplies (taxable)", b2bOut),
 		mkRow(1, "4B", "B2C supplies (taxable)", b2cOut),
@@ -66,14 +75,26 @@ func Aggregate(filingID, tenantID uuid.UUID, months []MonthlyData) []GSTR9TableD
 		mkITC(3, "6C", "ITC availed — ISD", splitITC(totalITC, decimal.NewFromFloat(0.1))),
 		mkITC(3, "6D", "ITC availed — all other", splitITC(totalITC, decimal.NewFromFloat(0.4))),
 		mkITC(3, "6E", "ITC reversed", ITCBreakdown{}),
-		mkITC(3, "6F", "Net ITC available", totalITC),
+		mkITC(3, "6F", "Net ITC available", netITC),
+		mkITC(3, "6H", "ITC reclaimed — Rule 37/37A", totalRule37),
+		mkITC(3, "8C", "ITC on inward supplies — prior FY reclaim", totalLateITC),
 		mkRow(4, "9", "Tax paid (cash + ITC)", totalTaxPaid),
-		mkRow(5, "10-14", "Prior-year amendments", TaxBreakdown{}),
+		mkRow(5, "10", "Supplies / tax declared through amendments (+)", TaxBreakdown{}),
+		mkRow(5, "11", "Supplies / tax reduced through amendments (-)", TaxBreakdown{}),
+		mkRow(5, "12", "ITC reversed on amendments", TaxBreakdown{}),
+		mkRow(5, "13", "ITC reclaimed on amendments", TaxBreakdown{}),
+		mkRow(5, "14", "Differential tax paid on account of declaration errors", TaxBreakdown{}),
 	}
 
-	hsnRow := mkRow(6, "15-19", "HSN-wise summary of outward + inward", totalOutward)
-	hsnRow.TaxableValue = totalOutward.TaxableValue.Add(totalInward.TaxableValue)
+	hsnRow := mkRow(6, "17", "HSN-wise summary of outward supplies", totalOutward)
+	hsnRow.TaxableValue = totalOutward.TaxableValue
 	tables = append(tables, hsnRow)
+
+	hsnInRow := mkRow(6, "18", "HSN-wise summary of inward supplies", totalInward)
+	hsnInRow.TaxableValue = totalInward.TaxableValue
+	tables = append(tables, hsnInRow)
+
+	tables = append(tables, mkRow(6, "19", "Late fee payable and paid", TaxBreakdown{}))
 
 	return tables
 }

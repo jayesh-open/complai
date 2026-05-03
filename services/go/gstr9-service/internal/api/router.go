@@ -19,5 +19,14 @@ func NewRouter(h *Handlers) *chi.Mux {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	r.Route("/api/v1/gstr9", func(r chi.Router) {
+		r.Post("/annual-return", h.CreateAnnualReturn)
+		r.Get("/annual-return", h.ListAnnualReturns)
+		r.Get("/annual-return/{id}", h.GetAnnualReturn)
+		r.Put("/annual-return/{id}/save", h.SaveAnnualReturn)
+		r.Post("/annual-return/{id}/aggregate", h.AggregateAnnualReturn)
+		r.Get("/annual-return/{id}/table/{table}", h.GetTableData)
+	})
+
 	return r
 }

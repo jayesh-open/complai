@@ -12,6 +12,7 @@ use (
 	services/go/gst-service
 	services/go/gstn-gateway-service
 	services/go/health-probe-service
+	services/go/itr-gateway-service
 	services/go/itr-service
 	services/go/identity-service
 	services/go/irp-gateway-service

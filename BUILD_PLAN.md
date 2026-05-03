@@ -3,9 +3,10 @@
 Last updated: 2026-04-30
 
 ## Current part
-Part 10 — Sandbox ITR + GSTR-9/9C (not started).
+Part 10 — Sandbox ITR + GSTR-9/9C (in progress).
 
 ## Recently completed
+Part 10a — itr-service + itr-gateway-service backends. ITA 2025 tax computation engine, ITR-1/2/3 eligibility, TDS reconciliation, 5-head income calculators, mock Sandbox.co.in ITR APIs.
 Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/144 filing wizards, certificates (Form 130/131), challan tracking, 3 Playwright E2E specs, all verifications green.
 
 ## Completed
@@ -227,6 +228,30 @@ Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/14
     - [x] tds-calculation.spec.ts: contractor ₹50K → section 393(1), code 1024, 2% rate, ₹1,000 TDS, save entry
     - [x] tds-form144-filing.spec.ts: DTAA blocks Form 144 submit; Form 138 salary wizard reaches ARN acknowledgement
   - [x] 7 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, GSTR-3B, TDS
+
+### Part 10a — ITR backends (2026-05-03) — COMPLETE
+
+  - [x] itr-service: ITR domain service (port 8100, itr_db)
+    - [x] Domain models: Taxpayer, ITRFiling, IncomeEntry, Deduction, TaxComputation, TDSCredit, AISReconciliation
+    - [x] ITA 2025 enforcement: IsOldSectionRef() detects 11 legacy section codes, ITA2025Equivalent() maps to new sections
+    - [x] Tax computation engine: ComputeTax() for both regimes, ITA 2025 slab rates, Section 87A rebate, surcharge, 4% HEC
+    - [x] New regime slabs: 0-4L=0%, 4-8L=5%, 8-12L=10%, 12-16L=15%, 16-20L=20%, 20-24L=25%, 24L+=30%, std deduction ₹75K
+    - [x] Old regime slabs: 0-2.5L=0%, 2.5-5L=5%, 5-10L=20%, 10-15L=30%, std deduction ₹50K, 80C/80D deductions respected
+    - [x] 5-head income calculators: Salary (Section 392), House Property, Capital Gains (LTCG/STCG/VDA/112A), Business (incl. Section 44BBC), Other Sources
+    - [x] ITR-1/2/3 form eligibility checkers with ITA 2025 rules (ITR-1: ≤50L, ≤2 HP, ≤1.25L LTCG 112A)
+    - [x] TDS credit reconciliation: ReconcileTDS() matching AIS/Form 168 entries against claims by TAN+section
+    - [x] Form 10-IEA enforcement for old regime opt-out
+    - [x] 17 API endpoints: taxpayers CRUD, filings CRUD, compute-tax, income entries, deductions, TDS credits, reconcile-tds, eligibility checks
+    - [x] Postgres RLS migration: 7 tables with tenant_id isolation, proper indexes
+    - [x] Unit test coverage: domain 96.1%, api 81.6%, store 40.6%
+  - [x] itr-gateway-service: Mock Sandbox.co.in ITR APIs (port 8101)
+    - [x] 6 endpoints: PAN-Aadhaar link check, AIS/Form 168 fetch, ITR submission, ITR-V generation, e-verification, refund status
+    - [x] Mock provider: PAN validation, deterministic AIS data (2 TDS entries), stateful filing lifecycle (submit→ITRV→e-verify)
+    - [x] Unit test coverage: api 85.0%, provider 100%
+  - [x] go.work updated with 2 new services (25 total)
+  - [x] Makefile MIGRATE_ORDER updated with itr-service
+  - [x] GOWORK=off: 25/25 services build clean
+  - [x] go vet: clean across both services
 
 ### ITA 2025 refactor (2026-04-29) — RESOLVED
 

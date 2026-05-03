@@ -7,6 +7,7 @@ import (
 	"github.com/complai/complai/services/go/gstr9-service/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 )
 
 type PgStore struct {
@@ -252,6 +253,249 @@ func (s *PgStore) ListAuditLogs(ctx context.Context, tenantID uuid.UUID, filingI
 	}
 	tx.Commit(ctx)
 	return out, nil
+}
+
+func (s *PgStore) CreateGSTR9CFiling(ctx context.Context, tenantID uuid.UUID, f *domain.GSTR9CFiling) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `INSERT INTO gstr9c_filings
+		(id, tenant_id, gstr9_filing_id, status, audited_turnover, unreconciled_amount,
+		 is_self_certified, certified_at, certified_by, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		f.ID, tenantID, f.GSTR9FilingID, f.Status, f.AuditedTurnover, f.UnreconciledAmount,
+		f.IsSelfCertified, f.CertifiedAt, f.CertifiedBy, f.CreatedAt, f.UpdatedAt)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) GetGSTR9CFiling(ctx context.Context, tenantID, id uuid.UUID) (*domain.GSTR9CFiling, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return nil, err
+	}
+
+	var f domain.GSTR9CFiling
+	err = tx.QueryRow(ctx, `SELECT id, tenant_id, gstr9_filing_id, status, audited_turnover,
+		unreconciled_amount, is_self_certified, certified_at, certified_by, created_at, updated_at
+		FROM gstr9c_filings WHERE id = $1`, id).Scan(
+		&f.ID, &f.TenantID, &f.GSTR9FilingID, &f.Status, &f.AuditedTurnover,
+		&f.UnreconciledAmount, &f.IsSelfCertified, &f.CertifiedAt, &f.CertifiedBy,
+		&f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	tx.Commit(ctx)
+	return &f, nil
+}
+
+func (s *PgStore) GetGSTR9CFilingByGSTR9ID(ctx context.Context, tenantID, gstr9FilingID uuid.UUID) (*domain.GSTR9CFiling, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return nil, err
+	}
+
+	var f domain.GSTR9CFiling
+	err = tx.QueryRow(ctx, `SELECT id, tenant_id, gstr9_filing_id, status, audited_turnover,
+		unreconciled_amount, is_self_certified, certified_at, certified_by, created_at, updated_at
+		FROM gstr9c_filings WHERE gstr9_filing_id = $1`, gstr9FilingID).Scan(
+		&f.ID, &f.TenantID, &f.GSTR9FilingID, &f.Status, &f.AuditedTurnover,
+		&f.UnreconciledAmount, &f.IsSelfCertified, &f.CertifiedAt, &f.CertifiedBy,
+		&f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	tx.Commit(ctx)
+	return &f, nil
+}
+
+func (s *PgStore) UpdateGSTR9CStatus(ctx context.Context, tenantID, id uuid.UUID, status domain.GSTR9CStatus) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE gstr9c_filings SET status = $1, updated_at = NOW() WHERE id = $2`,
+		status, id)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) UpdateGSTR9CUnreconciled(ctx context.Context, tenantID, id uuid.UUID, amount decimal.Decimal) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE gstr9c_filings SET unreconciled_amount = $1, updated_at = NOW() WHERE id = $2`,
+		amount, id)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) CertifyGSTR9C(ctx context.Context, tenantID, id, certifiedBy uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE gstr9c_filings
+		SET status = $1, is_self_certified = TRUE, certified_at = NOW(), certified_by = $2, updated_at = NOW()
+		WHERE id = $3`, domain.GSTR9CStatusCertified, certifiedBy, id)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) CreateMismatch(ctx context.Context, tenantID uuid.UUID, m *domain.GSTR9CMismatch) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `INSERT INTO gstr9c_mismatches
+		(id, tenant_id, gstr9c_filing_id, section, category, description,
+		 books_amount, gstr9_amount, difference, severity, reason, suggested_action,
+		 resolved, resolved_reason, resolved_at, resolved_by, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+		m.ID, tenantID, m.GSTR9CFilingID, m.Section, m.Category, m.Description,
+		m.BooksAmount, m.GSTR9Amount, m.Difference, m.Severity, m.Reason, m.SuggestedAction,
+		m.Resolved, m.ResolvedReason, m.ResolvedAt, m.ResolvedBy, m.CreatedAt)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) ListMismatches(ctx context.Context, tenantID, gstr9cFilingID uuid.UUID) ([]domain.GSTR9CMismatch, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return nil, err
+	}
+
+	rows, err := tx.Query(ctx, `SELECT id, tenant_id, gstr9c_filing_id, section, category, description,
+		books_amount, gstr9_amount, difference, severity, reason, suggested_action,
+		resolved, resolved_reason, resolved_at, resolved_by, created_at
+		FROM gstr9c_mismatches WHERE gstr9c_filing_id = $1 ORDER BY section, category`, gstr9cFilingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []domain.GSTR9CMismatch
+	for rows.Next() {
+		var m domain.GSTR9CMismatch
+		if err := rows.Scan(&m.ID, &m.TenantID, &m.GSTR9CFilingID, &m.Section, &m.Category, &m.Description,
+			&m.BooksAmount, &m.GSTR9Amount, &m.Difference, &m.Severity, &m.Reason, &m.SuggestedAction,
+			&m.Resolved, &m.ResolvedReason, &m.ResolvedAt, &m.ResolvedBy, &m.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	tx.Commit(ctx)
+	return out, nil
+}
+
+func (s *PgStore) GetMismatch(ctx context.Context, tenantID, id uuid.UUID) (*domain.GSTR9CMismatch, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return nil, err
+	}
+
+	var m domain.GSTR9CMismatch
+	err = tx.QueryRow(ctx, `SELECT id, tenant_id, gstr9c_filing_id, section, category, description,
+		books_amount, gstr9_amount, difference, severity, reason, suggested_action,
+		resolved, resolved_reason, resolved_at, resolved_by, created_at
+		FROM gstr9c_mismatches WHERE id = $1`, id).Scan(
+		&m.ID, &m.TenantID, &m.GSTR9CFilingID, &m.Section, &m.Category, &m.Description,
+		&m.BooksAmount, &m.GSTR9Amount, &m.Difference, &m.Severity, &m.Reason, &m.SuggestedAction,
+		&m.Resolved, &m.ResolvedReason, &m.ResolvedAt, &m.ResolvedBy, &m.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	tx.Commit(ctx)
+	return &m, nil
+}
+
+func (s *PgStore) ResolveMismatch(ctx context.Context, tenantID, id uuid.UUID, reason string, resolvedBy uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE gstr9c_mismatches
+		SET resolved = TRUE, resolved_reason = $1, resolved_at = NOW(), resolved_by = $2
+		WHERE id = $3`, reason, resolvedBy, id)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PgStore) DeleteMismatches(ctx context.Context, tenantID uuid.UUID, gstr9cFilingID uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL app.tenant_id = '%s'", tenantID)); err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM gstr9c_mismatches WHERE gstr9c_filing_id = $1`, gstr9cFilingID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 var _ Repository = (*PgStore)(nil)

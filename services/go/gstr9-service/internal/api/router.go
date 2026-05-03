@@ -26,6 +26,12 @@ func NewRouter(h *Handlers) *chi.Mux {
 		r.Put("/annual-return/{id}/save", h.SaveAnnualReturn)
 		r.Post("/annual-return/{id}/aggregate", h.AggregateAnnualReturn)
 		r.Get("/annual-return/{id}/table/{table}", h.GetTableData)
+
+		r.Post("/reconciliation/{gstr9Id}", h.InitiateReconciliation)
+		r.Get("/reconciliation/{id}", h.GetReconciliation)
+		r.Get("/reconciliation/{id}/mismatches", h.ListReconciliationMismatches)
+		r.Put("/reconciliation/{id}/mismatch/{mismatchId}/resolve", h.ResolveMismatch)
+		r.Put("/reconciliation/{id}/certify", h.CertifyReconciliation)
 	})
 
 	return r

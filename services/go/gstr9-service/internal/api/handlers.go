@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -273,6 +274,232 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]interface{}{"data": v})
+}
+
+func (h *Handlers) InitiateReconciliation(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantFrom(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "missing X-Tenant-Id")
+		return
+	}
+	gstr9ID, err := uuid.Parse(chi.URLParam(r, "gstr9Id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid gstr9 filing id")
+		return
+	}
+
+	gstr9Filing, err := h.store.GetFiling(r.Context(), tenantID, gstr9ID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "gstr9 filing not found")
+		return
+	}
+
+	if _, err := h.store.GetGSTR9CFilingByGSTR9ID(r.Context(), tenantID, gstr9ID); err == nil {
+		writeError(w, http.StatusConflict, domain.ErrGSTR9CDuplicate.Error())
+		return
+	}
+
+	var req domain.AuditedFinancials
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	tables, err := h.store.ListTableData(r.Context(), tenantID, gstr9ID)
+	if err != nil || len(tables) == 0 {
+		writeError(w, http.StatusBadRequest, "gstr9 must be aggregated before reconciliation")
+		return
+	}
+
+	now := time.Now()
+	gstr9cFiling := &domain.GSTR9CFiling{
+		ID:            uuid.New(),
+		TenantID:      tenantID,
+		GSTR9FilingID: gstr9ID,
+		Status:        domain.GSTR9CStatusDraft,
+		AuditedTurnover: req.Turnover,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	if err := h.store.CreateGSTR9CFiling(r.Context(), tenantID, gstr9cFiling); err != nil {
+		log.Error().Err(err).Msg("create gstr9c filing failed")
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	mismatches := domain.Reconcile(gstr9Filing, tables, req, tenantID, gstr9cFiling.ID)
+
+	var unreconciledTotal = decimal.Zero
+	for i := range mismatches {
+		if err := h.store.CreateMismatch(r.Context(), tenantID, &mismatches[i]); err != nil {
+			log.Error().Err(err).Msg("create mismatch failed")
+		}
+		unreconciledTotal = unreconciledTotal.Add(mismatches[i].Difference.Abs())
+	}
+
+	gstr9cFiling.UnreconciledAmount = unreconciledTotal
+	_ = h.store.UpdateGSTR9CUnreconciled(r.Context(), tenantID, gstr9cFiling.ID, unreconciledTotal)
+	_ = h.store.UpdateGSTR9CStatus(r.Context(), tenantID, gstr9cFiling.ID, domain.GSTR9CStatusReconciled)
+	gstr9cFiling.Status = domain.GSTR9CStatusReconciled
+
+	result := domain.ReconciliationResult{
+		GSTR9CFiling: *gstr9cFiling,
+		Mismatches:   mismatches,
+		CanSubmit:    domain.CanSubmit(mismatches),
+	}
+
+	writeJSON(w, http.StatusCreated, result)
+}
+
+func (h *Handlers) GetReconciliation(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantFrom(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "missing X-Tenant-Id")
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid reconciliation id")
+		return
+	}
+
+	filing, err := h.store.GetGSTR9CFiling(r.Context(), tenantID, id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "reconciliation not found")
+		return
+	}
+
+	mismatches, _ := h.store.ListMismatches(r.Context(), tenantID, id)
+	result := domain.ReconciliationResult{
+		GSTR9CFiling: *filing,
+		Mismatches:   mismatches,
+		CanSubmit:    domain.CanSubmit(mismatches),
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *Handlers) ListReconciliationMismatches(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantFrom(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "missing X-Tenant-Id")
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid reconciliation id")
+		return
+	}
+
+	if _, err := h.store.GetGSTR9CFiling(r.Context(), tenantID, id); err != nil {
+		writeError(w, http.StatusNotFound, "reconciliation not found")
+		return
+	}
+
+	mismatches, err := h.store.ListMismatches(r.Context(), tenantID, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, mismatches)
+}
+
+func (h *Handlers) ResolveMismatch(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantFrom(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "missing X-Tenant-Id")
+		return
+	}
+	reconcID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid reconciliation id")
+		return
+	}
+	mismatchID, err := uuid.Parse(chi.URLParam(r, "mismatchId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid mismatch id")
+		return
+	}
+
+	if _, err := h.store.GetGSTR9CFiling(r.Context(), tenantID, reconcID); err != nil {
+		writeError(w, http.StatusNotFound, "reconciliation not found")
+		return
+	}
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Reason == "" {
+		writeError(w, http.StatusBadRequest, "reason is required")
+		return
+	}
+
+	mm, err := h.store.GetMismatch(r.Context(), tenantID, mismatchID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "mismatch not found")
+		return
+	}
+	if mm.GSTR9CFilingID != reconcID {
+		writeError(w, http.StatusNotFound, "mismatch not found")
+		return
+	}
+
+	if err := h.store.ResolveMismatch(r.Context(), tenantID, mismatchID, req.Reason, tenantID); err != nil {
+		log.Error().Err(err).Msg("resolve mismatch failed")
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	mm.Resolved = true
+	mm.ResolvedReason = req.Reason
+	writeJSON(w, http.StatusOK, mm)
+}
+
+func (h *Handlers) CertifyReconciliation(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantFrom(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "missing X-Tenant-Id")
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid reconciliation id")
+		return
+	}
+
+	filing, err := h.store.GetGSTR9CFiling(r.Context(), tenantID, id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "reconciliation not found")
+		return
+	}
+	if filing.Status == domain.GSTR9CStatusCertified {
+		writeError(w, http.StatusBadRequest, domain.ErrGSTR9CAlreadyCertified.Error())
+		return
+	}
+	if filing.Status != domain.GSTR9CStatusReconciled {
+		writeError(w, http.StatusBadRequest, domain.ErrGSTR9CNotReconciled.Error())
+		return
+	}
+
+	mismatches, _ := h.store.ListMismatches(r.Context(), tenantID, id)
+	if !domain.CanSubmit(mismatches) {
+		writeError(w, http.StatusBadRequest, domain.ErrUnresolvedMismatches.Error())
+		return
+	}
+
+	if err := h.store.CertifyGSTR9C(r.Context(), tenantID, id, tenantID); err != nil {
+		log.Error().Err(err).Msg("certify gstr9c failed")
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	filing.Status = domain.GSTR9CStatusCertified
+	filing.IsSelfCertified = true
+	writeJSON(w, http.StatusOK, filing)
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {

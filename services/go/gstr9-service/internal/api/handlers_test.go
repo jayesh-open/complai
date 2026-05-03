@@ -384,6 +384,285 @@ func TestPagination_MaxLimit(t *testing.T) {
 	assert.Equal(t, 50, limit, "limit > 200 should fall back to default")
 }
 
+func aggregateAndGetFilingID(t *testing.T, mux *http.ServeMux) string {
+	t.Helper()
+	id := createFiling(t, mux)
+	monthsData := buildTestMonths()
+	aggBody, _ := json.Marshal(map[string]interface{}{"months": monthsData})
+	aggReq := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/annual-return/"+id+"/aggregate", bytes.NewReader(aggBody))
+	aggReq.Header.Set("X-Tenant-Id", testTenant)
+	aggW := httptest.NewRecorder()
+	mux.ServeHTTP(aggW, aggReq)
+	require.Equal(t, http.StatusOK, aggW.Code)
+	return id
+}
+
+func TestInitiateReconciliation_Success(t *testing.T) {
+	_, _, mux := setupTest()
+	gstr9ID := aggregateAndGetFilingID(t, mux)
+
+	body := `{"turnover":6000000,"tax_payable":{"cgst":144000,"sgst":144000,"igst":54000,"cess":18000},"itc_claimed":{"cgst":210000,"sgst":210000,"igst":120000,"cess":60000}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	data := resp["data"].(map[string]interface{})
+	filing := data["filing"].(map[string]interface{})
+	assert.Equal(t, "reconciled", filing["status"])
+}
+
+func TestInitiateReconciliation_DuplicateReturnsConflict(t *testing.T) {
+	_, _, mux := setupTest()
+	gstr9ID := aggregateAndGetFilingID(t, mux)
+
+	body := `{"turnover":6000000}`
+	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	req1.Header.Set("X-Tenant-Id", testTenant)
+	w1 := httptest.NewRecorder()
+	mux.ServeHTTP(w1, req1)
+	assert.Equal(t, http.StatusCreated, w1.Code)
+
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	req2.Header.Set("X-Tenant-Id", testTenant)
+	w2 := httptest.NewRecorder()
+	mux.ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusConflict, w2.Code)
+}
+
+func TestInitiateReconciliation_GSTR9NotFound(t *testing.T) {
+	_, _, mux := setupTest()
+	body := `{"turnover":6000000}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+uuid.New().String(), bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestInitiateReconciliation_NotAggregated(t *testing.T) {
+	_, _, mux := setupTest()
+	gstr9ID := createFiling(t, mux)
+
+	body := `{"turnover":6000000}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestInitiateReconciliation_CrossTenantReturns404(t *testing.T) {
+	_, _, mux := setupTest()
+	gstr9ID := aggregateAndGetFilingID(t, mux)
+
+	body := `{"turnover":6000000}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", otherTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetReconciliation_Success(t *testing.T) {
+	_, _, mux := setupTest()
+	gstr9ID := aggregateAndGetFilingID(t, mux)
+
+	body := `{"turnover":6000000}`
+	initReq := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	initReq.Header.Set("X-Tenant-Id", testTenant)
+	initW := httptest.NewRecorder()
+	mux.ServeHTTP(initW, initReq)
+	require.Equal(t, http.StatusCreated, initW.Code)
+
+	var initResp map[string]interface{}
+	json.Unmarshal(initW.Body.Bytes(), &initResp)
+	reconcID := initResp["data"].(map[string]interface{})["filing"].(map[string]interface{})["id"].(string)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/gstr9/reconciliation/"+reconcID, nil)
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.NotNil(t, data["filing"])
+	assert.NotNil(t, data["can_submit"])
+}
+
+func TestGetReconciliation_NotFound(t *testing.T) {
+	_, _, mux := setupTest()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/gstr9/reconciliation/"+uuid.New().String(), nil)
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetReconciliation_CrossTenant(t *testing.T) {
+	_, _, mux := setupTest()
+	gstr9ID := aggregateAndGetFilingID(t, mux)
+
+	body := `{"turnover":6000000}`
+	initReq := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	initReq.Header.Set("X-Tenant-Id", testTenant)
+	initW := httptest.NewRecorder()
+	mux.ServeHTTP(initW, initReq)
+
+	var initResp map[string]interface{}
+	json.Unmarshal(initW.Body.Bytes(), &initResp)
+	reconcID := initResp["data"].(map[string]interface{})["filing"].(map[string]interface{})["id"].(string)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/gstr9/reconciliation/"+reconcID, nil)
+	req.Header.Set("X-Tenant-Id", otherTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestListMismatches_Success(t *testing.T) {
+	_, _, mux := setupTest()
+	gstr9ID := aggregateAndGetFilingID(t, mux)
+
+	body := `{"turnover":99999999}`
+	initReq := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	initReq.Header.Set("X-Tenant-Id", testTenant)
+	initW := httptest.NewRecorder()
+	mux.ServeHTTP(initW, initReq)
+
+	var initResp map[string]interface{}
+	json.Unmarshal(initW.Body.Bytes(), &initResp)
+	reconcID := initResp["data"].(map[string]interface{})["filing"].(map[string]interface{})["id"].(string)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/gstr9/reconciliation/"+reconcID+"/mismatches", nil)
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].([]interface{})
+	assert.Greater(t, len(data), 0)
+}
+
+func initReconciliation(t *testing.T, mux *http.ServeMux, turnover string) (string, string) {
+	t.Helper()
+	gstr9ID := aggregateAndGetFilingID(t, mux)
+
+	body := `{"turnover":` + turnover + `}`
+	initReq := httptest.NewRequest(http.MethodPost, "/api/v1/gstr9/reconciliation/"+gstr9ID, bytes.NewBufferString(body))
+	initReq.Header.Set("X-Tenant-Id", testTenant)
+	initW := httptest.NewRecorder()
+	mux.ServeHTTP(initW, initReq)
+	require.Equal(t, http.StatusCreated, initW.Code)
+
+	var initResp map[string]interface{}
+	json.Unmarshal(initW.Body.Bytes(), &initResp)
+	reconcID := initResp["data"].(map[string]interface{})["filing"].(map[string]interface{})["id"].(string)
+	return gstr9ID, reconcID
+}
+
+func TestResolveMismatch_Success(t *testing.T) {
+	_, _, mux := setupTest()
+	_, reconcID := initReconciliation(t, mux, "99999999")
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/gstr9/reconciliation/"+reconcID+"/mismatches", nil)
+	listReq.Header.Set("X-Tenant-Id", testTenant)
+	listW := httptest.NewRecorder()
+	mux.ServeHTTP(listW, listReq)
+	var listResp map[string]interface{}
+	json.Unmarshal(listW.Body.Bytes(), &listResp)
+	mismatches := listResp["data"].([]interface{})
+	require.Greater(t, len(mismatches), 0)
+	mismatchID := mismatches[0].(map[string]interface{})["id"].(string)
+
+	body := `{"reason":"verified and accepted"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/gstr9/reconciliation/"+reconcID+"/mismatch/"+mismatchID+"/resolve", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	assert.Equal(t, true, data["resolved"])
+}
+
+func TestResolveMismatch_MissingReason(t *testing.T) {
+	_, _, mux := setupTest()
+	_, reconcID := initReconciliation(t, mux, "99999999")
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/gstr9/reconciliation/"+reconcID+"/mismatches", nil)
+	listReq.Header.Set("X-Tenant-Id", testTenant)
+	listW := httptest.NewRecorder()
+	mux.ServeHTTP(listW, listReq)
+	var listResp map[string]interface{}
+	json.Unmarshal(listW.Body.Bytes(), &listResp)
+	mismatchID := listResp["data"].([]interface{})[0].(map[string]interface{})["id"].(string)
+
+	body := `{"reason":""}`
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/gstr9/reconciliation/"+reconcID+"/mismatch/"+mismatchID+"/resolve", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestResolveMismatch_NotFound(t *testing.T) {
+	_, _, mux := setupTest()
+	_, reconcID := initReconciliation(t, mux, "99999999")
+
+	body := `{"reason":"test"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/gstr9/reconciliation/"+reconcID+"/mismatch/"+uuid.New().String()+"/resolve", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestCertifyReconciliation_BlockedByUnresolved(t *testing.T) {
+	_, _, mux := setupTest()
+	_, reconcID := initReconciliation(t, mux, "99999999")
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/gstr9/reconciliation/"+reconcID+"/certify", nil)
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCertifyReconciliation_NotFound(t *testing.T) {
+	_, _, mux := setupTest()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/gstr9/reconciliation/"+uuid.New().String()+"/certify", nil)
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestCertifyReconciliation_DraftNotAllowed(t *testing.T) {
+	_, ms, mux := setupTest()
+
+	filing := &domain.GSTR9CFiling{
+		ID: uuid.New(), TenantID: uuid.MustParse(testTenant), GSTR9FilingID: uuid.New(),
+		Status: domain.GSTR9CStatusDraft,
+	}
+	ms.CreateGSTR9CFiling(nil, uuid.MustParse(testTenant), filing)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/gstr9/reconciliation/"+filing.ID.String()+"/certify", nil)
+	req.Header.Set("X-Tenant-Id", testTenant)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func buildTestMonths() []map[string]interface{} {
 	months := make([]map[string]interface{}, 0, 12)
 	periods := domain.ReturnPeriodsForFY("2025-26")

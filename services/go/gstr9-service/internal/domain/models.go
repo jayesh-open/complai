@@ -62,3 +62,54 @@ type GSTR9AuditLog struct {
 	ActorID   uuid.UUID `json:"actor_id" db:"actor_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
+
+type GSTR9CStatus string
+
+const (
+	GSTR9CStatusDraft      GSTR9CStatus = "draft"
+	GSTR9CStatusReconciled GSTR9CStatus = "reconciled"
+	GSTR9CStatusCertified  GSTR9CStatus = "certified"
+	GSTR9CStatusSubmitted  GSTR9CStatus = "submitted"
+)
+
+type GSTR9CFiling struct {
+	ID                 uuid.UUID       `json:"id" db:"id"`
+	TenantID           uuid.UUID       `json:"tenant_id" db:"tenant_id"`
+	GSTR9FilingID      uuid.UUID       `json:"gstr9_filing_id" db:"gstr9_filing_id"`
+	Status             GSTR9CStatus    `json:"status" db:"status"`
+	AuditedTurnover    decimal.Decimal `json:"audited_turnover" db:"audited_turnover"`
+	UnreconciledAmount decimal.Decimal `json:"unreconciled_amount" db:"unreconciled_amount"`
+	IsSelfCertified    bool            `json:"is_self_certified" db:"is_self_certified"`
+	CertifiedAt        *time.Time      `json:"certified_at,omitempty" db:"certified_at"`
+	CertifiedBy        *uuid.UUID      `json:"certified_by,omitempty" db:"certified_by"`
+	CreatedAt          time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+type MismatchSeverity string
+
+const (
+	SeverityInfo  MismatchSeverity = "INFO"
+	SeverityWarn  MismatchSeverity = "WARN"
+	SeverityError MismatchSeverity = "ERROR"
+)
+
+type GSTR9CMismatch struct {
+	ID              uuid.UUID        `json:"id" db:"id"`
+	TenantID        uuid.UUID        `json:"tenant_id" db:"tenant_id"`
+	GSTR9CFilingID  uuid.UUID        `json:"gstr9c_filing_id" db:"gstr9c_filing_id"`
+	Section         string           `json:"section" db:"section"`
+	Category        string           `json:"category" db:"category"`
+	Description     string           `json:"description" db:"description"`
+	BooksAmount     decimal.Decimal  `json:"books_amount" db:"books_amount"`
+	GSTR9Amount     decimal.Decimal  `json:"gstr9_amount" db:"gstr9_amount"`
+	Difference      decimal.Decimal  `json:"difference" db:"difference"`
+	Severity        MismatchSeverity `json:"severity" db:"severity"`
+	Reason          string           `json:"reason" db:"reason"`
+	SuggestedAction string           `json:"suggested_action" db:"suggested_action"`
+	Resolved        bool             `json:"resolved" db:"resolved"`
+	ResolvedReason  string           `json:"resolved_reason,omitempty" db:"resolved_reason"`
+	ResolvedAt      *time.Time       `json:"resolved_at,omitempty" db:"resolved_at"`
+	ResolvedBy      *uuid.UUID       `json:"resolved_by,omitempty" db:"resolved_by"`
+	CreatedAt       time.Time        `json:"created_at" db:"created_at"`
+}

@@ -64,3 +64,88 @@ export interface IncomeBreakdown {
   aisAmount?: number;
   reconciled: boolean;
 }
+
+export type AISMismatchSeverity = "info" | "warn" | "error";
+export type AISMismatchCategory =
+  | "SALARY"
+  | "TDS"
+  | "INTEREST"
+  | "DIVIDEND"
+  | "SECURITIES"
+  | "PROPERTY";
+
+export interface IncomeSubItem {
+  label: string;
+  amount: number;
+  section?: string;
+}
+
+export interface IncomeHeadDetail {
+  head: IncomeHead;
+  gross: number;
+  deductions: number;
+  net: number;
+  subItems: IncomeSubItem[];
+  visible: boolean;
+}
+
+export interface AISMismatch {
+  id: string;
+  category: AISMismatchCategory;
+  field: string;
+  itrValue: number;
+  aisValue: number;
+  severity: AISMismatchSeverity;
+  resolved: boolean;
+  resolution?: string;
+}
+
+export interface TaxSlab {
+  from: number;
+  to: number | null;
+  rate: number;
+  tax: number;
+}
+
+export interface TaxComputation {
+  totalIncome: number;
+  standardDeduction: number;
+  taxableIncome: number;
+  slabs: TaxSlab[];
+  slabTax: number;
+  surchargeRate: number;
+  surchargeAmount: number;
+  surchargeThreshold: string;
+  healthEducationCess: number;
+  grossTax: number;
+  rebate87A: number;
+  totalLiability: number;
+  tdsCredit: number;
+  advanceTax: number;
+  selfAssessmentTax: number;
+  refundOrPayable: number;
+}
+
+export interface DeductionItem {
+  section: string;
+  label: string;
+  declared: number;
+  limit: number;
+}
+
+export interface EmployeeITRDetail {
+  employee: ITREmployee;
+  formReason: string;
+  incomeHeads: IncomeHeadDetail[];
+  deductions: DeductionItem[];
+  computation: TaxComputation;
+  mismatches: AISMismatch[];
+  form10IEAFiled?: boolean;
+  auditTrail: {
+    action: string;
+    actor: string;
+    timestamp: string;
+    detail?: string;
+    status?: "success" | "warning" | "info" | "danger" | "default";
+  }[];
+}

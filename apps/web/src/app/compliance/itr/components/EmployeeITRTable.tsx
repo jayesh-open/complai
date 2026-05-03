@@ -9,6 +9,7 @@ import type { ITREmployee } from "../types";
 
 interface EmployeeITRTableProps {
   employees: ITREmployee[];
+  batchId?: string;
   className?: string;
 }
 
@@ -18,7 +19,7 @@ function formatINR(amount: number): string {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
-export function EmployeeITRTable({ employees, className }: EmployeeITRTableProps) {
+export function EmployeeITRTable({ employees, batchId, className }: EmployeeITRTableProps) {
   return (
     <div className={cn("bg-[var(--bg-secondary)] rounded-[14px] border border-[var(--border-default)] overflow-hidden", className)}>
       <table className="w-full">
@@ -47,7 +48,7 @@ export function EmployeeITRTable({ employees, className }: EmployeeITRTableProps
                 className="border-b border-[var(--border-default)] last:border-b-0 hover:bg-[var(--bg-tertiary)] transition-colors"
               >
                 <td className="px-[18px] py-3">
-                  <Link href={`/compliance/itr/${emp.id}`} className="hover:underline">
+                  <Link href={batchId ? `/compliance/itr/bulk/${batchId}/employee/${emp.id}` : `/compliance/itr/${emp.id}`} className="hover:underline">
                     <div className="text-xs font-medium text-[var(--text-primary)]">{emp.name}</div>
                     <div className="text-[10px] text-[var(--text-muted)]">{emp.department}</div>
                   </Link>

@@ -108,7 +108,7 @@ export default function BatchDetailPage() {
         <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
           Employees in Batch
         </h2>
-        <EmployeeITRTable employees={batchEmployees} />
+        <EmployeeITRTable employees={batchEmployees} batchId={batchId} />
       </div>
     </div>
   );

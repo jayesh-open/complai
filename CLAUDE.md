@@ -143,3 +143,11 @@ Complai is one of four sibling apps plus an external HRMS:
 - ADR-0013: Outbox pattern via polling (not Debezium) in Phase 1
 - ADR-0014: Canonical Invoice Schema as lingua franca
 - ADR-0015: Monorepo with Go workspaces + pnpm + Turborepo
+
+## Migration verification rule
+
+After any subpart that adds a migration file, BOTH parties verify schema is applied:
+- Claude Code MUST run `make migrate-all` as part of the subpart's verification (not just rely on MockStore tests passing)
+- Independent diagnostic MUST run `\dt` on the target database to confirm tables exist with RLS enabled
+
+Coverage on MockStore alone does NOT prove schema is real. Reinforced after Part 5 (gst_db) and Part 10a (itr_db).

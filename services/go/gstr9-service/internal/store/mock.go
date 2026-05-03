@@ -17,6 +17,8 @@ type MockStore struct {
 	auditLogs   map[uuid.UUID][]domain.GSTR9AuditLog
 	gstr9cFiles map[uuid.UUID]*domain.GSTR9CFiling
 	mismatches  map[uuid.UUID]*domain.GSTR9CMismatch
+
+	ErrOnListFilings error
 }
 
 func NewMockStore() *MockStore {
@@ -65,6 +67,9 @@ func (m *MockStore) UpdateFilingStatus(_ context.Context, tenantID, id uuid.UUID
 func (m *MockStore) ListFilings(_ context.Context, tenantID uuid.UUID, gstin, fy string, limit, offset int) ([]domain.GSTR9Filing, int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	if m.ErrOnListFilings != nil {
+		return nil, 0, m.ErrOnListFilings
+	}
 	var all []domain.GSTR9Filing
 	for _, f := range m.filings {
 		if f.TenantID != tenantID {

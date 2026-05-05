@@ -118,11 +118,20 @@ Complai is one of four sibling apps plus an external HRMS:
 - [x] Part 7: Reconciliation engine + GSTR-3B + GSTR-2B/IMS (AP register from Apex)
 - [x] Part 8: e-Invoicing + E-Way Bill
 - [x] Part 9: Sandbox TDS gateway + TDS module (ITA 2025, 4-digit payment codes, Form 138/140/144 filing wizards, certificates, challans, 3 Playwright E2E specs)
-- [x] Part 10: Sandbox ITR + GSTR-9/9C (10a ITR backends, 10b AIS recon + bulk filing + ITR-4/5/6/7, 10c GSTR-9/9C service + gateway endpoints)
+- [x] Part 10: Sandbox ITR + GSTR-9/9C (10a ITR backends, 10b AIS recon + bulk filing + ITR-4/5/6/7, 10c GSTR-9/9C service + gateway endpoints, 10d ITR UI + magic link, 10e GSTR-9/9C UI wizards, 10f full verification — 10 E2E tests, 3 benchmarks, RLS + ITA 2025 enforced)
 - [ ] Part 11: Sibling gateway services (Aura, Bridge, HRMS)
 - [ ] Part 12: AI layer + MaxITC
 - [ ] Part 13: Real Bank Open sibling sync + GL-Stream + Compliance Cloud
 - [ ] Part 14: Reporting + observability + production hardening
+
+## Active compliance modules (9 as of Part 10)
+GST Returns (GSTR-1, GSTR-3B, GSTR-2B/IMS), E-Invoicing, E-Way Bill, ITC Reconciliation + Vendor Compliance Scoring, TDS/TCS, ITR (bulk filing + magic link review), GSTR-9 Annual Return, GSTR-9C Reconciliation Statement.
+
+**ITA 2025 alignment:** All income-tax logic (TDS, ITR) references ITA 2025 exclusively. Old ITA 1961 section codes are rejected at handler level.
+
+**GSTR-9 + 9C:** Self-certified per Notification 15/2025-Central Tax (turnover ≤₹5 Cr). CA audit path (Part III) deferred to Part 14 — current GSTR-9C uses self-certification with typed consent + DSC.
+
+**Adaequare auth:** Real Adaequare credential exchange (SEK decryption, session token rotation) not yet wired. Mock provider stubs in place. Real integration deferred until sandbox credentials obtained.
 
 ## Credentials / blockers needed
 (populated as encountered)

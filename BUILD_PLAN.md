@@ -1,14 +1,12 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-05-03
+Last updated: 2026-05-05
 
 ## Current part
 Part 11 — Sibling gateway services (Aura, Bridge, HRMS) (not started).
 
 ## Recently completed
-Part 10c — GSTR-9/9C backends. gstr9-service (annual return aggregation, GSTR-9C reconciliation engine, mismatch resolution, certification). gstn-gateway-service extended with 7 GSTR-9/9C endpoints (save/submit/file/status). Mock + real provider stubs. 115+ gstr9-service tests, 80+ new gstn-gateway tests. All handlers ≥80% individually.
-Part 10b — AIS reconciliation engine, employee bulk filing flow, ITR-4/5/6/7 form generators + eligibility checkers. Migration 002_bulk_filing.sql, 6 bulk API endpoints, coverage targets met.
-Part 10a — itr-service + itr-gateway-service backends. ITA 2025 tax computation engine, ITR-1/2/3 eligibility, TDS reconciliation, 5-head income calculators, mock Sandbox.co.in ITR APIs.
+Part 10 — COMPLETE (2026-05-05). Sandbox ITR + GSTR-9/9C. 6 sub-parts: 10a ITR backends, 10b AIS recon + bulk filing + ITR-4/5/6/7, 10c GSTR-9/9C service + gateway, 10d ITR UI (landing + bulk wizard + batch/employee detail + magic link review), 10e GSTR-9/9C UI wizards (annual return + reconciliation workspace), 10f full verification.
 Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/144 filing wizards, certificates (Form 130/131), challan tracking, 3 Playwright E2E specs, all verifications green.
 
 ## Completed
@@ -283,6 +281,56 @@ Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/14
   - [x] Coverage: domain 96.6%, api 82.5%, store 43.9%
   - [x] GOWORK=off: 25/25 services build clean
   - [x] Migration 002_bulk_filing.sql verified via make migrate-all
+
+### Part 10d — ITR UI (2026-05-04) — COMPLETE
+
+  - [x] 10d-1: ITR landing page, bulk batch wizard, batch detail
+    - [x] Landing page: 2 tabs (Employees, Bulk Batches), employee table, batch table
+    - [x] Bulk wizard: 4 steps (select employees → configure → review → submit), multi-select with checkboxes
+    - [x] Batch detail: employee list with status badges, PAN, form type
+  - [x] 10d-2: Per-employee detail + summary views
+    - [x] Employee detail: income summary, deductions, tax computation, TDS reconciliation
+    - [x] IncomeBreakdownCard, DeductionBreakdownCard, TaxComputationCard, TDSReconciliationCard components
+  - [x] 10d-3: Magic link review page (employee-facing)
+    - [x] Public route /itr/review/[token] — no auth required
+    - [x] States: loading, expired, used, valid (read-only display), approved (ARN shown)
+    - [x] Approve & E-Verify button → mock e-verification → ARN display
+    - [x] Mock token resolution: mlk-valid-001/002/003, mlk-expired-001/002
+
+### Part 10e — GSTR-9/9C UI (2026-05-04) — COMPLETE
+
+  - [x] 10e-1: GSTR-9 annual return wizard
+    - [x] 6 steps: Threshold → Review Tables → Late ITC → HSN Summary → Fees & Demands → Sign & Submit
+    - [x] Sign DSC + File GSTR-9 with type-to-confirm modal, ARN acknowledgement
+    - [x] Components: AnnualReturnTable, ThresholdCard, LateITCPanel, HSNSummaryTable, FeesDemandsTable
+  - [x] 10e-2: GSTR-9C reconciliation workspace
+    - [x] 6 steps: Threshold Check → Upload Financials → Reconciliation → Resolve Mismatches → Self-Certification → File with DSC
+    - [x] ReconciliationSplitPane (Part II + Part III side-by-side), ReconciliationDeltaTable
+    - [x] Mismatch resolution modal with mandatory remarks
+    - [x] ERROR-severity mismatches block proceed (Next disabled)
+    - [x] Self-certification: typed consent (`I CERTIFY GSTR-9C {FY} {GSTIN}`), locks after certification
+    - [x] Components: GSTR9CThresholdCheck, UploadFinancialsStep, ResolveMismatchesStep, CertificationStep, FileDSCStep
+
+### Part 10f — Full Part 10 verification (2026-05-05) — COMPLETE
+
+  - [x] Docker: all containers healthy
+  - [x] Goose migrations: itr_db v2 (bulk_filing), gstr9_db v2
+  - [x] GOWORK=off: 26/26 services PASS
+  - [x] Per-package coverage: itr-service (domain 96.6%, api 82.5%), gstr9-service (domain 97.2%, api 84.1%), all thresholds met
+  - [x] Per-handler coverage: new Part 10 handlers individually verified ≥80%
+  - [x] Playwright E2E: 3 specs, 10 tests, 9.5s
+    - [x] gstr9-9c-flow.spec.ts: GSTR-9 wizard full lifecycle + GSTR-9C reconciliation + mismatch blocking (3 tests)
+    - [x] itr-bulk-flow.spec.ts: landing page, bulk wizard, batch/employee navigation (3 tests)
+    - [x] itr-magic-link.spec.ts: valid token, approve+ARN, expired, unknown (4 tests)
+  - [x] Performance benchmarks: ComputeTax1000 (1.4ms), Aggregate50GSTINs (3.2ms), Reconcile100Mismatches (0.025ms) — all under thresholds
+  - [x] RLS regression: itr_db + gstr9_db cross-tenant returns 0 rows (complai_app role)
+  - [x] ITA 2025 enforcement: RejectsITA1961 PASS, AcceptsITA2025 PASS
+  - [x] Terminology: zero "Assessment Year" or "Section 44AD" in ITR; zero "GSTR-9A" or "GSTR-9B" in GSTR-9
+  - [x] DTAA + AIS enforcement: CanSubmit blocks on unresolved ERROR mismatches, ReconcileAIS detects salary mismatch
+  - [x] tsc --noEmit: clean
+  - [x] go vet: 26/26 clean
+  - [x] Storybook: 61 stories built clean (7.5s)
+  - [x] 9 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, TDS, ITR, GSTR-9, GSTR-9C
 
 ### ITA 2025 refactor (2026-04-29) — RESOLVED
 

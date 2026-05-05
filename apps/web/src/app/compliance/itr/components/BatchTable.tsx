@@ -13,7 +13,7 @@ interface BatchTableProps {
 
 export function BatchTable({ batches, className }: BatchTableProps) {
   return (
-    <div className={cn("bg-[var(--bg-secondary)] rounded-[14px] border border-[var(--border-default)] overflow-hidden", className)}>
+    <div className={cn("bg-[var(--bg-secondary)] rounded-[14px] border border-[var(--border-default)] overflow-hidden", className)} data-testid="batch-table">
       <table className="w-full">
         <thead>
           <tr className="border-b border-[var(--border-default)]">

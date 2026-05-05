@@ -46,7 +46,7 @@ export default function MagicLinkReviewPage() {
 
   if (pageState === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-4">
+      <div className="flex flex-col items-center justify-center py-32 gap-4" data-testid="magic-link-review">
         <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin" />
         <p className="text-sm text-[var(--text-muted)]">Verifying your link…</p>
       </div>
@@ -54,16 +54,16 @@ export default function MagicLinkReviewPage() {
   }
 
   if (pageState === "expired") {
-    return <ExpiredState expiredAt={result?.expiredAt} />;
+    return <div data-testid="magic-link-review"><ExpiredState expiredAt={result?.expiredAt} /></div>;
   }
 
   if (pageState === "used") {
-    return <UsedState outcome={result?.outcome} usedAt={result?.usedAt} />;
+    return <div data-testid="magic-link-review"><UsedState outcome={result?.outcome} usedAt={result?.usedAt} /></div>;
   }
 
   if (pageState === "approved" && arn) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="magic-link-review">
         <EmployeeApprovalConfirmation
           arn={arn}
           filedAt={new Date().toISOString()}
@@ -78,7 +78,7 @@ export default function MagicLinkReviewPage() {
   const { employee: emp, computation: comp } = detail;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="magic-link-review">
       <EmployeeReviewDisclosureCard
         employeeName={emp.name}
         taxYear={emp.taxYear}

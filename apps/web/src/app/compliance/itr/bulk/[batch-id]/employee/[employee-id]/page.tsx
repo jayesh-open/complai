@@ -53,7 +53,7 @@ export default function EmployeeITRDetailPage() {
   const { employee: emp, computation: comp } = detail;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="employee-detail">
       <Link
         href={`/compliance/itr/bulk/${batchId}`}
         className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"

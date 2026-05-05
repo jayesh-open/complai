@@ -38,7 +38,7 @@ export default function BatchDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="batch-detail">
       <Link
         href="/compliance/itr"
         className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"

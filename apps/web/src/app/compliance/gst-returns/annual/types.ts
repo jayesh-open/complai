@@ -94,3 +94,58 @@ export interface GSTR9Data {
   lateITC: LateITCEntry[];
   feesAndDemands: FeesDemandsRow[];
 }
+
+export type GSTR9CStep =
+  | "threshold-check"
+  | "upload-financials"
+  | "reconciliation"
+  | "resolve-mismatches"
+  | "self-certification"
+  | "file-dsc";
+
+export interface GSTR9CStepDef {
+  id: GSTR9CStep;
+  label: string;
+  number: number;
+}
+
+export const GSTR9C_STEPS: GSTR9CStepDef[] = [
+  { id: "threshold-check", label: "Threshold", number: 1 },
+  { id: "upload-financials", label: "Financials", number: 2 },
+  { id: "reconciliation", label: "Reconciliation", number: 3 },
+  { id: "resolve-mismatches", label: "Mismatches", number: 4 },
+  { id: "self-certification", label: "Certification", number: 5 },
+  { id: "file-dsc", label: "File (DSC)", number: 6 },
+];
+
+export type MismatchSeverity = "INFO" | "WARN" | "ERROR";
+
+export interface GSTR9CMismatch {
+  id: string;
+  section: "II" | "III" | "IV";
+  category: string;
+  description: string;
+  booksAmount: number;
+  gstr9Amount: number;
+  difference: number;
+  severity: MismatchSeverity;
+  resolved: boolean;
+  resolvedReason?: string;
+}
+
+export interface AuditedFinancials {
+  grossTurnover: number;
+  taxableTurnover: number;
+  taxPayable: { cgst: number; sgst: number; igst: number; cess: number };
+  itcClaimed: { cgst: number; sgst: number; igst: number; cess: number };
+}
+
+export interface GSTR9CData {
+  gstin: string;
+  fy: string;
+  legalName: string;
+  gstr9Turnover: number;
+  gstr9cRequired: boolean;
+  audited: AuditedFinancials;
+  mismatches: GSTR9CMismatch[];
+}

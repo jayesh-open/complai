@@ -5,6 +5,9 @@ import type {
   HSNRow,
   LateITCEntry,
   FeesDemandsRow,
+  GSTR9CData,
+  GSTR9CMismatch,
+  AuditedFinancials,
 } from "./types";
 
 export const ANNUAL_ENTRIES: AnnualReturnEntry[] = [
@@ -105,5 +108,49 @@ export function generateGSTR9Data(gstin: string, fy: string): GSTR9Data {
     hsnRows: buildHSN(turnover),
     lateITC: buildLateITC(turnover),
     feesAndDemands: buildFeesAndDemands(turnover),
+  };
+}
+
+function buildMismatches(turnover: number): GSTR9CMismatch[] {
+  return [
+    { id: "m-1", section: "II", category: "turnover", description: "Aggregate turnover mismatch (books vs GSTR-9 Part II)", booksAmount: turnover * 1.02, gstr9Amount: turnover, difference: turnover * 0.02, severity: "ERROR", resolved: false },
+    { id: "m-2", section: "II", category: "turnover", description: "Unbilled revenue adjustment not reflected in GSTR-9", booksAmount: Math.round(turnover * 0.008), gstr9Amount: 0, difference: Math.round(turnover * 0.008), severity: "WARN", resolved: false },
+    { id: "m-3", section: "III", category: "tax", description: "CGST payable — rate-wise variance at 18% slab", booksAmount: Math.round(turnover * 0.032), gstr9Amount: Math.round(turnover * 0.03), difference: Math.round(turnover * 0.002), severity: "WARN", resolved: false },
+    { id: "m-4", section: "III", category: "tax", description: "IGST payable — export supply tax under-reported", booksAmount: Math.round(turnover * 0.015), gstr9Amount: Math.round(turnover * 0.014), difference: Math.round(turnover * 0.001), severity: "INFO", resolved: false },
+    { id: "m-5", section: "IV", category: "itc", description: "ITC claimed (CGST) — excess ITC in books vs GSTR-9", booksAmount: Math.round(turnover * 0.026), gstr9Amount: Math.round(turnover * 0.025), difference: Math.round(turnover * 0.001), severity: "INFO", resolved: false },
+    { id: "m-6", section: "IV", category: "itc", description: "ITC claimed (IGST) — import duty credit discrepancy", booksAmount: Math.round(turnover * 0.018), gstr9Amount: Math.round(turnover * 0.015), difference: Math.round(turnover * 0.003), severity: "ERROR", resolved: false },
+  ];
+}
+
+export function generateGSTR9CData(gstin: string, fy: string): GSTR9CData {
+  const entry = ANNUAL_ENTRIES.find((e) => e.gstin === gstin && e.fy === fy);
+  const turnover = entry?.turnover ?? 50000000;
+  const legalName = entry?.legalName ?? "Unknown Entity";
+
+  const audited: AuditedFinancials = {
+    grossTurnover: Math.round(turnover * 1.02),
+    taxableTurnover: Math.round(turnover * 0.88 * 1.02),
+    taxPayable: {
+      cgst: Math.round(turnover * 0.032),
+      sgst: Math.round(turnover * 0.032),
+      igst: Math.round(turnover * 0.015),
+      cess: 0,
+    },
+    itcClaimed: {
+      cgst: Math.round(turnover * 0.026),
+      sgst: Math.round(turnover * 0.026),
+      igst: Math.round(turnover * 0.018),
+      cess: 0,
+    },
+  };
+
+  return {
+    gstin,
+    fy,
+    legalName,
+    gstr9Turnover: turnover,
+    gstr9cRequired: turnover > 50000000,
+    audited,
+    mismatches: buildMismatches(turnover),
   };
 }

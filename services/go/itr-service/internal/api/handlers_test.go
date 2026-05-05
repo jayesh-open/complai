@@ -799,3 +799,84 @@ func TestCheckITR7Eligibility_API_BadSection(t *testing.T) {
 	data := resp["data"].(map[string]interface{})
 	assert.Equal(t, false, data["eligible"])
 }
+
+func TestAddIncomeEntry_RejectsITA1961Sections(t *testing.T) {
+	_, router := setupRouter()
+	tenantID := uuid.New().String()
+
+	tpBody := `{"pan":"ZZZQQ9876L","name":"ITA1961 Test","date_of_birth":"1988-03-10","assessee_type":"INDIVIDUAL","residency_status":"RESIDENT"}`
+	tpReq := httptest.NewRequest(http.MethodPost, "/api/v1/itr/taxpayers", bytes.NewBufferString(tpBody))
+	tpReq.Header.Set("X-Tenant-Id", tenantID)
+	tpReq.Header.Set("Content-Type", "application/json")
+	tpW := httptest.NewRecorder()
+	router.ServeHTTP(tpW, tpReq)
+	require.Equal(t, 201, tpW.Code)
+
+	var tpResp map[string]interface{}
+	json.Unmarshal(tpW.Body.Bytes(), &tpResp)
+	taxpayerID := tpResp["data"].(map[string]interface{})["id"].(string)
+
+	fBody := `{"taxpayer_id":"` + taxpayerID + `","pan":"ZZZQQ9876L","tax_year":"2026-27","form_type":"ITR-1","regime":"NEW_REGIME"}`
+	fReq := httptest.NewRequest(http.MethodPost, "/api/v1/itr/filings", bytes.NewBufferString(fBody))
+	fReq.Header.Set("X-Tenant-Id", tenantID)
+	fReq.Header.Set("Content-Type", "application/json")
+	fW := httptest.NewRecorder()
+	router.ServeHTTP(fW, fReq)
+	require.Equal(t, 201, fW.Code)
+
+	var fResp map[string]interface{}
+	json.Unmarshal(fW.Body.Bytes(), &fResp)
+	filingID := fResp["data"].(map[string]interface{})["id"].(string)
+
+	oldSections := []string{"115BAC", "80C", "80D", "80CCD"}
+	for _, sec := range oldSections {
+		body := `{"head":"SALARY","section":"` + sec + `","description":"Test old section","amount":100000}`
+		incReq := httptest.NewRequest(http.MethodPost, "/api/v1/itr/filings/"+filingID+"/income", bytes.NewBufferString(body))
+		incReq.Header.Set("X-Tenant-Id", tenantID)
+		incReq.Header.Set("Content-Type", "application/json")
+		incW := httptest.NewRecorder()
+		router.ServeHTTP(incW, incReq)
+		assert.Equal(t, 400, incW.Code, "section %s should be rejected", sec)
+
+		var errResp map[string]interface{}
+		json.Unmarshal(incW.Body.Bytes(), &errResp)
+		assert.Contains(t, errResp["error"], "ITA 1961", "section %s rejection message", sec)
+	}
+}
+
+func TestAddIncomeEntry_AcceptsITA2025Sections(t *testing.T) {
+	_, router := setupRouter()
+	tenantID := uuid.New().String()
+
+	tpBody := `{"pan":"YYYPP8765K","name":"ITA2025 Test","date_of_birth":"1992-07-22","assessee_type":"INDIVIDUAL","residency_status":"RESIDENT"}`
+	tpReq := httptest.NewRequest(http.MethodPost, "/api/v1/itr/taxpayers", bytes.NewBufferString(tpBody))
+	tpReq.Header.Set("X-Tenant-Id", tenantID)
+	tpReq.Header.Set("Content-Type", "application/json")
+	tpW := httptest.NewRecorder()
+	router.ServeHTTP(tpW, tpReq)
+	require.Equal(t, 201, tpW.Code)
+
+	var tpResp map[string]interface{}
+	json.Unmarshal(tpW.Body.Bytes(), &tpResp)
+	taxpayerID := tpResp["data"].(map[string]interface{})["id"].(string)
+
+	fBody := `{"taxpayer_id":"` + taxpayerID + `","pan":"YYYPP8765K","tax_year":"2026-27","form_type":"ITR-1","regime":"NEW_REGIME"}`
+	fReq := httptest.NewRequest(http.MethodPost, "/api/v1/itr/filings", bytes.NewBufferString(fBody))
+	fReq.Header.Set("X-Tenant-Id", tenantID)
+	fReq.Header.Set("Content-Type", "application/json")
+	fW := httptest.NewRecorder()
+	router.ServeHTTP(fW, fReq)
+	require.Equal(t, 201, fW.Code)
+
+	var fResp map[string]interface{}
+	json.Unmarshal(fW.Body.Bytes(), &fResp)
+	filingID := fResp["data"].(map[string]interface{})["id"].(string)
+
+	body := `{"head":"SALARY","section":"202","description":"Salary income","amount":1200000}`
+	incReq := httptest.NewRequest(http.MethodPost, "/api/v1/itr/filings/"+filingID+"/income", bytes.NewBufferString(body))
+	incReq.Header.Set("X-Tenant-Id", tenantID)
+	incReq.Header.Set("Content-Type", "application/json")
+	incW := httptest.NewRecorder()
+	router.ServeHTTP(incW, incReq)
+	assert.Equal(t, 201, incW.Code)
+}

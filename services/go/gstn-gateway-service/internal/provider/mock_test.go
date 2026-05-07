@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -909,32 +910,14 @@ func TestMockProvider_GSTR9CStatus_Filed(t *testing.T) {
 // Real (Adaequare) Provider Tests
 // ---------------------------------------------------------------------------
 
-func TestAdaequareProvider_ReturnsErrNotImplemented(t *testing.T) {
-	a := NewAdaequareProvider("https://gsp.adaequare.com")
+func TestAdaequareProvider_FailsWithBadCredentials(t *testing.T) {
+	a := NewAdaequareProvider("https://gsp.adaequare.com/test", "bad-id", "bad-secret")
 
-	_, err := a.Authenticate(context.Background())
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	_, err = a.GSTR9Save(context.Background(), &domain.GSTR9SaveRequest{})
-	assert.ErrorIs(t, err, ErrNotImplemented)
-
-	_, err = a.GSTR9Submit(context.Background(), &domain.GSTR9SubmitRequest{})
-	assert.ErrorIs(t, err, ErrNotImplemented)
-
-	_, err = a.GSTR9File(context.Background(), &domain.GSTR9FileRequest{})
-	assert.ErrorIs(t, err, ErrNotImplemented)
-
-	_, err = a.GSTR9Status(context.Background(), &domain.GSTR9StatusRequest{})
-	assert.ErrorIs(t, err, ErrNotImplemented)
-
-	_, err = a.GSTR9CSave(context.Background(), &domain.GSTR9CSaveRequest{})
-	assert.ErrorIs(t, err, ErrNotImplemented)
-
-	_, err = a.GSTR9CFile(context.Background(), &domain.GSTR9CFileRequest{})
-	assert.ErrorIs(t, err, ErrNotImplemented)
-
-	_, err = a.GSTR9CStatus(context.Background(), &domain.GSTR9CStatusRequest{})
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	_, err := a.Authenticate(ctx)
+	assert.Error(t, err, "should fail with bad credentials")
 }
 
 func TestMockProvider_GSTR9_StateMachine(t *testing.T) {

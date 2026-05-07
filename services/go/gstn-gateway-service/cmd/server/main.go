@@ -29,8 +29,18 @@ func main() {
 		p = provider.NewMockProvider()
 	case "adaequare":
 		baseURL := envOr("ADAEQUARE_BASE_URL", "https://gsp.adaequare.com")
-		log.Warn().Msg("adaequare provider: stub only — all calls return ErrNotImplemented")
-		p = provider.NewAdaequareProvider(baseURL)
+		clientID := os.Getenv("ADAEQUARE_CLIENT_ID")
+		clientSecret := os.Getenv("ADAEQUARE_CLIENT_SECRET")
+		if clientID == "" || clientSecret == "" {
+			log.Fatal().Msg("ADAEQUARE_CLIENT_ID and ADAEQUARE_CLIENT_SECRET must be set for adaequare provider")
+		}
+		var opts []provider.AdaequareOption
+		if u, pw := os.Getenv("ADAEQUARE_TEST_USERNAME"), os.Getenv("ADAEQUARE_TEST_PASSWORD"); u != "" && pw != "" {
+			opts = append(opts, provider.WithTaxpayerCredentials(u, pw))
+			log.Info().Str("username", u).Msg("adaequare: using test taxpayer credentials")
+		}
+		log.Info().Str("base_url", baseURL).Msg("using adaequare GSTN provider")
+		p = provider.NewAdaequareProvider(baseURL, clientID, clientSecret, opts...)
 	default:
 		log.Fatal().Str("provider", providerMode).Msg("unknown GSTN_PROVIDER")
 	}

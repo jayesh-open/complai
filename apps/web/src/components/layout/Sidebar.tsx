@@ -9,6 +9,7 @@ import {
   FolderOpen, Mail, Settings, Users, Workflow, ShieldAlert,
   Wallet, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen,
   Sparkles, RefreshCw, Link2, ArrowDownToLine,
+  Calculator, ScrollText,
 } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
 import { cn } from "@/lib/utils";
@@ -20,10 +21,18 @@ interface NavItem {
   badge?: number;
 }
 
+interface NavBucket {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  items: NavItem[];
+}
+
 interface NavGroup {
   id: string;
   label?: string;
-  items: NavItem[];
+  items?: NavItem[];
+  buckets?: NavBucket[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -38,15 +47,28 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "compliance",
     label: "COMPLIANCE",
-    items: [
-      { label: "GST Returns", href: "/compliance/gst", icon: FileSpreadsheet },
-      { label: "E-Invoicing", href: "/compliance/e-invoicing", icon: FileCheck2 },
-      { label: "E-Way Bill", href: "/compliance/e-way-bill", icon: Truck },
-      { label: "ITC Reconciliation", href: "/compliance/itc-recon", icon: GitCompareArrows },
-      { label: "Vendor Compliance", href: "/compliance/vendor-compliance", icon: Gauge },
-      { label: "TDS/TCS", href: "/compliance/tds", icon: Receipt },
-      { label: "ITR", href: "/compliance/itr", icon: FileSpreadsheet },
-      { label: "Secretarial", href: "/compliance/secretarial", icon: ShieldAlert },
+    buckets: [
+      {
+        id: "direct-tax",
+        label: "Direct Tax (IT)",
+        icon: Calculator,
+        items: [
+          { label: "TDS / TCS", href: "/compliance/tds", icon: Receipt },
+          { label: "ITR", href: "/compliance/itr", icon: FileSpreadsheet },
+        ],
+      },
+      {
+        id: "indirect-tax",
+        label: "Indirect Tax (GST)",
+        icon: ScrollText,
+        items: [
+          { label: "GST Returns", href: "/compliance/gst", icon: FileSpreadsheet },
+          { label: "E-Invoicing", href: "/compliance/e-invoicing", icon: FileCheck2 },
+          { label: "E-Way Bill", href: "/compliance/e-way-bill", icon: Truck },
+          { label: "ITC Reconciliation", href: "/compliance/itc-reconciliation", icon: GitCompareArrows },
+          { label: "Vendor Compliance", href: "/compliance/vendor-compliance", icon: Gauge },
+        ],
+      },
     ],
   },
   {
@@ -93,6 +115,45 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+function NavItemLink({
+  item,
+  pathname,
+  collapsed,
+}: {
+  item: NavItem;
+  pathname: string;
+  collapsed: boolean;
+}) {
+  const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      data-testid="sidebar-item"
+      className={cn(
+        "flex items-center gap-3 rounded-[10px] transition-colors duration-150 mb-0.5",
+        collapsed ? "justify-center px-2 py-2" : "px-3 py-2",
+        active
+          ? "nav-active bg-[var(--accent-muted)] text-[var(--accent)] font-semibold"
+          : "text-foreground-secondary hover:bg-[var(--bg-tertiary)] hover:text-foreground",
+      )}
+    >
+      <Icon className="w-4 h-4 flex-shrink-0" style={{ width: 16, minWidth: 16 }} />
+      {!collapsed && (
+        <>
+          <span className="text-body-sm truncate flex-1">{item.label}</span>
+          {item.badge !== undefined && item.badge > 0 && (
+            <span data-testid="sidebar-badge" className="min-w-[18px] h-[18px] rounded-full bg-app-accent text-app-accent-t text-[9px] font-bold flex items-center justify-center px-1">
+              {item.badge}
+            </span>
+          )}
+        </>
+      )}
+    </Link>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -142,36 +203,42 @@ export function Sidebar() {
             {group.label && collapsed && (
               <div className="mx-3 my-2 border-t border-app-border" />
             )}
-            {(!group.label || !groupState[group.id]) &&
-              group.items.map((item) => {
-                const active = pathname === item.href || pathname?.startsWith(item.href + "/");
-                const Icon = item.icon;
+
+            {(!group.label || !groupState[group.id]) && group.items &&
+              group.items.map((item) => (
+                <NavItemLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+              ))}
+
+            {(!group.label || !groupState[group.id]) && group.buckets &&
+              group.buckets.map((bucket) => {
+                const BucketIcon = bucket.icon;
+                const bucketCollapsed = !!groupState[bucket.id];
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={collapsed ? item.label : undefined}
-                    data-testid="sidebar-item"
-                    className={cn(
-                      "flex items-center gap-3 rounded-[10px] transition-colors duration-150 mb-0.5",
-                      collapsed ? "justify-center px-2 py-2" : "px-3 py-2",
-                      active
-                        ? "nav-active bg-[var(--accent-muted)] text-[var(--accent)] font-semibold"
-                        : "text-foreground-secondary hover:bg-[var(--bg-tertiary)] hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" style={{ width: 16, minWidth: 16 }} />
-                    {!collapsed && (
-                      <>
-                        <span className="text-body-sm truncate flex-1">{item.label}</span>
-                        {item.badge !== undefined && item.badge > 0 && (
-                          <span data-testid="sidebar-badge" className="min-w-[18px] h-[18px] rounded-full bg-app-accent text-app-accent-t text-[9px] font-bold flex items-center justify-center px-1">
-                            {item.badge}
-                          </span>
+                  <div key={bucket.id} className="mb-0.5" data-testid={`sidebar-bucket-${bucket.id}`}>
+                    {!collapsed ? (
+                      <button
+                        onClick={() => toggleGroup(bucket.id)}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-body-xs font-medium text-foreground-muted hover:text-foreground-secondary rounded-[10px] hover:bg-[var(--bg-tertiary)] transition-colors duration-150"
+                        data-testid={`sidebar-bucket-toggle-${bucket.id}`}
+                      >
+                        <BucketIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate flex-1 text-left">{bucket.label}</span>
+                        {bucketCollapsed ? (
+                          <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 flex-shrink-0" />
                         )}
-                      </>
+                      </button>
+                    ) : (
+                      <div className="mx-3 my-1 border-t border-app-border/50" />
                     )}
-                  </Link>
+                    {!bucketCollapsed &&
+                      bucket.items.map((item) => (
+                        <div key={item.href} className={cn(!collapsed && "pl-2")}>
+                          <NavItemLink item={item} pathname={pathname} collapsed={collapsed} />
+                        </div>
+                      ))}
+                  </div>
                 );
               })}
           </div>

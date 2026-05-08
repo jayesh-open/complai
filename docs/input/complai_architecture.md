@@ -74,7 +74,6 @@ One per major compliance workflow. Complai does not own AP automation (Apex), AR
 | `itr-service` | Go | ITR filing for employer-bulk and CA-assisted flows |
 | `vendor-compliance-service` | Go | Consume vendor master from Apex (read-only sync), compliance scoring, MaxITC orchestration. No vendor CRUD. |
 | `recon-service` | Go | 5-stage match pipeline, IMS actions, bucket views. Consumes AP invoice register from Apex as "purchase register". |
-| `secretarial-service` | Go | ROC filings (MCA21), registers, minutes, resolutions |
 
 **Note:** e-Invoice, E-Way Bill, GSTR-2A/2B, and MaxITC modules exist in both Aura (AR operational user) and Complai (compliance officer) with real-time sync. For Phase 1, Complai builds these standalone; cross-app sync is a Phase 2 concern.
 
@@ -103,7 +102,7 @@ Thin, single-responsibility services. Split into two families: **external provid
 |---|---|---|---|
 | `apex-gateway-service` | Apex (P2P) | Vendor master, AP invoices, payments, POs, GRNs | — |
 | `aura-gateway-service` | Aura (O2C) | Customer master, AR invoices | Filed-IRN-status, EWB status |
-| `bridge-gateway-service` | Bridge (Contracts) | Contracts (for TDS section determination, secretarial obligations) | — |
+| `bridge-gateway-service` | Bridge (Contracts) | Contracts (for TDS section determination) | — |
 | `hrms-gateway-service` | HRMS (external) | Payroll data, Form 16 | — |
 
 For Phase 1, sibling gateways use mock data sources. Real integration in Part 13.
@@ -157,7 +156,6 @@ complai-primary-rds
 ├── itr_db
 ├── vendor_compliance_db
 ├── recon_db
-├── secretarial_db
 ├── workflow_db
 ├── reporting_db
 └── rules_engine_db
@@ -636,7 +634,7 @@ Complai is the compliance layer in the Bank Open product family. It consumes tra
 |---|---|---|---|
 | **Apex** | Procure-to-Pay | Vendor master (read-only), AP invoices, payments, POs, GRNs | In UAT |
 | **Aura** | Order-to-Cash + AR | Customer master, AR invoices; publishes back filed-IRN-status, EWB status | Early stage |
-| **Bridge** | Contract management | Contracts (TDS section determination from contract clauses; secretarial obligations) | Early stage |
+| **Bridge** | Contract management | Contracts (TDS section determination from contract clauses) | Early stage |
 | **HRMS** | Payroll (external) | Payroll data, Form 16 (for ITR filing + 24Q salary TDS) | External |
 
 ### How data flows
@@ -809,7 +807,6 @@ complai/
 │   │   ├── itr-service/
 │   │   ├── vendor-compliance-service/
 │   │   ├── recon-service/
-│   │   ├── secretarial-service/
 │   │   ├── reporting-service/
 │   │   ├── gstn-gateway/
 │   │   ├── irp-gateway/

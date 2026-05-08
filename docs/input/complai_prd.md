@@ -16,7 +16,7 @@ Complai is one of four sibling applications in the **Bank Open** product family:
 | **Apex** | Procure-to-Pay (vendor master, POs, GRNs, AP invoices, AP payments) | In UAT |
 | **Aura** | Order-to-Cash + AR (customer master, AR invoices, payment collection, e-Invoice, E-Way Bill, GSTR-2A/2B view, MaxITC view) | Early stage |
 | **Bridge** | Contract management | Early stage |
-| **Complai** | Compliance (GST filings, TDS, ITR, Secretarial, audit) | This app |
+| **Complai** | Compliance (GST filings, TDS, ITR, audit) | This app |
 
 Plus an **external HRMS** for payroll and Form 16.
 
@@ -32,7 +32,7 @@ Plus an **external HRMS** for payroll and Form 16.
 
 ### 1.1 What Complai is
 
-Complai is the **compliance layer** in the Bank Open product family — an enterprise-grade compliance SaaS platform for Indian businesses. It handles a company's regulatory obligations: GST returns, e-Invoicing, e-Way Bills, ITC reconciliation, TDS/TCS, income tax, and secretarial compliance. It consumes transactional data from sibling apps (Apex for AP, Aura for AR, Bridge for contracts, HRMS for payroll) and adds compliance intelligence on top.
+Complai is the **compliance layer** in the Bank Open product family — an enterprise-grade compliance SaaS platform for Indian businesses. It handles a company's regulatory obligations: GST returns, e-Invoicing, e-Way Bills, ITC reconciliation, TDS/TCS, and income tax. It consumes transactional data from sibling apps (Apex for AP, Aura for AR, Bridge for contracts, HRMS for payroll) and adds compliance intelligence on top.
 
 Complai targets mid-market and enterprise Indian businesses (₹100 Cr to ₹10,000 Cr revenue) that today either stitch together 4–8 point solutions or run ad-hoc spreadsheet-based processes with dedicated compliance teams. The platform replaces the compliance stack with one unified product.
 
@@ -83,11 +83,12 @@ Complai organizes into seven compliance-focused modules plus a horizontal platfo
 | 4 | **ITC Reconciliation + MaxITC + Vendor Compliance Scoring** | Tax Managers, CFOs | Protects ₹ lakhs-crores of ITC; vendor master sourced from Apex |
 | 5 | **TDS / TCS** | Tax Analysts | Quarterly filings, Form 16 generation |
 | 6 | **Income Tax (ITR)** | Employees, CAs, HR | Employer-bulk filing, CA marketplace |
-| 7 | **Secretarial (Compliance Cloud)** | Company Secretaries | ROC filings, registers, minutes |
 
-Plus the **Platform Layer** — identity, tenancy, users/roles, master data, documents, notifications, audit, workflow, rules engine — shared across all 7 modules.
+Plus the **Platform Layer** — identity, tenancy, users/roles, master data, documents, notifications, audit, workflow, rules engine — shared across all 6 modules.
 
 Plus the **Integration Layer** — gateway services consuming data from Apex (AP), Aura (AR), Bridge (contracts), and HRMS (payroll). See §8.
+
+> **Note:** Secretarial compliance (MCA filings, ROC, statutory registers) is out of scope for Complai. It is being built as a separate sibling app in the Bank Open ecosystem.
 
 ---
 
@@ -382,37 +383,6 @@ ITR-1 through ITR-7, including:
 
 ---
 
-## 9. Module 7 — Compliance Cloud (Secretarial)
-
-### 9.1 Purpose
-
-Company Secretary / legal compliance for corporates and LLPs — ROC filings, board/shareholder resolutions, statutory registers, director KYC.
-
-### 9.2 Features
-
-- Entity registry (companies, LLPs, directors, DINs)
-- Filing calendar with statutory deadlines
-- Form preparation and filing via MCA21 V3:
-  - AOC-4 (annual financial statement)
-  - MGT-7 (annual return)
-  - DIR-3 KYC (director KYC)
-  - ADT-1 (auditor appointment)
-  - CHG-1 (charge creation)
-  - INC-22 (registered office change)
-  - Many others
-- Statutory registers (members, directors, charges)
-- Resolution library (templates + past resolutions)
-- Minutes management
-- Compliance health score per entity
-- Auditor / CS collaboration
-
-### 9.3 Notes
-
-- MCA21 integration is direct (no aggregator covers this fully)
-- Supports companies with 1 to 500+ subsidiaries
-
----
-
 ## 10. Platform Layer
 
 Shared services underneath all 7 modules.
@@ -544,7 +514,7 @@ Complai consumes data from the Bank Open sibling applications via dedicated gate
 │  Bridge   │ ──────────────────▶ │    Complai     │
 │(contracts)│                     │ (compliance)   │
 └──────────┘                     └───────────────┘
-        used for: TDS section determination, secretarial obligations
+        used for: TDS section determination
 
 ┌──────────┐    Payroll,          ┌───────────────┐
 │   HRMS   │    Form 16 ────────▶ │    Complai     │
@@ -667,8 +637,8 @@ For Phase 1, gateway services use mock data sources (since sibling apps don't ex
 ### Phase 1 (Weeks 1–8): Core MVP
 Modules: Platform layer + GST (1) + e-Invoicing (2) + EWB (3) + ITC Recon + Vendor Compliance Scoring (4) — limited to core reconciliation; vendor master stubbed from Apex
 
-### Phase 2 (Weeks 9–14): TDS + ITR + Secretarial
-Modules: TDS (5) + ITR (6) + Compliance Cloud (7)
+### Phase 2 (Weeks 9–14): TDS + ITR
+Modules: TDS (5) + ITR (6)
 
 ### Phase 3 (Weeks 15–20): Integration gateways + AI layer
 Apex/Aura/Bridge/HRMS gateway services (mock → real); AI intelligence; MaxITC orchestration

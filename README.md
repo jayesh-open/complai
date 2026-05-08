@@ -7,7 +7,7 @@ Enterprise GST, TDS, and compliance SaaS platform for Indian businesses.
 Complai is composed of ~28 services organized into five families:
 
 - **Platform services (9)** -- identity, tenant, user/role, master data, document, notification, audit, workflow, rules engine. Shared infrastructure every domain module depends on.
-- **Domain services (11)** -- one per compliance workflow: GST, GSTR-9, e-Invoice, E-Way Bill, TDS, ITR, vendor management, reconciliation, AP automation, billing, secretarial.
+- **Domain services (10)** -- one per compliance workflow: GST, GSTR-9, e-Invoice, E-Way Bill, TDS, ITR, vendor management, reconciliation, AP automation, billing.
 - **Gateway services (8+)** -- thin services that talk to external providers (Adaequare for GST/IRP/EWB, Sandbox.co.in for TDS/ITR/KYC, direct bank and ERP integrations). Each gateway normalizes responses into an internal contract.
 - **AI/ML services (3)** -- Python services for reconciliation matching (CatBoost), LLM copilot, and OCR extraction. Phase 4+.
 - **Web-facing services (4)** -- Node/NestJS BFFs for each frontend app, plus a Go reporting service for PDF/Excel/CSV generation.
@@ -101,7 +101,6 @@ complai/
 │   │   ├── recon-service/          # 5-stage match pipeline, IMS actions
 │   │   ├── ap-service/             # Invoice ingestion, 3-way match, approvals
 │   │   ├── billing-service/        # Complai One SMB billing
-│   │   ├── secretarial-service/    # ROC filings, registers, minutes
 │   │   ├── reporting-service/      # PDF/Excel/CSV report generation
 │   │   ├── gstn-gateway/           # Adaequare -- GSTR returns, IMS, ledgers
 │   │   ├── irp-gateway/            # Adaequare -- e-Invoice IRN

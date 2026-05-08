@@ -559,7 +559,7 @@ None yet.
 
 1. **`aura-gateway-service` (Go)** — Consumes customer master and AR invoices from Aura O2C. Publishes back filed-IRN-status and EWB status to Aura. Phase 1: mock data source. Internal contract `POST /v1/gateway/aura/{resource}/{action}`. Publishes `InvoiceSynced.topic` (AR). Data Sources > Imported AR Invoices view.
 
-2. **`bridge-gateway-service` (Go)** — Consumes contracts from Bridge for TDS section determination and secretarial obligations. Phase 1: mock data source. Internal contract `POST /v1/gateway/bridge/{resource}/{action}`. Canonical Contract Schema mapping.
+2. **`bridge-gateway-service` (Go)** — Consumes contracts from Bridge for TDS section determination. Phase 1: mock data source. Internal contract `POST /v1/gateway/bridge/{resource}/{action}`. Canonical Contract Schema mapping.
 
 3. **`hrms-gateway-service` (Go)** — Consumes payroll data and Form 16 from external HRMS. Phase 1: mock data source. Internal contract `POST /v1/gateway/hrms/{resource}/{action}`. Canonical Payroll Schema mapping. Used by TDS (24Q salary) and ITR (employer-side bulk filing).
 
@@ -606,7 +606,7 @@ None yet.
 
 ## PART 13 — Real Bank Open Sibling Sync + GL-Stream + Compliance Cloud (~10h)
 
-**Goal:** Replace mock sibling gateways with real Apex/Aura/Bridge/HRMS integrations; Compliance Cloud (secretarial); GL stream back to siblings.
+**Goal:** Replace mock sibling gateways with real Apex/Aura/Bridge/HRMS integrations; GL stream back to siblings.
 
 **Inputs:** PRD §11 (Integration Layer); architecture §10A.
 
@@ -616,24 +616,21 @@ None yet.
 
 2. **Real Aura sync (`aura-gateway-service`)** — replace mock with real Aura O2C API; AR invoice sync; publish back filed-IRN-status + EWB status to Aura for their invoice lifecycle.
 
-3. **Real Bridge sync (`bridge-gateway-service`)** — replace mock with real Bridge API; contract sync for TDS section determination + secretarial obligation tracking.
+3. **Real Bridge sync (`bridge-gateway-service`)** — replace mock with real Bridge API; contract sync for TDS section determination.
 
 4. **Real HRMS sync (`hrms-gateway-service`)** — replace mock with real HRMS API; payroll + Form 16 sync for 24Q + ITR.
 
 5. **`gl-stream-service` (Go)** — real-time GL posting from compliance actions (tax paid, ITC claimed, TDS deposited); double-entry integrity; push journals back to Apex/Aura via sibling gateways.
 
-6. **`secretarial-service` (Go) — Compliance Cloud** — entity registry (companies, LLPs, directors, DINs); filing calendar (AOC-4, MGT-7, DIR-3 KYC, ADT-1, CHG-1); MCA21 V3 integration (direct); document mgmt; compliance health score per entity; consumes company structure from Bridge.
-
 **Tests:**
 
 - Apex real sync: vendor master changes in Apex → reflected in Complai within 60s.
 - Aura round-trip: AR invoice synced → IRN generated → status pushed back to Aura.
-- Bridge: contract synced → correct TDS section derived → secretarial obligations created.
+- Bridge: contract synced → correct TDS section derived.
 - HRMS: payroll synced → 24Q pre-populated correctly.
-- ROC: AOC-4 → XML → MCA21 test → SRN received.
 - GL integrity: daily imbalance = 0 across synthetic week.
 
-**DoD:** all 4 sibling gateways on real APIs; secretarial works; GL sync operational. Committed: `feat(integrations): real sibling sync, mca21, gl-stream`.
+**DoD:** all 4 sibling gateways on real APIs; GL sync operational. Committed: `feat(integrations): real sibling sync, gl-stream`.
 
 > **Credential checkpoint:** Apex/Aura/Bridge API access (UAT), HRMS API, MCA21 test. Stub if missing.
 

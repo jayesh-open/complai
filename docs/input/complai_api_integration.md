@@ -419,9 +419,6 @@ Adaequare e-Invoice + EWB + GSTR-1. Sandbox KYC for customer GSTIN. Razorpay/Cas
 ### Module 10 — Vendor Management
 Sandbox KYC as single integration point. Adaequare `getReturnTrack` for compliance scoring.
 
-### Module 11 — Compliance Cloud (Secretarial)
-Sandbox KYC: MCA reads. Direct MCA21: form filing (no aggregator covers this).
-
 ---
 
 ## 7. Implementation Standards

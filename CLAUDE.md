@@ -13,7 +13,9 @@ Complai is one of four sibling apps plus an external HRMS:
 
 **Boundary rule:** Complai does NOT own vendor master (Apex), AP invoices (Apex), AR invoices (Aura), or contracts (Bridge). It consumes from siblings via gateways and adds compliance value on top.
 
-**7 compliance modules:** GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation + MaxITC + Vendor Compliance Scoring, TDS/TCS, ITR, Secretarial.
+**6 compliance modules:** GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation + MaxITC + Vendor Compliance Scoring, TDS/TCS, ITR.
+
+**Out of scope:** Secretarial compliance (MCA filings, ROC, statutory registers) is being built as a separate sibling app in the Bank Open ecosystem. Active modules in Complai (9 filing types): GSTR-1, GSTR-3B, GSTR-9, GSTR-9C, E-Invoicing, E-Way Bill, ITC Reconciliation + Vendor Compliance (Indirect Tax — GST), and TDS/TCS, ITR (Direct Tax — IT).
 
 **Shared compliance modules (Phase 2):** e-Invoice, E-Way Bill, GSTR-2A/2B view, MaxITC view exist in BOTH Aura and Complai with real-time sync. Phase 1 = standalone.
 

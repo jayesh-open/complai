@@ -103,7 +103,6 @@ Each top-level module has an identity color used in its icon and module hero. Id
 | ITC Reconciliation + MaxITC + Vendor Compliance | `success` |
 | TDS/TCS | `purple` |
 | ITR | `pink` |
-| Secretarial | `orange` |
 | Data Sources | `info` |
 | Reports & Analytics | `purple` |
 | Settings & Config | `textMuted` |
@@ -130,7 +129,6 @@ Each top-level module has an identity color used in its icon and module hero. Id
 │   ITC Reconciliation                │
 │   TDS / TCS                         │
 │   ITR                               │
-│   Secretarial                       │
 │                                     │
 │ ── INSIGHTS ────────────────────    │
 │   CFO Dashboard                     │
@@ -339,7 +337,7 @@ Single-page, no scroll at 1440px:
 ```
 Row 1: KPI cards (4) — Net GST outflow, ITC unblocked YTD, Pending refunds, Vendor risk score
 Row 2: Charts (2) — GST outflow trend (12 months), Vendor risk distribution
-Row 3: Compliance health (4 mini-cards by module) — GST, TDS, E-Invoice, Secretarial
+Row 3: Compliance health (4 mini-cards by module) — GST, TDS, E-Invoice, ITR
 Row 4: Action items (1 wide card) — top 5 things needing CFO attention
 ```
 
@@ -835,7 +833,6 @@ Predictable URL structure:
 /compliance/tds/{tan}/{quarter}/26q
 /compliance/itr/employer
 
-/compliance/secretarial
 
 /data-sources/connected-apps
 /data-sources/sync-status

@@ -403,7 +403,7 @@ Per-package breakdown (only `api` packages have tests; gateway, store, domain = 
 - [x] Removed orphan databases from postgres-init.sh: `ap_db`, `billing_db`, `vendor_db` (remnants of pre-Part 4.5 scope, never had migrations or services)
 - [x] Dropped orphan databases from running Postgres container
 - [x] Reorganized DATABASES array by build part sequence with comments
-- Forward-provisioned databases kept: `tds_db` (Part 9), `gstr9_db`/`itr_db` (Part 10), `reporting_db` (Part 14), `secretarial_db` (future)
+- Forward-provisioned databases kept: `tds_db` (Part 9), `gstr9_db`/`itr_db` (Part 10), `reporting_db` (Part 14)
 
 #### Part 5 hardening tests
 - [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count
@@ -431,6 +431,7 @@ Complai consumes from siblings via 4 gateway services (apex-gateway, aura-gatewa
 - **Vendor Management (CRUD)** — Apex P2P owns vendor master; Complai only does compliance scoring on synced data
 - **Vendor Portal** — Apex P2P provides vendor self-service portal
 - **Portal BFF + SMB BFF** — removed (no vendor-portal or complai-one apps)
+- **Secretarial compliance (May 9, 2026)** — Secretarial compliance (MCA21 ROC filings, AOC-4, MGT-7, DIR-3 KYC, ADT-1, CHG-1; statutory registers; board minutes; resolutions) is being built as a SEPARATE sibling app in the Bank Open ecosystem, not as a Complai module. This decision keeps Complai focused on tax compliance (GST + TDS + ITR). The separate secretarial app will have its own user persona (Company Secretary), regulator (MCA), data model, and lifecycle. All secretarial references previously in docs/input/* have been removed. Bridge integration (gateway in Complai) remains for TDS section determination from contract clauses; secretarial obligation tracking is no longer a Bridge integration concern within Complai.
 
 ## Blockers / credentials needed
 - AWS account with IAM roles + ap-south-1/ap-south-2 enabled (Part 1)

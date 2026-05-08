@@ -20,7 +20,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/compliance/vendor-compliance": "Vendor Compliance",
   "/compliance/tds": "TDS/TCS",
   "/compliance/itr": "ITR",
-  "/compliance/secretarial": "Secretarial",
   "/insights/cfo": "CFO Dashboard",
   "/insights/reports": "Reports & Analytics",
   "/insights/audit-trail": "Audit Trail",

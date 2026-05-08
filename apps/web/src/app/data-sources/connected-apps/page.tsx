@@ -13,7 +13,7 @@ export default function ConnectedAppsPage() {
         {[
           { name: "Apex P2P", status: "Connected", desc: "Vendor master, AP invoices, payments" },
           { name: "Aura O2C", status: "Pending", desc: "Customer master, AR invoices" },
-          { name: "Bridge", status: "Pending", desc: "Contracts, secretarial obligations" },
+          { name: "Bridge", status: "Pending", desc: "Contracts (TDS section determination from contract clauses)" },
           { name: "HRMS", status: "Pending", desc: "Payroll data, Form 16" },
         ].map((app) => (
           <div key={app.name} className="bg-app-card border border-app-border rounded-card p-5">

@@ -9,6 +9,7 @@ import { ComplianceCategoryBadge } from "./ComplianceCategoryBadge";
 function StatusPill({ status }: { status: ComplianceEvent["status"] }) {
   const config: Record<string, { bg: string; text: string; label: string }> = {
     filed: { bg: "#ECFDF5", text: "#065F46", label: "Filed" },
+    filed_late: { bg: "#FEF3C7", text: "#92400E", label: "Filed Late" },
     due_soon: { bg: "#FFFBEB", text: "#92400E", label: "Due Soon" },
     upcoming: { bg: "#F3F4F6", text: "#374151", label: "Upcoming" },
     overdue: { bg: "#FEF2F2", text: "#991B1B", label: "Overdue" },

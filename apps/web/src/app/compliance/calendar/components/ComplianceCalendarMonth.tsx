@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import type { ComplianceEvent, EventCategory } from "../types";
-import { getComplianceEvents, resolveEventsForMonth } from "../mock-data";
+import type { EventCategory } from "../types";
+import { resolveEventsForMonth } from "../mock-data";
+import { useCalendarEvents } from "../hooks/useCalendarEvents";
 import { MonthNavigation } from "./MonthNavigation";
 import { StatusLegend } from "./ComplianceStatusIcon";
 import { ComplianceCategoryBadge } from "./ComplianceCategoryBadge";
 import { ComplianceStatCard } from "./ComplianceStatCard";
 import { ComplianceDayCell } from "./ComplianceDayCell";
 import { ComplianceDayDetailPanel } from "./ComplianceDayDetailPanel";
+import { CalendarSkeleton } from "./CalendarSkeleton";
+import { ErrorBanner } from "./ErrorBanner";
 
 const WEEKDAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -42,7 +45,7 @@ export function ComplianceCalendarMonth() {
   });
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  const allEvents = useMemo(() => getComplianceEvents(today), [today]);
+  const { events: allEvents, loading, usingMockData } = useCalendarEvents(year, month);
 
   const filteredEvents = useMemo(() => {
     return allEvents.filter((e) => categoryFilters[e.category]);
@@ -83,7 +86,7 @@ export function ComplianceCalendarMonth() {
     return filteredEvents.filter((e) => isSameDay(e.dueDate, selectedDate));
   }, [selectedDate, filteredEvents]);
 
-  const filedCount = monthEvents.filter((e) => e.status === "filed").length;
+  const filedCount = monthEvents.filter((e) => e.status === "filed" || e.status === "filed_late").length;
   const dueSoonCount = filteredEvents.filter((e) => {
     const diff = Math.ceil((e.dueDate.getTime() - today.getTime()) / 86400000);
     return diff >= 0 && diff <= 7;
@@ -92,6 +95,8 @@ export function ComplianceCalendarMonth() {
 
   return (
     <div className="space-y-4">
+      {usingMockData && <ErrorBanner key={`${year}-${month}`} />}
+
       {/* Header row */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -114,34 +119,38 @@ export function ComplianceCalendarMonth() {
       </div>
 
       {/* Grid */}
-      <div className="border border-[var(--border-default)] rounded-xl overflow-hidden">
-        {/* Weekday headers */}
-        <div className="grid grid-cols-7 border-b border-[var(--border-default)]">
-          {WEEKDAY_HEADERS.map((d) => (
-            <div key={d} className="text-center text-caption text-[var(--text-muted)] py-2 font-semibold bg-[var(--bg-secondary)]">
-              {d}
-            </div>
-          ))}
-        </div>
+      {loading ? (
+        <CalendarSkeleton />
+      ) : (
+        <div className="border border-[var(--border-default)] rounded-xl overflow-hidden">
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 border-b border-[var(--border-default)]">
+            {WEEKDAY_HEADERS.map((d) => (
+              <div key={d} className="text-center text-caption text-[var(--text-muted)] py-2 font-semibold bg-[var(--bg-secondary)]">
+                {d}
+              </div>
+            ))}
+          </div>
 
-        {/* Date cells */}
-        <div className="grid grid-cols-7" style={{ gridAutoRows: "110px" }}>
-          {gridCells.map((cellDate, i) => {
-            const isCurrentMonth = cellDate.getMonth() === month && cellDate.getFullYear() === year;
-            const dayEvents = filteredEvents.filter((e) => isSameDay(e.dueDate, cellDate));
-            return (
-              <ComplianceDayCell
-                key={i}
-                date={cellDate}
-                events={dayEvents}
-                isToday={isSameDay(cellDate, today)}
-                isCurrentMonth={isCurrentMonth}
-                onClick={() => setSelectedDate(cellDate)}
-              />
-            );
-          })}
+          {/* Date cells */}
+          <div className="grid grid-cols-7" style={{ gridAutoRows: "110px" }}>
+            {gridCells.map((cellDate, i) => {
+              const isCurrentMonth = cellDate.getMonth() === month && cellDate.getFullYear() === year;
+              const dayEvents = filteredEvents.filter((e) => isSameDay(e.dueDate, cellDate));
+              return (
+                <ComplianceDayCell
+                  key={i}
+                  date={cellDate}
+                  events={dayEvents}
+                  isToday={isSameDay(cellDate, today)}
+                  isCurrentMonth={isCurrentMonth}
+                  onClick={() => setSelectedDate(cellDate)}
+                />
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-3">

@@ -660,7 +660,7 @@ export function getComplianceEvents(today: Date = new Date()): (ComplianceEvent 
   return EVENTS_TEMPLATE.map((tmpl, i) => ({
     ...tmpl,
     id: `evt-${String(i + 1).padStart(3, "0")}`,
-    dueDate: addDays(today, tmpl.dueDateOffset),
+    dueDate: addDays(today, tmpl.dueDateOffset ?? 0),
   }));
 }
 

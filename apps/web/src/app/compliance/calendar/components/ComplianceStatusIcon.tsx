@@ -4,6 +4,7 @@ import type { EventStatus } from "../types";
 
 const STATUS_CONFIG: Record<EventStatus, { color: string; label: string }> = {
   filed: { color: "#0F6E56", label: "Filed" },
+  filed_late: { color: "#92400E", label: "Filed late" },
   due_soon: { color: "#BA7517", label: "Due soon" },
   upcoming: { color: "#6B7280", label: "Upcoming" },
   overdue: { color: "#DC2626", label: "Overdue" },
@@ -18,7 +19,7 @@ export function ComplianceStatusIcon({
 }) {
   const cfg = STATUS_CONFIG[status];
 
-  if (status === "filed") {
+  if (status === "filed" || status === "filed_late") {
     return (
       <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-label={cfg.label}>
         <circle cx="8" cy="8" r="7" fill={cfg.color} />

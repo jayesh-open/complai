@@ -9,7 +9,7 @@ import {
   FolderOpen, Mail, Settings, Users, Workflow, ShieldAlert,
   Wallet, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen,
   Sparkles, RefreshCw, Link2, ArrowDownToLine,
-  Calculator, ScrollText,
+  Calculator, ScrollText, CalendarDays,
 } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "compliance",
     label: "COMPLIANCE",
+    items: [
+      { label: "Calendar", href: "/compliance/calendar", icon: CalendarDays },
+    ],
     buckets: [
       {
         id: "direct-tax",

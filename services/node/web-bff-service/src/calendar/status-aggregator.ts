@@ -1,8 +1,4 @@
-import type { ComplianceEvent, FilingStatusResult, EventStatus } from './calendar.types';
-import type { GstServiceClient } from './clients/gst-service-client';
-import type { Gstr9ServiceClient } from './clients/gstr9-service-client';
-import type { TdsServiceClient } from './clients/tds-service-client';
-import type { ItrServiceClient } from './clients/itr-service-client';
+import type { ComplianceEvent, FilingQuery, FilingStatusProvider, EventStatus } from './calendar.types';
 
 const GST_EVENT_TYPES = new Set([
   'gstr1_monthly', 'gstr1_iff_m1', 'gstr1_iff_m2', 'gstr1_qrmp',
@@ -23,7 +19,7 @@ const ITR_EVENT_TYPES = new Set([
 ]);
 
 function resolveStatus(
-  filingResult: FilingStatusResult,
+  filingResult: { status: 'filed' | 'submitted' | null; filedAt?: Date },
   dueDate: string,
   now: Date,
 ): EventStatus {
@@ -45,15 +41,22 @@ function resolveStatus(
 }
 
 export interface StatusAggregatorDeps {
-  gstClient: GstServiceClient;
-  gstr9Client: Gstr9ServiceClient;
-  tdsClient: TdsServiceClient;
-  itrClient: ItrServiceClient;
+  gstClient: FilingStatusProvider;
+  gstr9Client: FilingStatusProvider;
+  tdsClient: FilingStatusProvider;
+  itrClient: FilingStatusProvider;
+}
+
+export interface AggregationContext {
+  tenantId: string;
+  gstin?: string;
+  pan?: string;
 }
 
 export async function aggregateStatuses(
   events: ComplianceEvent[],
   deps: StatusAggregatorDeps,
+  context: AggregationContext,
   now: Date = new Date(),
 ): Promise<ComplianceEvent[]> {
   const enriched = await Promise.all(
@@ -64,11 +67,14 @@ export async function aggregateStatuses(
       }
 
       try {
-        const result = await client.getFilingStatus(
-          event.eventType,
-          event.id,
-          event.dueDate,
-        );
+        const query: FilingQuery = {
+          eventType: event.eventType,
+          tenantId: context.tenantId,
+          dueDate: event.dueDate,
+          gstin: context.gstin,
+          pan: context.pan,
+        };
+        const result = await client.getFilingStatus(query);
         return { ...event, status: resolveStatus(result, event.dueDate, now) };
       } catch {
         return { ...event, status: 'upcoming' as EventStatus };
@@ -82,7 +88,7 @@ export async function aggregateStatuses(
 function getClientForEvent(
   eventType: string,
   deps: StatusAggregatorDeps,
-): StatusAggregatorDeps[keyof StatusAggregatorDeps] | null {
+): FilingStatusProvider | null {
   if (GST_EVENT_TYPES.has(eventType)) return deps.gstClient;
   if (GSTR9_EVENT_TYPES.has(eventType)) return deps.gstr9Client;
   if (TDS_EVENT_TYPES.has(eventType)) return deps.tdsClient;

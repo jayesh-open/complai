@@ -28,6 +28,18 @@ export interface FilingStatusResult {
   filedAt?: Date;
 }
 
+export interface FilingQuery {
+  eventType: string;
+  tenantId: string;
+  dueDate: string;
+  gstin?: string;
+  pan?: string;
+}
+
+export interface FilingStatusProvider {
+  getFilingStatus(query: FilingQuery): Promise<FilingStatusResult>;
+}
+
 export type FilingScheme = 'monthly' | 'qrmp';
 export type BusinessType = 'company' | 'llp' | 'proprietorship' | 'trust';
 

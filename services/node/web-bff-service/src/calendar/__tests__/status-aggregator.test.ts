@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { aggregateStatuses, type StatusAggregatorDeps } from '../status-aggregator';
-import type { ComplianceEvent, FilingStatusResult } from '../calendar.types';
+import type { ComplianceEvent, FilingStatusResult, FilingStatusProvider } from '../calendar.types';
 
 function makeEvent(overrides: Partial<ComplianceEvent> = {}): ComplianceEvent {
   return {
@@ -16,7 +16,7 @@ function makeEvent(overrides: Partial<ComplianceEvent> = {}): ComplianceEvent {
   };
 }
 
-function makeMockClient(result: FilingStatusResult = { status: null }) {
+function makeMockClient(result: FilingStatusResult = { status: null }): FilingStatusProvider & { getFilingStatus: ReturnType<typeof vi.fn> } {
   return {
     getFilingStatus: vi.fn().mockResolvedValue(result),
   };
@@ -45,7 +45,7 @@ describe('aggregateStatuses', () => {
       }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-15'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
     expect(result[0]!.status).toBe('filed');
   });
 
@@ -61,7 +61,7 @@ describe('aggregateStatuses', () => {
       }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-15'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
     expect(result[0]!.status).toBe('filed');
   });
 
@@ -77,7 +77,7 @@ describe('aggregateStatuses', () => {
       }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-26'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-26'));
     expect(result[0]!.status).toBe('filed_late');
   });
 
@@ -90,7 +90,7 @@ describe('aggregateStatuses', () => {
       gstClient: makeMockClient({ status: null }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-25'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-25'));
     expect(result[0]!.status).toBe('overdue');
   });
 
@@ -103,7 +103,7 @@ describe('aggregateStatuses', () => {
       gstClient: makeMockClient({ status: null }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-15'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
     expect(result[0]!.status).toBe('due_soon');
   });
 
@@ -116,7 +116,7 @@ describe('aggregateStatuses', () => {
       gstClient: makeMockClient({ status: null }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-01'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-01'));
     expect(result[0]!.status).toBe('upcoming');
   });
 
@@ -130,7 +130,7 @@ describe('aggregateStatuses', () => {
     };
     const deps = makeDeps({ gstClient: failingClient });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-25'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-25'));
     expect(result[0]!.status).toBe('upcoming');
   });
 
@@ -141,7 +141,7 @@ describe('aggregateStatuses', () => {
       const client = makeMockClient({ status: 'filed', filedAt: new Date('2026-05-01') });
       const deps = makeDeps({ gstClient: client });
 
-      await aggregateStatuses([event], deps, new Date('2026-05-15'));
+      await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
       expect(client.getFilingStatus).toHaveBeenCalledOnce();
     }
   });
@@ -152,7 +152,7 @@ describe('aggregateStatuses', () => {
       const client = makeMockClient({ status: 'filed', filedAt: new Date('2026-05-01') });
       const deps = makeDeps({ gstr9Client: client });
 
-      await aggregateStatuses([event], deps, new Date('2026-05-15'));
+      await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
       expect(client.getFilingStatus).toHaveBeenCalledOnce();
     }
   });
@@ -164,7 +164,7 @@ describe('aggregateStatuses', () => {
       const client = makeMockClient({ status: 'filed', filedAt: new Date('2026-05-01') });
       const deps = makeDeps({ tdsClient: client });
 
-      await aggregateStatuses([event], deps, new Date('2026-05-15'));
+      await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
       expect(client.getFilingStatus).toHaveBeenCalledOnce();
     }
   });
@@ -176,7 +176,7 @@ describe('aggregateStatuses', () => {
       const client = makeMockClient({ status: 'filed', filedAt: new Date('2026-05-01') });
       const deps = makeDeps({ itrClient: client });
 
-      await aggregateStatuses([event], deps, new Date('2026-05-15'));
+      await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
       expect(client.getFilingStatus).toHaveBeenCalledOnce();
     }
   });
@@ -185,7 +185,7 @@ describe('aggregateStatuses', () => {
     const event = makeEvent({ eventType: 'pf_monthly' });
     const deps = makeDeps();
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-04-01'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-04-01'));
     expect(result[0]!.status).toBe('upcoming');
     expect(deps.gstClient.getFilingStatus).not.toHaveBeenCalled();
     expect(deps.tdsClient.getFilingStatus).not.toHaveBeenCalled();
@@ -205,7 +205,7 @@ describe('aggregateStatuses', () => {
       itrClient: makeMockClient({ status: null }),
     });
 
-    const result = await aggregateStatuses(events, deps, new Date('2026-05-15'));
+    const result = await aggregateStatuses(events, deps, { tenantId: 'test' }, new Date('2026-05-15'));
     expect(result).toHaveLength(3);
     expect(result[0]!.status).toBe('filed');
     expect(result[1]!.status).toBe('overdue');
@@ -224,7 +224,7 @@ describe('aggregateStatuses', () => {
       }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-21'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-21'));
     expect(result[0]!.status).toBe('filed');
   });
 
@@ -237,13 +237,13 @@ describe('aggregateStatuses', () => {
       gstClient: makeMockClient({ status: null }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-13'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-13'));
     expect(result[0]!.status).toBe('due_soon');
   });
 
   it('handles empty events array', async () => {
     const deps = makeDeps();
-    const result = await aggregateStatuses([], deps, new Date('2026-05-15'));
+    const result = await aggregateStatuses([], deps, { tenantId: 'test' }, new Date('2026-05-15'));
     expect(result).toEqual([]);
   });
 
@@ -261,7 +261,7 @@ describe('aggregateStatuses', () => {
       gstClient: makeMockClient({ status: 'filed', filedAt: new Date('2026-05-18') }),
     });
 
-    const result = await aggregateStatuses([event], deps, new Date('2026-05-15'));
+    const result = await aggregateStatuses([event], deps, { tenantId: 'test' }, new Date('2026-05-15'));
     expect(result[0]!.title).toBe('GSTR-3B (May 2026)');
     expect(result[0]!.description).toBe('Monthly summary return');
     expect(result[0]!.sectionRef).toBe('GST § 39');

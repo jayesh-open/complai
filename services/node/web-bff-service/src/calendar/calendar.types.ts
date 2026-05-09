@@ -23,6 +23,11 @@ export interface ComplianceEvent {
   eventType: string;
 }
 
+export interface FilingStatusResult {
+  status: 'filed' | 'submitted' | null;
+  filedAt?: Date;
+}
+
 export type FilingScheme = 'monthly' | 'qrmp';
 export type BusinessType = 'company' | 'llp' | 'proprietorship' | 'trust';
 

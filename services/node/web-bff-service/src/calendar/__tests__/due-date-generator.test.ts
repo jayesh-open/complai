@@ -38,7 +38,7 @@ describe('generateDueDateSeries', () => {
     const config2 = { ...BASE_CONFIG, tenantId: 'other-tenant' };
     const run1 = generateDueDateSeries(BASE_CONFIG, from, to);
     const run2 = generateDueDateSeries(config2, from, to);
-    expect(run1[0].id).not.toBe(run2[0].id);
+    expect(run1[0]!.id).not.toBe(run2[0]!.id);
   });
 
   it('returns events sorted by dueDate', () => {
@@ -46,7 +46,7 @@ describe('generateDueDateSeries', () => {
     const to = new Date(2026, 11, 31);
     const events = generateDueDateSeries(BASE_CONFIG, from, to);
     for (let i = 1; i < events.length; i++) {
-      expect(events[i].dueDate >= events[i - 1].dueDate).toBe(true);
+      expect(events[i]!.dueDate >= events[i - 1]!.dueDate).toBe(true);
     }
   });
 
@@ -56,7 +56,7 @@ describe('generateDueDateSeries', () => {
     const events = generateDueDateSeries(BASE_CONFIG, from, to);
     const gstr1 = events.filter((e) => e.eventType === 'gstr1_monthly');
     expect(gstr1.length).toBe(1);
-    expect(gstr1[0].dueDate).toBe('2026-05-11');
+    expect(gstr1[0]!.dueDate).toBe('2026-05-11');
   });
 
   it('includes monthly GSTR-3B for monthly filers', () => {
@@ -65,7 +65,7 @@ describe('generateDueDateSeries', () => {
     const events = generateDueDateSeries(BASE_CONFIG, from, to);
     const gstr3b = events.filter((e) => e.eventType === 'gstr3b_monthly');
     expect(gstr3b.length).toBe(1);
-    expect(gstr3b[0].dueDate).toBe('2026-05-20');
+    expect(gstr3b[0]!.dueDate).toBe('2026-05-20');
   });
 
   it('includes TDS deposit on 7th', () => {
@@ -74,7 +74,7 @@ describe('generateDueDateSeries', () => {
     const events = generateDueDateSeries(BASE_CONFIG, from, to);
     const tds = events.filter((e) => e.eventType === 'tds_deposit');
     expect(tds.length).toBe(1);
-    expect(tds[0].dueDate).toBe('2026-05-07');
+    expect(tds[0]!.dueDate).toBe('2026-05-07');
   });
 
   it('includes PF and ESI on 15th', () => {
@@ -85,7 +85,7 @@ describe('generateDueDateSeries', () => {
     const esi = events.filter((e) => e.eventType === 'esi_monthly');
     expect(pf.length).toBe(1);
     expect(esi.length).toBe(1);
-    expect(pf[0].dueDate).toBe('2026-05-15');
+    expect(pf[0]!.dueDate).toBe('2026-05-15');
   });
 
   it('all events have status=upcoming by default', () => {

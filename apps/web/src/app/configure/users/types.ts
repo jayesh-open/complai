@@ -25,3 +25,16 @@ export interface User {
   created_at: string;
   updated_at: string;
 }
+
+export interface Permission {
+  id: string;
+  tenant_id: string;
+  resource: string;
+  action: string;
+  created_at: string;
+}
+
+export interface RoleDetail {
+  role: Role;
+  permissions: Permission[];
+}

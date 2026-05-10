@@ -70,67 +70,23 @@ seed_user "30000000-0000-0000-0000-000000000005" "$TENANT_B" "viewer@tenantb.com
 echo "  -> 15 users seeded (5 per tenant)"
 
 echo ""
-echo "==> Seeding roles and permissions into user_role_db..."
+echo "==> Seeding roles via template-based seed endpoint..."
+
+USER_ROLE_URL="${USER_ROLE_URL:-http://localhost:8083}"
 
 for tid in "$PLATFORM_TENANT" "$TENANT_A" "$TENANT_B"; do
-  dpsql user_role_db <<SQL
-    INSERT INTO roles (tenant_id, name, display_name, description, is_system) VALUES
-      ('${tid}', 'tenant-admin', 'Tenant Administrator', 'Full tenant access', true),
-      ('${tid}', 'tax-manager', 'Tax Manager', 'Manage tax filings and returns', false),
-      ('${tid}', 'tax-analyst', 'Tax Analyst', 'Prepare tax filings', false),
-      ('${tid}', 'ap-clerk', 'AP Clerk', 'Accounts payable data entry', false),
-      ('${tid}', 'viewer', 'Viewer', 'Read-only access', false)
-    ON CONFLICT (tenant_id, name) DO NOTHING;
-
-    INSERT INTO permissions (tenant_id, resource, action, description) VALUES
-      ('${tid}', '*', '*', 'Superadmin wildcard'),
-      ('${tid}', 'invoices', 'read', 'Read invoices'),
-      ('${tid}', 'invoices', 'write', 'Create/edit invoices'),
-      ('${tid}', 'invoices', 'delete', 'Delete invoices'),
-      ('${tid}', 'filings', 'read', 'Read filings'),
-      ('${tid}', 'filings', 'write', 'Create/submit filings'),
-      ('${tid}', 'filings', 'approve', 'Approve filings'),
-      ('${tid}', 'users', 'read', 'Read users'),
-      ('${tid}', 'users', 'write', 'Manage users'),
-      ('${tid}', 'settings', 'read', 'Read settings'),
-      ('${tid}', 'settings', 'write', 'Manage settings')
-    ON CONFLICT (tenant_id, resource, action) DO NOTHING;
-
-    INSERT INTO role_permissions (tenant_id, role_id, permission_id)
-    SELECT '${tid}', r.id, p.id
-    FROM roles r, permissions p
-    WHERE r.tenant_id = '${tid}' AND p.tenant_id = '${tid}'
-      AND r.name = 'tenant-admin' AND p.resource = '*' AND p.action = '*'
-    ON CONFLICT (tenant_id, role_id, permission_id) DO NOTHING;
-
-    INSERT INTO role_permissions (tenant_id, role_id, permission_id)
-    SELECT '${tid}', r.id, p.id
-    FROM roles r, permissions p
-    WHERE r.tenant_id = '${tid}' AND p.tenant_id = '${tid}'
-      AND r.name = 'tax-manager'
-      AND ((p.resource = 'invoices') OR (p.resource = 'filings'))
-    ON CONFLICT (tenant_id, role_id, permission_id) DO NOTHING;
-
-    INSERT INTO role_permissions (tenant_id, role_id, permission_id)
-    SELECT '${tid}', r.id, p.id
-    FROM roles r, permissions p
-    WHERE r.tenant_id = '${tid}' AND p.tenant_id = '${tid}'
-      AND r.name = 'tax-analyst'
-      AND ((p.resource = 'invoices' AND p.action IN ('read','write'))
-        OR (p.resource = 'filings' AND p.action IN ('read','write')))
-    ON CONFLICT (tenant_id, role_id, permission_id) DO NOTHING;
-
-    INSERT INTO role_permissions (tenant_id, role_id, permission_id)
-    SELECT '${tid}', r.id, p.id
-    FROM roles r, permissions p
-    WHERE r.tenant_id = '${tid}' AND p.tenant_id = '${tid}'
-      AND r.name = 'viewer'
-      AND p.action = 'read'
-    ON CONFLICT (tenant_id, role_id, permission_id) DO NOTHING;
-SQL
+  resp=$(curl -sf -o /dev/null -w "%{http_code}" \
+    -X POST "${USER_ROLE_URL}/v1/tenants/${tid}/seed-roles" 2>/dev/null || true)
+  if [ "$resp" = "200" ]; then
+    echo "  -> Seeded 7 system roles for tenant ${tid}"
+  elif [ "$resp" = "409" ]; then
+    echo "  -> Tenant ${tid} already seeded (skipped)"
+  else
+    echo "  !! Seed failed for tenant ${tid} (HTTP ${resp:-no-response}). Is user-role-service running on ${USER_ROLE_URL}?"
+  fi
 done
 
-echo "  -> Roles and permissions seeded for all 3 tenants"
+echo "  -> Template-based role seeding complete"
 
 echo ""
 echo "==> Assigning roles to users in user_role_db..."
@@ -146,42 +102,30 @@ SQL
 }
 
 # Platform tenant
-assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000001" "tenant-admin"
-assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000002" "tax-manager"
-assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000003" "tax-analyst"
-assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000004" "ap-clerk"
-assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000005" "viewer"
+assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000001" "admin"
+assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000002" "tax_manager"
+assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000003" "ap_manager"
+assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000004" "ap_executive"
+assign_role "$PLATFORM_TENANT" "10000000-0000-0000-0000-000000000005" "auditor"
 
 # Tenant A
-assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000001" "tenant-admin"
-assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000002" "tax-manager"
-assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000003" "tax-analyst"
-assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000004" "ap-clerk"
-assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000005" "viewer"
+assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000001" "admin"
+assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000002" "tax_manager"
+assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000003" "ap_manager"
+assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000004" "ap_executive"
+assign_role "$TENANT_A" "20000000-0000-0000-0000-000000000005" "auditor"
 
 # Tenant B
-assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000001" "tenant-admin"
-assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000002" "tax-manager"
-assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000003" "tax-analyst"
-assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000004" "ap-clerk"
-assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000005" "viewer"
+assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000001" "admin"
+assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000002" "tax_manager"
+assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000003" "ap_manager"
+assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000004" "ap_executive"
+assign_role "$TENANT_B" "30000000-0000-0000-0000-000000000005" "auditor"
 
 echo "  -> User-role assignments complete"
 
 echo ""
-echo "==> Seeding role templates..."
-
-dpsql user_role_db <<SQL
-INSERT INTO role_templates (name, display_name, description, permissions) VALUES
-  ('tenant-admin', 'Tenant Administrator', 'Full access to all tenant resources', '[{"resource":"*","action":"*"}]'),
-  ('tax-manager', 'Tax Manager', 'Manage all tax filings and invoices', '[{"resource":"invoices","action":"*"},{"resource":"filings","action":"*"}]'),
-  ('tax-analyst', 'Tax Analyst', 'Prepare invoices and filings', '[{"resource":"invoices","action":"read"},{"resource":"invoices","action":"write"},{"resource":"filings","action":"read"},{"resource":"filings","action":"write"}]'),
-  ('ap-clerk', 'AP Clerk', 'Accounts payable data entry', '[{"resource":"invoices","action":"read"},{"resource":"invoices","action":"write"}]'),
-  ('viewer', 'Viewer', 'Read-only access across modules', '[{"resource":"invoices","action":"read"},{"resource":"filings","action":"read"},{"resource":"users","action":"read"},{"resource":"settings","action":"read"}]')
-ON CONFLICT (name) DO NOTHING;
-SQL
-
-echo "  -> 5 role templates seeded"
+echo "  -> Role templates provided by migration 002 (7 templates, no runtime seed needed)"
 
 echo ""
 echo "==> Creating Keycloak users..."
@@ -308,6 +252,6 @@ echo "==> Seed complete!"
 echo "  Platform tenant: ${PLATFORM_TENANT}"
 echo "  Tenant A (Acme): ${TENANT_A}"
 echo "  Tenant B (Beta): ${TENANT_B}"
-echo "  Users per tenant: 5 (admin, manager, analyst, clerk, viewer)"
+echo "  Users per tenant: 5 (admin, manager, analyst, clerk, viewer → admin, tax_manager, ap_manager, ap_executive, auditor)"
 echo "  Keycloak password for all seeded users: password"
 echo "  Existing Keycloak users: dev-admin/admin, dev-preparer/preparer"

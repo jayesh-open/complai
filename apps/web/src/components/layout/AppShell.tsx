@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { CommandPalette } from "./CommandPalette";
+import { ViewAsBanner } from "./ViewAsBanner";
+import { ViewAsRouteGuard } from "./ViewAsRouteGuard";
 import { useAppStore } from "@/store/app-store";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -20,8 +22,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onCommandPaletteOpen={() => setCmdOpen(true)}
           onMobileMenuToggle={toggleSidebar}
         />
+        <ViewAsBanner />
         <main className="flex-1 overflow-y-auto p-7" data-testid="main-content">
-          {children}
+          <ViewAsRouteGuard>{children}</ViewAsRouteGuard>
         </main>
       </div>
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />

@@ -12,28 +12,13 @@ import {
   Calculator, ScrollText, CalendarDays,
 } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
+import { useViewAsStore } from "@/store/view-as-store";
+import { canAccessSidebarItem } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ElementType;
-  badge?: number;
-}
-
-interface NavBucket {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  items: NavItem[];
-}
-
-interface NavGroup {
-  id: string;
-  label?: string;
-  items?: NavItem[];
-  buckets?: NavBucket[];
-}
+interface NavItem { label: string; href: string; icon: React.ElementType; badge?: number }
+interface NavBucket { id: string; label: string; icon: React.ElementType; items: NavItem[] }
+interface NavGroup { id: string; label?: string; items?: NavItem[]; buckets?: NavBucket[] }
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -83,15 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-function NavItemLink({
-  item,
-  pathname,
-  collapsed,
-}: {
-  item: NavItem;
-  pathname: string;
-  collapsed: boolean;
-}) {
+function NavItemLink({ item, pathname, collapsed }: { item: NavItem; pathname: string; collapsed: boolean }) {
   const active = pathname === item.href || pathname?.startsWith(item.href + "/");
   const Icon = item.icon;
   return (
@@ -122,12 +99,26 @@ function NavItemLink({
   );
 }
 
+function filterNav(groups: NavGroup[], check: (href: string) => boolean): NavGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    items: g.items?.filter((i) => check(i.href)),
+    buckets: g.buckets
+      ?.map((b) => ({ ...b, items: b.items.filter((i) => check(i.href)) }))
+      .filter((b) => b.items.length > 0),
+  })).filter((g) => (g.items && g.items.length > 0) || (g.buckets && g.buckets.length > 0));
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const groupState = useAppStore((s) => s.sidebarGroupState);
   const toggleGroup = useAppStore((s) => s.toggleSidebarGroup);
+  const { isViewAs, viewAsPermissions, viewAsRole } = useViewAsStore();
+  const navGroups = isViewAs
+    ? filterNav(NAV_GROUPS, (href) => canAccessSidebarItem(viewAsPermissions, href))
+    : NAV_GROUPS;
 
   return (
     <aside
@@ -152,7 +143,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 pb-2" data-testid="sidebar-nav">
-        {NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <div key={group.id} className="mb-1" data-testid={`sidebar-group-${group.id}`}>
             {group.label && !collapsed && (
               <button
@@ -231,7 +222,7 @@ export function Sidebar() {
                   Jayesh H
                 </div>
                 <div className="text-tiny text-foreground-disabled truncate">
-                  Admin · Complai
+                  {isViewAs && viewAsRole ? viewAsRole.display_name : "Admin"} · Complai
                 </div>
               </div>
             </div>

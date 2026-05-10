@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Search, Bell, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ViewAsDropdown } from "./ViewAsDropdown";
 
 interface HeaderProps {
   onCommandPaletteOpen: () => void;
@@ -62,6 +63,8 @@ export function Header({ onCommandPaletteOpen, onMobileMenuToggle }: HeaderProps
             ⌘K
           </kbd>
         </button>
+
+        <ViewAsDropdown />
 
         <button className="relative p-2 rounded-lg border border-app-border text-foreground-muted hover:bg-app-input transition-colors">
           <Bell className="w-4 h-4" />

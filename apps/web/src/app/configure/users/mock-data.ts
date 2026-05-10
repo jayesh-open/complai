@@ -8,6 +8,8 @@ export const MOCK_ROLES: Role[] = [
   { id: "r5", tenant_id: "t1", name: "ar_manager", display_name: "AR Manager", description: "Manages accounts receivable compliance", is_system: true, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
   { id: "r6", tenant_id: "t1", name: "ar_executive", display_name: "AR Executive", description: "Handles day-to-day accounts receivable data entry", is_system: true, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
   { id: "r7", tenant_id: "t1", name: "auditor", display_name: "Auditor", description: "Read-only access for audit purposes", is_system: true, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
+  { id: "r8", tenant_id: "t1", name: "tax_specialist", display_name: "Tax Specialist", description: "Custom role for GST filing specialists", is_system: false, created_at: "2026-04-10T09:00:00Z", updated_at: "2026-04-10T09:00:00Z" },
+  { id: "r9", tenant_id: "t1", name: "compliance_reviewer", display_name: "Compliance Reviewer", description: "Reviews and approves compliance filings before submission", is_system: false, created_at: "2026-04-15T14:00:00Z", updated_at: "2026-04-15T14:00:00Z" },
 ];
 
 export const MOCK_USERS: User[] = [

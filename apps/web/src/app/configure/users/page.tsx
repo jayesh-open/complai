@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUsers } from "./hooks/useUsers";
@@ -17,7 +18,6 @@ export default function UsersPage() {
   const { roles } = useRoles(DEV_TENANT);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
 
   const handleDeactivate = async (user: User) => {
     if (!confirm(`Deactivate ${user.first_name} ${user.last_name}? They will lose access.`)) return;
@@ -42,88 +42,62 @@ export default function UsersPage() {
             Manage tenant users and their role assignments
           </p>
         </div>
-        {activeTab === "users" && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-[var(--accent)] text-[var(--accent-text)] hover:opacity-90"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add User
-          </button>
-        )}
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-[var(--accent)] text-[var(--accent-text)] hover:opacity-90"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add User
+        </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-5 border-b border-[var(--border-default)]">
-        <button
-          onClick={() => setActiveTab("users")}
-          className={cn(
-            "px-4 py-2 text-xs font-medium border-b-2 transition-colors -mb-px",
-            activeTab === "users"
-              ? "border-[var(--accent)] text-[var(--accent)]"
-              : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]",
-          )}
-        >
+        <span className="px-4 py-2 text-xs font-medium border-b-2 border-[var(--accent)] text-[var(--accent)] -mb-px">
           Users
-        </button>
-        <button
-          onClick={() => setActiveTab("roles")}
-          className={cn(
-            "px-4 py-2 text-xs font-medium border-b-2 transition-colors -mb-px",
-            activeTab === "roles"
-              ? "border-[var(--accent)] text-[var(--accent)]"
-              : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]",
-          )}
+        </span>
+        <Link
+          href="/configure/users/roles"
+          className="px-4 py-2 text-xs font-medium border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] -mb-px"
         >
           Roles
-        </button>
+        </Link>
       </div>
 
-      {activeTab === "users" ? (
-        <>
-          {loading && (
-            <div className="bg-[var(--bg-secondary)] rounded-[14px] border border-[var(--border-default)] overflow-hidden">
-              <div className="animate-pulse space-y-0">
-                <div className="h-10 bg-[var(--bg-tertiary)] border-b border-[var(--border-default)]" />
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-12 border-b border-[var(--border-default)] last:border-b-0 flex items-center px-[18px] gap-6">
-                    <div className="h-3 w-32 rounded bg-[var(--bg-tertiary)]" />
-                    <div className="h-3 w-44 rounded bg-[var(--bg-tertiary)]" />
-                    <div className="h-3 w-20 rounded bg-[var(--bg-tertiary)]" />
-                    <div className="h-3 w-16 rounded bg-[var(--bg-tertiary)]" />
-                  </div>
-                ))}
+      {loading && (
+        <div className="bg-[var(--bg-secondary)] rounded-[14px] border border-[var(--border-default)] overflow-hidden">
+          <div className="animate-pulse space-y-0">
+            <div className="h-10 bg-[var(--bg-tertiary)] border-b border-[var(--border-default)]" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-12 border-b border-[var(--border-default)] last:border-b-0 flex items-center px-[18px] gap-6">
+                <div className="h-3 w-32 rounded bg-[var(--bg-tertiary)]" />
+                <div className="h-3 w-44 rounded bg-[var(--bg-tertiary)]" />
+                <div className="h-3 w-20 rounded bg-[var(--bg-tertiary)]" />
+                <div className="h-3 w-16 rounded bg-[var(--bg-tertiary)]" />
               </div>
-            </div>
-          )}
-
-          {error && !loading && (
-            <div className="rounded-[14px] border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-6 text-center">
-              <p className="text-sm text-[var(--text-primary)] mb-3">Could not load users</p>
-              <button
-                onClick={mutate}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium border border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Retry
-              </button>
-            </div>
-          )}
-
-          {!loading && !error && (
-            <UsersTable
-              users={users}
-              onSelectUser={setSelectedUser}
-              onDeactivate={handleDeactivate}
-            />
-          )}
-        </>
-      ) : (
-        <div className="rounded-[14px] border border-[var(--border-default)] bg-[var(--bg-secondary)] p-8 text-center">
-          <p className="text-sm text-[var(--text-muted)]">
-            Roles management coming in Sub-part D-2.
-          </p>
+            ))}
+          </div>
         </div>
+      )}
+
+      {error && !loading && (
+        <div className="rounded-[14px] border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-6 text-center">
+          <p className="text-sm text-[var(--text-primary)] mb-3">Could not load users</p>
+          <button
+            onClick={mutate}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium border border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <UsersTable
+          users={users}
+          onSelectUser={setSelectedUser}
+          onDeactivate={handleDeactivate}
+        />
       )}
 
       <AddUserModal

@@ -10,13 +10,13 @@ test.describe("App Shell", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test("renders sidebar with 6 nav groups in correct order", async ({ page }) => {
+  test("renders sidebar with 2 nav groups in correct order", async ({ page }) => {
     const sidebar = page.locator("aside");
     await expect(sidebar).toBeVisible();
 
     const groupLabels = sidebar.locator("[data-testid='sidebar-group-label']");
     const labels = await groupLabels.allTextContents();
-    const expectedOrder = ["COMPLIANCE", "INSIGHTS", "DATA SOURCES", "DOCUMENTS", "CONFIGURE"];
+    const expectedOrder = ["COMPLIANCE", "CONFIGURE"];
     expect(labels.map((l) => l.trim())).toEqual(expectedOrder);
   });
 
@@ -37,9 +37,9 @@ test.describe("App Shell", () => {
     await expect(itemsAfterReload).toHaveCount(0);
   });
 
-  test("sidebar shows badge counts on nav items", async ({ page }) => {
+  test("sidebar has no badge counts (dead routes removed)", async ({ page }) => {
     const badges = page.locator("aside [data-testid='sidebar-badge']");
-    expect(await badges.count()).toBeGreaterThan(0);
+    expect(await badges.count()).toBe(0);
   });
 
   test("header renders page title", async ({ page }) => {

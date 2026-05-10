@@ -3,12 +3,12 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard, ListTodo, Inbox, FileText,
+  LayoutDashboard,
   Receipt, FileCheck2, Truck,
-  FileSpreadsheet, GitCompareArrows, BarChart3, Gauge, History,
-  FolderOpen, Mail, Settings, Users, Workflow, ShieldAlert,
-  Wallet, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen,
-  Sparkles, RefreshCw, Link2, ArrowDownToLine,
+  FileSpreadsheet, GitCompareArrows, Gauge,
+  Users, Palette,
+  ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen,
+  Link2,
   Calculator, ScrollText, CalendarDays,
 } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
@@ -40,8 +40,6 @@ const NAV_GROUPS: NavGroup[] = [
     id: "core",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "My Tasks", href: "/tasks", icon: ListTodo, badge: 5 },
-      { label: "Inbox", href: "/inbox", icon: Inbox, badge: 12 },
     ],
   },
   {
@@ -75,46 +73,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: "insights",
-    label: "INSIGHTS",
-    items: [
-      { label: "CFO Dashboard", href: "/insights/cfo", icon: Sparkles },
-      { label: "Reports & Analytics", href: "/insights/reports", icon: BarChart3 },
-      { label: "Audit Trail", href: "/insights/audit-trail", icon: History },
-    ],
-  },
-  {
-    id: "data-sources",
-    label: "DATA SOURCES",
-    items: [
-      { label: "Connected Apps", href: "/data-sources/connected-apps", icon: Link2 },
-      { label: "Sync Status", href: "/data-sources/sync-status", icon: RefreshCw },
-      { label: "Imported AR Invoices", href: "/data-sources/ar-invoices", icon: ArrowDownToLine },
-      { label: "Imported AP Invoices", href: "/data-sources/ap-invoices", icon: ArrowDownToLine },
-      { label: "Imported Vendors", href: "/data-sources/vendors", icon: ArrowDownToLine },
-      { label: "Imported Contracts", href: "/data-sources/contracts", icon: FileText },
-      { label: "Imported Payroll Data", href: "/data-sources/payroll", icon: ArrowDownToLine },
-    ],
-  },
-  {
-    id: "documents",
-    label: "DOCUMENTS",
-    items: [
-      { label: "Documents", href: "/documents", icon: FolderOpen },
-      { label: "Email Inbox", href: "/documents/email-inbox", icon: Mail },
-    ],
-  },
-  {
     id: "configure",
     label: "CONFIGURE",
     items: [
-      { label: "Settings", href: "/configure/settings", icon: Settings },
       { label: "Users & Roles", href: "/configure/users", icon: Users },
-      { label: "Approval Workflows", href: "/configure/workflows", icon: Workflow },
-      { label: "GST Configuration", href: "/configure/gst", icon: FileSpreadsheet },
-      { label: "TDS Configuration", href: "/configure/tds", icon: Receipt },
-      { label: "Integrations", href: "/configure/integrations", icon: Link2 },
-      { label: "Billing", href: "/configure/billing", icon: Wallet },
+      { label: "Connected Apps", href: "/configure/connected-apps", icon: Link2 },
+      { label: "Appearance", href: "/configure/appearance", icon: Palette },
     ],
   },
 ];

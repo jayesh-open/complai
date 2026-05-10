@@ -54,6 +54,7 @@ export function ComplianceDayDetailPanel({
       {/* Panel */}
       <div
         ref={panelRef}
+        data-testid="day-detail-panel"
         className={cn(
           "fixed top-0 right-0 z-50 h-screen w-[480px] max-w-[90vw] bg-[var(--bg-primary)]",
           "border-l border-[var(--border-default)] shadow-xl flex flex-col",
@@ -73,6 +74,7 @@ export function ComplianceDayDetailPanel({
           </div>
           <button
             onClick={onClose}
+            data-testid="close-panel"
             className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
             aria-label="Close panel"
           >

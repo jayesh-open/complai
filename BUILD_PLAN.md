@@ -1,6 +1,6 @@
 # BUILD_PLAN.md — Living checklist
 
-Last updated: 2026-05-05
+Last updated: 2026-05-10
 
 ## Current part
 Part 11 — Sibling gateway services (Aura, Bridge, HRMS) (not started).
@@ -332,6 +332,43 @@ Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/14
   - [x] Storybook: 61 stories built clean (7.5s)
   - [x] 9 compliance modules now in browser: GST Returns, E-Invoicing, E-Way Bill, ITC Reconciliation, Vendor Compliance, TDS, ITR, GSTR-9, GSTR-9C
 
+### Compliance Calendar (Part 10 add-on, 2026-05-10) — COMPLETE
+
+6 sub-parts, 6 commits:
+
+  - [x] Calendar-1: BFF due-date series generator + calendar aggregation endpoint
+    - [x] event-templates.ts: 30+ event templates across 9 filing types (GSTR-1/3B/9/9C, E-Invoice, E-Way Bill, TDS Forms 138/140/144, ITR, Advance Tax Q1-Q4, LUT/RFD-11)
+    - [x] due-date-series.ts: generateDueDateSeries() — expands templates into concrete monthly/quarterly/annual events for a given date range
+    - [x] calendar.controller.ts: GET /api/v1/compliance/calendar/events — aggregates across all filing types with tenant_id filtering
+    - [x] calendar.controller.ts: GET /api/v1/compliance/calendar/event/:eventId — single event detail
+    - [x] BFF 74/74 tests pass
+    - Commit: `81109e5` feat(calendar-2a): due-date series generator + tenant-aware filtering
+  - [x] Calendar-2a: Month-view UI + mock data
+    - [x] ComplianceCalendarMonth: 7-col × 6-row grid, weekday headers, day cells with event pills
+    - [x] MonthNavigation: prev/next/today buttons, month label
+    - [x] ComplianceDayCell: date number, today amber highlight, event pill stack (max 3 + overflow)
+    - [x] ComplianceItemPill: category-colored pill with status icon
+    - [x] ComplianceDayDetailPanel: slide-out panel with event details, Escape to close
+    - [x] ComplianceItemDetail: authority, section/form ref, penalty, status pill, action buttons
+    - [x] ComplianceCategoryBadge: 6 category badges with toggle filter
+    - [x] ComplianceStatusIcon: 5 status icon variants
+    - [x] CalendarSkeleton: loading placeholder
+    - [x] Stat cards: Filed / Due in 7 days / Upcoming this month
+    - Commit: `a8433d9` feat(calendar): compliance calendar — month view + day detail (ui, mock data)
+  - [x] Calendar-2b: Frontend wiring to BFF
+    - [x] useCalendarEvents hook: fetch from BFF with AbortController, 30s retry, mock-data fallback
+    - [x] next.config.ts rewrites: /api/v1/:path* → BFF proxy
+    - [x] ErrorBanner component: dismissable amber banner for BFF fallback
+    - [x] filed_late status support added to types + stat card count
+    - Commit: `65b3b18` feat(calendar-2b): wire calendar frontend to real BFF aggregation endpoint
+  - [x] Calendar-3: Full feature verification
+    - [x] Playwright E2E: 3 tests (full lifecycle, stat cards, escape key) in calendar-flow.spec.ts
+    - [x] data-testid attributes on all 10 calendar components
+    - [x] FY→TY terminology fix: 9 direct-tax events switched from fyLabel to tyLabel per ITA 2025
+    - [x] RLS regression check: tenant_id flows controller → AggregationContext → FilingQuery → Go services
+    - [x] Test sweep: BFF 74/74, pnpm typecheck 11/11, pnpm lint 9/9, Storybook 67 stories, 26/26 Go services GOWORK=off PASS
+    - Commit: this commit
+
 ### ITA 2025 refactor (2026-04-29) — RESOLVED
 
 **Scoping decision:** Complai supports Income Tax Act 2025 only (effective 1 Apr 2026). ITA 1961 is out of scope.
@@ -404,6 +441,13 @@ Per-package breakdown (only `api` packages have tests; gateway, store, domain = 
 - [x] Dropped orphan databases from running Postgres container
 - [x] Reorganized DATABASES array by build part sequence with comments
 - Forward-provisioned databases kept: `tds_db` (Part 9), `gstr9_db`/`itr_db` (Part 10), `reporting_db` (Part 14)
+
+#### Calendar hardening (discovered Calendar-3)
+- [ ] Wire calendar frontend to real BFF (currently falls back to mock data when BFF is unavailable)
+- [ ] Add Playwright E2E that runs against live BFF + Go services (currently UI-only with mock fallback)
+- [ ] Calendar event "Mark as filed" button: wire to filing status update via BFF
+- [ ] Calendar event "Set reminder" button: wire to notification-service
+- [ ] Calendar recurring event exceptions (e.g., extended due dates for specific states/GSTINs)
 
 #### Part 5 hardening tests
 - [ ] Idempotency E2E: duplicate ingest with same GSTIN+period returns same filing_id, no double-count

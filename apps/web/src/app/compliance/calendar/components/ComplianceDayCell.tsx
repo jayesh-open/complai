@@ -27,6 +27,7 @@ export function ComplianceDayCell({
     <button
       type="button"
       onClick={onClick}
+      data-testid={`day-cell-${date.getDate()}`}
       className={cn(
         "flex flex-col items-start p-1.5 border-b border-r border-[var(--border-default)] text-left transition-colors duration-100",
         isCurrentMonth
@@ -49,7 +50,7 @@ export function ComplianceDayCell({
           {day}
         </span>
         {isToday && (
-          <span className="text-[9px] font-semibold text-[#633806] bg-[#F5D799] px-1.5 py-px rounded-full leading-tight">
+          <span className="text-[9px] font-semibold text-[#633806] bg-[#F5D799] px-1.5 py-px rounded-full leading-tight" data-testid="today-indicator">
             Today
           </span>
         )}

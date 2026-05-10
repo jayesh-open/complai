@@ -129,6 +129,8 @@ Complai is one of four sibling apps plus an external HRMS:
 ## Active compliance modules (9 as of Part 10)
 GST Returns (GSTR-1, GSTR-3B, GSTR-2B/IMS), E-Invoicing, E-Way Bill, ITC Reconciliation + Vendor Compliance Scoring, TDS/TCS, ITR (bulk filing + magic link review), GSTR-9 Annual Return, GSTR-9C Reconciliation Statement.
 
+**Compliance Calendar (Part 10 add-on):** Month-view calendar with day-cell event pills, slide-out day detail panel, category filter badges, stat cards (Filed / Due in 7 days / Upcoming this month). BFF aggregation endpoint merges due-date series from all 9 filing types + advance-tax quarters. Direct-tax events use "Tax Year" (TY) terminology per ITA 2025; GST events use "Financial Year" (FY). 3 Playwright E2E tests (calendar-flow.spec.ts). No new Go services — calendar is a BFF aggregation + frontend feature.
+
 **ITA 2025 alignment:** All income-tax logic (TDS, ITR) references ITA 2025 exclusively. Old ITA 1961 section codes are rejected at handler level.
 
 **GSTR-9 + 9C:** Self-certified per Notification 15/2025-Central Tax (turnover ≤₹5 Cr). CA audit path (Part III) deferred to Part 14 — current GSTR-9C uses self-certification with typed consent + DSC.

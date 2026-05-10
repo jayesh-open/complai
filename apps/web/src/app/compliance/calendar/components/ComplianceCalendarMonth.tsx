@@ -94,7 +94,7 @@ export function ComplianceCalendarMonth() {
   const upcomingCount = monthEvents.filter((e) => e.status === "upcoming" || e.status === "due_soon").length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="calendar-root">
       {usingMockData && <ErrorBanner key={`${year}-${month}`} />}
 
       {/* Header row */}
@@ -107,7 +107,7 @@ export function ComplianceCalendarMonth() {
       </div>
 
       {/* Category filters */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" data-testid="category-filters">
         {(["direct_tax", "indirect_tax", "statutory"] as EventCategory[]).map((cat) => (
           <ComplianceCategoryBadge
             key={cat}
@@ -122,7 +122,7 @@ export function ComplianceCalendarMonth() {
       {loading ? (
         <CalendarSkeleton />
       ) : (
-        <div className="border border-[var(--border-default)] rounded-xl overflow-hidden">
+        <div className="border border-[var(--border-default)] rounded-xl overflow-hidden" data-testid="calendar-grid">
           {/* Weekday headers */}
           <div className="grid grid-cols-7 border-b border-[var(--border-default)]">
             {WEEKDAY_HEADERS.map((d) => (

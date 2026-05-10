@@ -1,6 +1,6 @@
 export function CalendarSkeleton() {
   return (
-    <div className="border border-[var(--border-default)] rounded-xl overflow-hidden">
+    <div className="border border-[var(--border-default)] rounded-xl overflow-hidden" data-testid="calendar-skeleton">
       <div className="grid grid-cols-7 border-b border-[var(--border-default)]">
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="py-2 bg-[var(--bg-secondary)]">

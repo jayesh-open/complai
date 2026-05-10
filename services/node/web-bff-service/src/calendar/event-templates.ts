@@ -19,6 +19,12 @@ function fyLabel(d: Date): string {
   return `FY ${y}-${String(y + 1).slice(2)}`;
 }
 
+function tyLabel(d: Date): string {
+  const m = d.getMonth();
+  const y = m >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  return `TY ${y}-${String(y + 1).slice(2)}`;
+}
+
 function monthLabel(d: Date): string {
   return `(${d.toLocaleString('en-IN', { month: 'long' })})`;
 }
@@ -268,7 +274,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'form130',
     title: 'Form 130 (Salary Certificate)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Annual salary TDS certificate issued to employees (was Form 16). Due by 15 June.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -294,7 +300,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'advance_tax_q1',
     title: 'Advance Tax — Installment 1 (15%)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'First advance tax installment — 15% of estimated tax liability. Due 15 June.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -307,7 +313,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'advance_tax_q2',
     title: 'Advance Tax — Installment 2 (45%)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Second advance tax installment — 45% cumulative of estimated tax. Due 15 September.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -320,7 +326,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'advance_tax_q3',
     title: 'Advance Tax — Installment 3 (75%)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Third advance tax installment — 75% cumulative of estimated tax. Due 15 December.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -333,7 +339,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'advance_tax_q4',
     title: 'Advance Tax — Installment 4 (100%)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Final advance tax installment — 100% of estimated tax. Due 15 March.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -346,7 +352,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'itr_non_audit',
     title: 'ITR-1/2/4 (Non-Audit)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Income tax return for individuals, HUFs, and small businesses not subject to audit. Due 31 July.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -360,7 +366,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'itr_audit',
     title: 'ITR-3/5/6 (Audit Cases)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Income tax return for businesses/companies subject to audit. Due 31 October.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -374,7 +380,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'itr7',
     title: 'ITR-7 (Trusts/Institutions)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Income tax return for trusts, political parties, and institutions. Due 31 October.',
     category: 'direct_tax',
     authority: 'CBDT',
@@ -388,7 +394,7 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   {
     eventType: 'tax_audit',
     title: 'Tax Audit Report (3CA/3CB-3CD)',
-    titleSuffix: (d) => fyLabel(d),
+    titleSuffix: (d) => tyLabel(d),
     description: 'Tax audit report submission for businesses exceeding turnover threshold. Due 30 September.',
     category: 'direct_tax',
     authority: 'CBDT',

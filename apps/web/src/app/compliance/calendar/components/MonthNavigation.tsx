@@ -19,7 +19,7 @@ interface MonthNavigationProps {
 export function MonthNavigation({ year, month, onPrev, onNext, onToday }: MonthNavigationProps) {
   return (
     <div className="flex items-center gap-3">
-      <h2 className="text-display text-[var(--text-primary)] select-none">
+      <h2 className="text-display text-[var(--text-primary)] select-none" data-testid="month-label">
         {MONTH_NAMES[month]} {year}
       </h2>
       <div className="flex items-center gap-1 ml-2">
@@ -42,11 +42,13 @@ export function MonthNavigation({ year, month, onPrev, onNext, onToday }: MonthN
             "transition-colors duration-150",
           )}
           aria-label="Next month"
+          data-testid="next-month"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
         <button
           onClick={onToday}
+          data-testid="today-button"
           className={cn(
             "ml-1 px-3 py-1 rounded-lg border border-[var(--border-default)]",
             "text-xs font-medium text-[var(--text-secondary)]",

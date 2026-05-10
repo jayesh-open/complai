@@ -32,7 +32,7 @@ interface ComplianceItemDetailProps {
 
 export function ComplianceItemDetail({ event }: ComplianceItemDetailProps) {
   return (
-    <div className="border border-[var(--border-default)] rounded-xl p-4 space-y-3">
+    <div className="border border-[var(--border-default)] rounded-xl p-4 space-y-3" data-testid="event-detail">
       <div className="flex items-start justify-between gap-2">
         <h4 className="text-heading-sm text-[var(--text-primary)]">{event.title}</h4>
         <StatusPill status={event.status} />

@@ -9,6 +9,7 @@ export function ComplianceItemPill({ event }: { event: ComplianceEvent & { dueDa
 
   return (
     <div
+      data-testid="event-pill"
       className="flex items-center gap-1 rounded px-1.5 py-0.5 max-w-full overflow-hidden"
       style={{ backgroundColor: cat.bg }}
     >

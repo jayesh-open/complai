@@ -26,6 +26,7 @@ export function ComplianceCategoryBadge({
     <button
       type="button"
       onClick={onClick}
+      data-testid={`category-${category}`}
       className={cn(
         "inline-flex items-center rounded-md font-medium transition-all duration-150",
         size === "small" ? "px-2 py-0.5 text-[10px]" : "px-3 py-1 text-xs",

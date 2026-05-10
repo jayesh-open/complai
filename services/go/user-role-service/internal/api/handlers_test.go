@@ -24,20 +24,24 @@ var _ store.Repository = (*mockStore)(nil)
 
 // mockStore is a test double implementing store.Repository.
 type mockStore struct {
-	createRoleFn            func(ctx context.Context, tenantID uuid.UUID, r *domain.Role) error
-	getRoleFn               func(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.Role, error)
-	listRolesFn             func(ctx context.Context, tenantID uuid.UUID) ([]domain.Role, error)
-	createPermissionFn      func(ctx context.Context, tenantID uuid.UUID, p *domain.Permission) error
-	assignPermissionToRoleFn func(ctx context.Context, tenantID, roleID, permissionID uuid.UUID) error
-	assignRoleToUserFn      func(ctx context.Context, tenantID, userID, roleID uuid.UUID, assignedBy *uuid.UUID) error
-	getUserPermissionsFn    func(ctx context.Context, tenantID, userID uuid.UUID) ([]domain.Permission, error)
-	checkPolicyFn           func(ctx context.Context, tenantID, userID uuid.UUID, resource, action string) (*domain.PolicyCheckResponse, error)
-	createRoleTemplateFn    func(ctx context.Context, rt *domain.RoleTemplate) error
-	getRoleTemplatesFn      func(ctx context.Context) ([]domain.RoleTemplate, error)
-	createApprovalFn        func(ctx context.Context, tenantID uuid.UUID, a *domain.ApprovalWorkflow) error
-	getApprovalFn           func(ctx context.Context, tenantID, approvalID uuid.UUID) (*domain.ApprovalWorkflow, error)
-	decideApprovalFn        func(ctx context.Context, tenantID, approvalID, decidedBy uuid.UUID, decision string, reason *string) error
-	listPendingApprovalsFn  func(ctx context.Context, tenantID uuid.UUID) ([]domain.ApprovalWorkflow, error)
+	createRoleFn              func(ctx context.Context, tenantID uuid.UUID, r *domain.Role) error
+	getRoleFn                 func(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.Role, error)
+	listRolesFn               func(ctx context.Context, tenantID uuid.UUID) ([]domain.Role, error)
+	createPermissionFn        func(ctx context.Context, tenantID uuid.UUID, p *domain.Permission) error
+	assignPermissionToRoleFn  func(ctx context.Context, tenantID, roleID, permissionID uuid.UUID) error
+	assignRoleToUserFn        func(ctx context.Context, tenantID, userID, roleID uuid.UUID, assignedBy *uuid.UUID) error
+	getUserPermissionsFn      func(ctx context.Context, tenantID, userID uuid.UUID) ([]domain.Permission, error)
+	checkPolicyFn             func(ctx context.Context, tenantID, userID uuid.UUID, resource, action string) (*domain.PolicyCheckResponse, error)
+	createRoleTemplateFn      func(ctx context.Context, rt *domain.RoleTemplate) error
+	getRoleTemplatesFn        func(ctx context.Context) ([]domain.RoleTemplate, error)
+	createApprovalFn          func(ctx context.Context, tenantID uuid.UUID, a *domain.ApprovalWorkflow) error
+	getApprovalFn             func(ctx context.Context, tenantID, approvalID uuid.UUID) (*domain.ApprovalWorkflow, error)
+	decideApprovalFn          func(ctx context.Context, tenantID, approvalID, decidedBy uuid.UUID, decision string, reason *string) error
+	listPendingApprovalsFn    func(ctx context.Context, tenantID uuid.UUID) ([]domain.ApprovalWorkflow, error)
+	getRoleWithPermissionsFn  func(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.Role, []domain.Permission, error)
+	updateRolePermissionsFn   func(ctx context.Context, tenantID, roleID uuid.UUID, permissionIDs []uuid.UUID) error
+	getUserRolesFn            func(ctx context.Context, tenantID, userID uuid.UUID) ([]domain.Role, error)
+	seedTenantFromTemplatesFn func(ctx context.Context, tenantID uuid.UUID) error
 }
 
 func (m *mockStore) CreateRole(ctx context.Context, tenantID uuid.UUID, r *domain.Role) error {
@@ -136,6 +140,34 @@ func (m *mockStore) ListPendingApprovals(ctx context.Context, tenantID uuid.UUID
 		return m.listPendingApprovalsFn(ctx, tenantID)
 	}
 	return nil, nil
+}
+
+func (m *mockStore) GetRoleWithPermissions(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.Role, []domain.Permission, error) {
+	if m.getRoleWithPermissionsFn != nil {
+		return m.getRoleWithPermissionsFn(ctx, tenantID, roleID)
+	}
+	return nil, nil, nil
+}
+
+func (m *mockStore) UpdateRolePermissions(ctx context.Context, tenantID, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
+	if m.updateRolePermissionsFn != nil {
+		return m.updateRolePermissionsFn(ctx, tenantID, roleID, permissionIDs)
+	}
+	return nil
+}
+
+func (m *mockStore) GetUserRoles(ctx context.Context, tenantID, userID uuid.UUID) ([]domain.Role, error) {
+	if m.getUserRolesFn != nil {
+		return m.getUserRolesFn(ctx, tenantID, userID)
+	}
+	return nil, nil
+}
+
+func (m *mockStore) SeedTenantFromTemplates(ctx context.Context, tenantID uuid.UUID) error {
+	if m.seedTenantFromTemplatesFn != nil {
+		return m.seedTenantFromTemplatesFn(ctx, tenantID)
+	}
+	return nil
 }
 
 // ---------- helpers ----------
@@ -1187,4 +1219,425 @@ func TestUserIDFromRequest_InvalidUUID(t *testing.T) {
 	h.CreateApproval(rec, req)
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+// ---------- GetRoleDetail ----------
+
+func TestGetRoleDetail_Success(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	role := &domain.Role{ID: roleID, TenantID: tenantID, Name: "tax_manager", DisplayName: "Tax Manager", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	perms := []domain.Permission{
+		{ID: uuid.New(), TenantID: tenantID, Resource: "gstr1", Action: "view", CreatedAt: time.Now()},
+		{ID: uuid.New(), TenantID: tenantID, Resource: "gstr1", Action: "file", CreatedAt: time.Now()},
+	}
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, tid, rid uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			assert.Equal(t, tenantID, tid)
+			assert.Equal(t, roleID, rid)
+			return role, perms, nil
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/roles/"+roleID.String(), nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.GetRoleDetail(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	data := parseSuccessResp(t, rec.Body.Bytes())
+	var got domain.RoleWithPermissions
+	require.NoError(t, json.Unmarshal(data, &got))
+	assert.Equal(t, "tax_manager", got.Role.Name)
+	assert.Len(t, got.Permissions, 2)
+}
+
+func TestGetRoleDetail_NilPermissions(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	role := &domain.Role{ID: roleID, TenantID: tenantID, Name: "empty_role", DisplayName: "Empty Role", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, _, _ uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			return role, nil, nil
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/roles/"+roleID.String(), nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.GetRoleDetail(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	data := parseSuccessResp(t, rec.Body.Bytes())
+	var got domain.RoleWithPermissions
+	require.NoError(t, json.Unmarshal(data, &got))
+	assert.Len(t, got.Permissions, 0)
+}
+
+func TestGetRoleDetail_MissingTenantHeader(t *testing.T) {
+	roleID := uuid.New()
+	h := newTestHandlers(&mockStore{})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/roles/"+roleID.String(), nil)
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.GetRoleDetail(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGetRoleDetail_InvalidRoleID(t *testing.T) {
+	tenantID := uuid.New()
+	h := newTestHandlers(&mockStore{})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/roles/not-a-uuid", nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": "not-a-uuid"})
+
+	h.GetRoleDetail(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGetRoleDetail_NotFound(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, _, _ uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			return nil, nil, fmt.Errorf("not found")
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/roles/"+roleID.String(), nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.GetRoleDetail(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+// ---------- UpdateRolePermissions ----------
+
+func TestUpdateRolePermissions_Success(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	perm1 := uuid.New()
+	perm2 := uuid.New()
+	role := &domain.Role{ID: roleID, TenantID: tenantID, Name: "custom_role", IsSystem: false, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+
+	var capturedIDs []uuid.UUID
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, _, _ uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			return role, []domain.Permission{}, nil
+		},
+		updateRolePermissionsFn: func(_ context.Context, tid, rid uuid.UUID, pids []uuid.UUID) error {
+			assert.Equal(t, tenantID, tid)
+			assert.Equal(t, roleID, rid)
+			capturedIDs = pids
+			return nil
+		},
+	}
+	h := newTestHandlers(ms)
+
+	body := fmt.Sprintf(`{"permission_ids":["%s","%s"]}`, perm1, perm2)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/v1/roles/"+roleID.String()+"/permissions", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.UpdateRolePermissions(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Len(t, capturedIDs, 2)
+	data := parseSuccessResp(t, rec.Body.Bytes())
+	var m map[string]string
+	require.NoError(t, json.Unmarshal(data, &m))
+	assert.Equal(t, "permissions_updated", m["status"])
+}
+
+func TestUpdateRolePermissions_SystemRoleForbidden(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	role := &domain.Role{ID: roleID, TenantID: tenantID, Name: "admin", IsSystem: true, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, _, _ uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			return role, []domain.Permission{}, nil
+		},
+	}
+	h := newTestHandlers(ms)
+
+	body := `{"permission_ids":["` + uuid.New().String() + `"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/v1/roles/"+roleID.String()+"/permissions", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.UpdateRolePermissions(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestUpdateRolePermissions_MissingTenantHeader(t *testing.T) {
+	roleID := uuid.New()
+	h := newTestHandlers(&mockStore{})
+	body := `{"permission_ids":["` + uuid.New().String() + `"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/v1/roles/"+roleID.String()+"/permissions", bytes.NewBufferString(body))
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.UpdateRolePermissions(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestUpdateRolePermissions_InvalidRoleID(t *testing.T) {
+	tenantID := uuid.New()
+	h := newTestHandlers(&mockStore{})
+	body := `{"permission_ids":["` + uuid.New().String() + `"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/v1/roles/not-a-uuid/permissions", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": "not-a-uuid"})
+
+	h.UpdateRolePermissions(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestUpdateRolePermissions_RoleNotFound(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, _, _ uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			return nil, nil, fmt.Errorf("not found")
+		},
+	}
+	h := newTestHandlers(ms)
+	body := `{"permission_ids":["` + uuid.New().String() + `"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/v1/roles/"+roleID.String()+"/permissions", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.UpdateRolePermissions(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestUpdateRolePermissions_InvalidBody(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	role := &domain.Role{ID: roleID, TenantID: tenantID, Name: "custom", IsSystem: false, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, _, _ uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			return role, []domain.Permission{}, nil
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/v1/roles/"+roleID.String()+"/permissions", bytes.NewBufferString("{bad"))
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.UpdateRolePermissions(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestUpdateRolePermissions_StoreError(t *testing.T) {
+	tenantID := uuid.New()
+	roleID := uuid.New()
+	role := &domain.Role{ID: roleID, TenantID: tenantID, Name: "custom", IsSystem: false, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	ms := &mockStore{
+		getRoleWithPermissionsFn: func(_ context.Context, _, _ uuid.UUID) (*domain.Role, []domain.Permission, error) {
+			return role, []domain.Permission{}, nil
+		},
+		updateRolePermissionsFn: func(_ context.Context, _, _ uuid.UUID, _ []uuid.UUID) error {
+			return fmt.Errorf("db error")
+		},
+	}
+	h := newTestHandlers(ms)
+	body := `{"permission_ids":["` + uuid.New().String() + `"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/v1/roles/"+roleID.String()+"/permissions", bytes.NewBufferString(body))
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"roleID": roleID.String()})
+
+	h.UpdateRolePermissions(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+// ---------- GetUserRoles ----------
+
+func TestGetUserRoles_Success(t *testing.T) {
+	tenantID := uuid.New()
+	userID := uuid.New()
+	roles := []domain.Role{
+		{ID: uuid.New(), TenantID: tenantID, Name: "admin", DisplayName: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: uuid.New(), TenantID: tenantID, Name: "auditor", DisplayName: "Auditor", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}
+	ms := &mockStore{
+		getUserRolesFn: func(_ context.Context, tid, uid uuid.UUID) ([]domain.Role, error) {
+			assert.Equal(t, tenantID, tid)
+			assert.Equal(t, userID, uid)
+			return roles, nil
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/"+userID.String()+"/roles", nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"userID": userID.String()})
+
+	h.GetUserRoles(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	data := parseSuccessResp(t, rec.Body.Bytes())
+	var got map[string][]domain.Role
+	require.NoError(t, json.Unmarshal(data, &got))
+	assert.Len(t, got["roles"], 2)
+}
+
+func TestGetUserRoles_EmptyList(t *testing.T) {
+	tenantID := uuid.New()
+	userID := uuid.New()
+	ms := &mockStore{
+		getUserRolesFn: func(_ context.Context, _, _ uuid.UUID) ([]domain.Role, error) {
+			return nil, nil
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/"+userID.String()+"/roles", nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"userID": userID.String()})
+
+	h.GetUserRoles(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	data := parseSuccessResp(t, rec.Body.Bytes())
+	var got map[string][]domain.Role
+	require.NoError(t, json.Unmarshal(data, &got))
+	assert.Len(t, got["roles"], 0)
+}
+
+func TestGetUserRoles_MissingTenantHeader(t *testing.T) {
+	userID := uuid.New()
+	h := newTestHandlers(&mockStore{})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/"+userID.String()+"/roles", nil)
+	req = withChiURLParams(req, map[string]string{"userID": userID.String()})
+
+	h.GetUserRoles(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGetUserRoles_InvalidUserID(t *testing.T) {
+	tenantID := uuid.New()
+	h := newTestHandlers(&mockStore{})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/not-a-uuid/roles", nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"userID": "not-a-uuid"})
+
+	h.GetUserRoles(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGetUserRoles_StoreError(t *testing.T) {
+	tenantID := uuid.New()
+	userID := uuid.New()
+	ms := &mockStore{
+		getUserRolesFn: func(_ context.Context, _, _ uuid.UUID) ([]domain.Role, error) {
+			return nil, fmt.Errorf("db error")
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/"+userID.String()+"/roles", nil)
+	req.Header.Set("X-Tenant-Id", tenantID.String())
+	req = withChiURLParams(req, map[string]string{"userID": userID.String()})
+
+	h.GetUserRoles(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+// ---------- SeedRoles ----------
+
+func TestSeedRoles_Success(t *testing.T) {
+	tenantID := uuid.New()
+	ms := &mockStore{
+		seedTenantFromTemplatesFn: func(_ context.Context, tid uuid.UUID) error {
+			assert.Equal(t, tenantID, tid)
+			return nil
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/tenants/"+tenantID.String()+"/seed-roles", nil)
+	req = withChiURLParams(req, map[string]string{"tenantID": tenantID.String()})
+
+	h.SeedRoles(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	data := parseSuccessResp(t, rec.Body.Bytes())
+	var m map[string]string
+	require.NoError(t, json.Unmarshal(data, &m))
+	assert.Equal(t, "seeded", m["status"])
+}
+
+func TestSeedRoles_AlreadySeeded(t *testing.T) {
+	tenantID := uuid.New()
+	ms := &mockStore{
+		seedTenantFromTemplatesFn: func(_ context.Context, _ uuid.UUID) error {
+			return fmt.Errorf("tenant already seeded")
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/tenants/"+tenantID.String()+"/seed-roles", nil)
+	req = withChiURLParams(req, map[string]string{"tenantID": tenantID.String()})
+
+	h.SeedRoles(rec, req)
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+}
+
+func TestSeedRoles_InvalidTenantID(t *testing.T) {
+	h := newTestHandlers(&mockStore{})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/tenants/not-a-uuid/seed-roles", nil)
+	req = withChiURLParams(req, map[string]string{"tenantID": "not-a-uuid"})
+
+	h.SeedRoles(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestSeedRoles_StoreError(t *testing.T) {
+	tenantID := uuid.New()
+	ms := &mockStore{
+		seedTenantFromTemplatesFn: func(_ context.Context, _ uuid.UUID) error {
+			return fmt.Errorf("db error")
+		},
+	}
+	h := newTestHandlers(ms)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/tenants/"+tenantID.String()+"/seed-roles", nil)
+	req = withChiURLParams(req, map[string]string{"tenantID": tenantID.String()})
+
+	h.SeedRoles(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }

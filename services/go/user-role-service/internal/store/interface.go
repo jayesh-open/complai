@@ -25,6 +25,10 @@ type Repository interface {
 	GetApproval(ctx context.Context, tenantID, approvalID uuid.UUID) (*domain.ApprovalWorkflow, error)
 	DecideApproval(ctx context.Context, tenantID, approvalID, decidedBy uuid.UUID, decision string, reason *string) error
 	ListPendingApprovals(ctx context.Context, tenantID uuid.UUID) ([]domain.ApprovalWorkflow, error)
+	GetRoleWithPermissions(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.Role, []domain.Permission, error)
+	UpdateRolePermissions(ctx context.Context, tenantID, roleID uuid.UUID, permissionIDs []uuid.UUID) error
+	GetUserRoles(ctx context.Context, tenantID, userID uuid.UUID) ([]domain.Role, error)
+	SeedTenantFromTemplates(ctx context.Context, tenantID uuid.UUID) error
 }
 
 // Compile-time check: *Store implements Repository.

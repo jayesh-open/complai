@@ -15,7 +15,7 @@ Part 9 — TDS module complete. ITA 2025, 4-digit payment codes, Form 138/140/14
 - [x] Part 2: Identity + Tenant + User/Role services + auth
   - [x] identity-service: Keycloak OIDC login/refresh/logout, JWT with tenant_id claim, MFA enrollment, step-up auth (5-min window)
   - [x] tenant-service: CRUD + PAN/GSTIN/TAN hierarchy, per-tenant KMS CMK via LocalStack, suspend/reactivate
-  - [x] user-role-service: RBAC (roles, permissions, policy check), maker-checker approval workflow (self-approval denied), role templates
+  - [x] user-role-service: RBAC (roles, permissions, policy check), maker-checker approval workflow (self-approval denied), role templates, tenant onboarding (seed-roles from 7 system templates), role-detail + update-permissions + get-user-roles endpoints, system-role protection (403 on PUT), 002_seed_role_templates migration (12 resources × 31 admin perms)
   - [x] Postgres RLS enforced on all 3 databases (complai_app role, SET LOCAL app.tenant_id)
   - [x] seed-dev.sh: 3 tenants, 15 users, 15 roles, 55 permissions, 15 Keycloak users with tenant_id attribute
   - [x] Dockerfiles for all 3 services

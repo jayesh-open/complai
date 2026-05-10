@@ -335,6 +335,171 @@ func (s *Store) DecideApproval(ctx context.Context, tenantID, approvalID, decide
 	return tx.Commit(ctx)
 }
 
+func (s *Store) GetRoleWithPermissions(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.Role, []domain.Permission, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return nil, nil, fmt.Errorf("set tenant: %w", err)
+	}
+
+	var r domain.Role
+	err = tx.QueryRow(ctx,
+		`SELECT id, tenant_id, name, display_name, description, is_system, created_at, updated_at
+		 FROM roles WHERE id = $1`, roleID,
+	).Scan(&r.ID, &r.TenantID, &r.Name, &r.DisplayName, &r.Description, &r.IsSystem, &r.CreatedAt, &r.UpdatedAt)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get role: %w", err)
+	}
+
+	rows, err := tx.Query(ctx,
+		`SELECT p.id, p.tenant_id, p.resource, p.action, p.description, p.created_at
+		 FROM permissions p
+		 JOIN role_permissions rp ON p.id = rp.permission_id
+		 WHERE rp.role_id = $1
+		 ORDER BY p.resource, p.action`, roleID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("list role permissions: %w", err)
+	}
+	defer rows.Close()
+
+	var perms []domain.Permission
+	for rows.Next() {
+		var p domain.Permission
+		if err := rows.Scan(&p.ID, &p.TenantID, &p.Resource, &p.Action, &p.Description, &p.CreatedAt); err != nil {
+			return nil, nil, fmt.Errorf("scan permission: %w", err)
+		}
+		perms = append(perms, p)
+	}
+	return &r, perms, tx.Commit(ctx)
+}
+
+func (s *Store) UpdateRolePermissions(ctx context.Context, tenantID, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return fmt.Errorf("set tenant: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM role_permissions WHERE role_id = $1`, roleID)
+	if err != nil {
+		return fmt.Errorf("delete old permissions: %w", err)
+	}
+
+	for _, pid := range permissionIDs {
+		_, err = tx.Exec(ctx,
+			`INSERT INTO role_permissions (tenant_id, role_id, permission_id)
+			 VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+			tenantID, roleID, pid)
+		if err != nil {
+			return fmt.Errorf("insert permission: %w", err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *Store) GetUserRoles(ctx context.Context, tenantID, userID uuid.UUID) ([]domain.Role, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return nil, fmt.Errorf("set tenant: %w", err)
+	}
+
+	rows, err := tx.Query(ctx,
+		`SELECT r.id, r.tenant_id, r.name, r.display_name, r.description, r.is_system, r.created_at, r.updated_at
+		 FROM roles r
+		 JOIN user_roles ur ON r.id = ur.role_id
+		 WHERE ur.user_id = $1
+		 ORDER BY r.name`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user roles: %w", err)
+	}
+	defer rows.Close()
+
+	var roles []domain.Role
+	for rows.Next() {
+		var r domain.Role
+		if err := rows.Scan(&r.ID, &r.TenantID, &r.Name, &r.DisplayName, &r.Description, &r.IsSystem, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan role: %w", err)
+		}
+		roles = append(roles, r)
+	}
+	return roles, tx.Commit(ctx)
+}
+
+func (s *Store) SeedTenantFromTemplates(ctx context.Context, tenantID uuid.UUID) error {
+	templates, err := s.GetRoleTemplates(ctx)
+	if err != nil {
+		return fmt.Errorf("get templates: %w", err)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := setTenantID(ctx, tx, tenantID); err != nil {
+		return fmt.Errorf("set tenant: %w", err)
+	}
+
+	var existingCount int
+	err = tx.QueryRow(ctx, `SELECT count(*) FROM roles WHERE is_system = true`).Scan(&existingCount)
+	if err != nil {
+		return fmt.Errorf("check existing: %w", err)
+	}
+	if existingCount > 0 {
+		return fmt.Errorf("tenant already seeded")
+	}
+
+	for _, tmpl := range templates {
+		var roleID uuid.UUID
+		err = tx.QueryRow(ctx,
+			`INSERT INTO roles (tenant_id, name, display_name, description, is_system)
+			 VALUES ($1, $2, $3, $4, true) RETURNING id`,
+			tenantID, tmpl.Name, tmpl.DisplayName, tmpl.Description,
+		).Scan(&roleID)
+		if err != nil {
+			return fmt.Errorf("insert role %s: %w", tmpl.Name, err)
+		}
+
+		for _, pp := range tmpl.Permissions {
+			var permID uuid.UUID
+			err = tx.QueryRow(ctx,
+				`INSERT INTO permissions (tenant_id, resource, action)
+				 VALUES ($1, $2, $3)
+				 ON CONFLICT (tenant_id, resource, action) DO UPDATE SET resource = EXCLUDED.resource
+				 RETURNING id`,
+				tenantID, pp.Resource, pp.Action,
+			).Scan(&permID)
+			if err != nil {
+				return fmt.Errorf("upsert permission %s:%s: %w", pp.Resource, pp.Action, err)
+			}
+
+			_, err = tx.Exec(ctx,
+				`INSERT INTO role_permissions (tenant_id, role_id, permission_id)
+				 VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+				tenantID, roleID, permID)
+			if err != nil {
+				return fmt.Errorf("link role-permission: %w", err)
+			}
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
 func (s *Store) ListPendingApprovals(ctx context.Context, tenantID uuid.UUID) ([]domain.ApprovalWorkflow, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

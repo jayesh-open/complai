@@ -248,6 +248,108 @@ func (h *Handlers) ListApprovals(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, approvals)
 }
 
+func (h *Handlers) GetRoleDetail(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantIDFromRequest(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	roleID, err := uuid.Parse(r.PathValue("roleID"))
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid role_id"})
+		return
+	}
+
+	role, perms, err := h.store.GetRoleWithPermissions(r.Context(), tenantID, roleID)
+	if err != nil {
+		httputil.JSON(w, http.StatusNotFound, map[string]string{"error": "role not found"})
+		return
+	}
+	if perms == nil {
+		perms = []domain.Permission{}
+	}
+	httputil.JSON(w, http.StatusOK, domain.RoleWithPermissions{Role: *role, Permissions: perms})
+}
+
+func (h *Handlers) UpdateRolePermissions(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantIDFromRequest(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	roleID, err := uuid.Parse(r.PathValue("roleID"))
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid role_id"})
+		return
+	}
+
+	role, _, err := h.store.GetRoleWithPermissions(r.Context(), tenantID, roleID)
+	if err != nil {
+		httputil.JSON(w, http.StatusNotFound, map[string]string{"error": "role not found"})
+		return
+	}
+	if role.IsSystem {
+		httputil.JSON(w, http.StatusForbidden, map[string]string{"error": "cannot modify system role permissions"})
+		return
+	}
+
+	var req domain.UpdateRolePermissionsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return
+	}
+
+	if err := h.store.UpdateRolePermissions(r.Context(), tenantID, roleID, req.PermissionIDs); err != nil {
+		log.Error().Err(err).Msg("update role permissions failed")
+		httputil.JSON(w, http.StatusInternalServerError, map[string]string{"error": "update failed"})
+		return
+	}
+	httputil.JSON(w, http.StatusOK, map[string]string{"status": "permissions_updated"})
+}
+
+func (h *Handlers) GetUserRoles(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantIDFromRequest(r)
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	userID, err := uuid.Parse(r.PathValue("userID"))
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
+		return
+	}
+
+	roles, err := h.store.GetUserRoles(r.Context(), tenantID, userID)
+	if err != nil {
+		log.Error().Err(err).Msg("get user roles failed")
+		httputil.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	if roles == nil {
+		roles = []domain.Role{}
+	}
+	httputil.JSON(w, http.StatusOK, map[string]interface{}{"roles": roles})
+}
+
+func (h *Handlers) SeedRoles(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := uuid.Parse(r.PathValue("tenantID"))
+	if err != nil {
+		httputil.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid tenant_id"})
+		return
+	}
+
+	if err := h.store.SeedTenantFromTemplates(r.Context(), tenantID); err != nil {
+		if err.Error() == "tenant already seeded" {
+			httputil.JSON(w, http.StatusConflict, map[string]string{"error": "tenant already seeded"})
+			return
+		}
+		log.Error().Err(err).Msg("seed roles failed")
+		httputil.JSON(w, http.StatusInternalServerError, map[string]string{"error": "seed failed"})
+		return
+	}
+	httputil.JSON(w, http.StatusOK, map[string]string{"status": "seeded"})
+}
+
 func (h *Handlers) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	templates, err := h.store.GetRoleTemplates(r.Context())
 	if err != nil {

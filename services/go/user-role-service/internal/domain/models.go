@@ -106,3 +106,12 @@ type DecideApprovalRequest struct {
 	Decision string  `json:"decision" validate:"required,oneof=approved rejected"`
 	Reason   *string `json:"reason"`
 }
+
+type UpdateRolePermissionsRequest struct {
+	PermissionIDs []uuid.UUID `json:"permission_ids" validate:"required"`
+}
+
+type RoleWithPermissions struct {
+	Role        Role         `json:"role"`
+	Permissions []Permission `json:"permissions"`
+}

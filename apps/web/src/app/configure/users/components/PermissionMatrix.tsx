@@ -75,7 +75,7 @@ export function PermissionMatrix({ permissions, isSystemRole, onChange, disabled
   const isDisabled = isSystemRole || !!disabled;
 
   return (
-    <div className="bg-[var(--bg-secondary)] rounded-[14px] border border-[var(--border-default)] overflow-hidden">
+    <div className="bg-[var(--bg-secondary)] rounded-[14px] border border-[var(--border-default)] overflow-hidden" data-testid="permission-matrix">
       <table className="w-full">
         <thead>
           <tr className="border-b border-[var(--border-default)]">
@@ -94,6 +94,7 @@ export function PermissionMatrix({ permissions, isSystemRole, onChange, disabled
             return (
               <tr
                 key={mod}
+                data-testid={`module-row-${mod}`}
                 className="border-b border-[var(--border-default)] last:border-b-0 hover:bg-[var(--bg-tertiary)] transition-colors"
               >
                 <td className="px-4 py-2.5">

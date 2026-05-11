@@ -81,6 +81,7 @@ export function ViewAsDropdown() {
           {nonAdminRoles.map((role) => (
             <button
               key={role.id}
+              data-testid={`view-as-role-${role.name}`}
               onClick={() => handleSelect(role)}
               className={cn(
                 "w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--bg-tertiary)]",

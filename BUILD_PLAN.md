@@ -610,3 +610,25 @@ After 10d-1, we clarified the rule for which components must have Storybook stor
 Rationale: stories enforce a design system standard. Route-internal scaffolding doesn't benefit from that standard and adds friction without adding value.
 
 Going forward, Claude Code should default to creating stories for components in the `components/` subdirectory adjacent to module root, but may skip stories for components in route-specific subdirectories.
+
+### Users & Roles feature (completed May 2026)
+
+Full tenant-facing RBAC UI with 7 system roles, 12-module permission matrix, and Admin "View As" impersonation.
+
+**Sub-part history:**
+- Sub-part-A (e878076): Sidebar cleanup — restructure Configure section
+- Sub-part-B (2b83e57): user-role-service — seed templates + 4 endpoints
+- Cleanup (6942ae9): Dev seed aligned with production templates (kebab → snake)
+- Sub-part-C (97c788c): BFF users module — identity + role aggregation (10 endpoints, 157 tests)
+- Sub-part-D-1 (5038563): Users list page — table, add user modal, detail panel
+- Sub-part-D-2 (cd0b2e6): Roles list page — table, add custom role modal, role type badge
+- Sub-part-D-3 (2801888): Role detail + permission matrix UI
+- Sub-part-E (ccce48a): View As feature — admin role impersonation with hard route guard
+- Sub-part-F (this commit): Full verification — 6 Playwright E2E tests, docs update
+
+#### Users & Roles follow-ups (→ Part 14)
+- [ ] JWT verification middleware at BFF (currently no auth enforcement at BFF layer)
+- [ ] Keycloak federation for user identity (currently identity-service has its own user store)
+- [ ] N+1 query optimization in users aggregator (current implementation does Promise.all parallel lookup per user)
+- [ ] Automated service account provisioning with consent flow (deferred until 5+ tenants)
+- [ ] Per-button disabled state across all module pages reflecting effective role permissions (currently only sidebar + route guard enforce View As; in-page actions still appear interactive)

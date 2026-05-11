@@ -135,6 +135,8 @@ GST Returns (GSTR-1, GSTR-3B, GSTR-2B/IMS), E-Invoicing, E-Way Bill, ITC Reconci
 
 **GSTR-9 + 9C:** Self-certified per Notification 15/2025-Central Tax (turnover ≤₹5 Cr). CA audit path (Part III) deferred to Part 14 — current GSTR-9C uses self-certification with typed consent + DSC.
 
+**Users & Roles (added May 2026):** Tenant-facing RBAC with 7 system role templates (admin, tax_manager, ap_manager, ap_executive, ar_manager, ar_executive, auditor), each with locked permission matrix across 12 modules. Backend: identity-service owns user identity, user-role-service owns roles+permissions+assignments. BFF aggregates via /api/v1/users and /api/v1/roles. Frontend: users list, roles list, role detail with interactive permission matrix (eye/pencil/upload icon style per action), Admin "View As" impersonation with hard route guard + sidebar filtering. ITA 2025 / GST module action sets locked per matrix. 6 Playwright E2E tests (users-roles-flow.spec.ts).
+
 **Adaequare auth:** Real Adaequare credential exchange (SEK decryption, session token rotation) not yet wired. Mock provider stubs in place. Real integration deferred until sandbox credentials obtained.
 
 ## Credentials / blockers needed

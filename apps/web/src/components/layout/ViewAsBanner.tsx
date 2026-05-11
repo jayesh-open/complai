@@ -21,6 +21,7 @@ export function ViewAsBanner() {
       </div>
       <button
         onClick={exitViewAs}
+        data-testid="exit-view-as"
         className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium border border-[var(--warning)]/40 text-[var(--warning)] hover:bg-[var(--warning)]/10 transition-colors"
       >
         <X className="w-3 h-3" />

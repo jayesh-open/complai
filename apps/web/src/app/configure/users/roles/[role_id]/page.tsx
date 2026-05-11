@@ -88,7 +88,7 @@ export default function RoleDetailPage() {
       </div>
 
       {role.is_system && (
-        <div className="flex items-start gap-2.5 px-4 py-3 mb-5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30">
+        <div data-testid="system-role-banner" className="flex items-start gap-2.5 px-4 py-3 mb-5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30">
           <Info className="w-4 h-4 text-[var(--warning)] mt-0.5 shrink-0" />
           <p className="text-xs text-[var(--text-primary)]">
             This is a system role. Permissions cannot be modified directly. Clone this role to create a customizable copy.
